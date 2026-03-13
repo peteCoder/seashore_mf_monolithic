@@ -397,6 +397,11 @@ if not DEBUG:
     CSRF_COOKIE_SECURE           = True
     CSRF_COOKIE_HTTPONLY         = True
     CSRF_COOKIE_SAMESITE         = 'Lax'
+    CSRF_TRUSTED_ORIGINS         = config(
+        "CSRF_TRUSTED_ORIGINS",
+        default="https://seashoremicro.com,https://www.seashoremicro.com",
+        cast=lambda v: [o.strip() for o in v.split(",") if o.strip()],
+    )
 
     # Deny framing entirely (clickjacking protection)
     X_FRAME_OPTIONS              = 'DENY'
