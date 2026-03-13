@@ -1,0 +1,224 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:savings_account_list' %}" class="hover:text-primary-600">Savings Accounts</a>
+            <span>/</span>
+            <span>Create Savings Account</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Open a new savings account for a client</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column: Form -->
+        <div class="lg:col-span-2">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <form method="post" id="savingsForm">
+                    {% csrf_token %}
+
+                    <!-- Client Selection -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.client.label }} <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.client }}
+                        {% if form.client.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.client.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Savings Product Selection -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.savings_product.label }} <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.savings_product }}
+                        {% if form.savings_product.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.savings_product.errors.0 }}</p>
+                        {% endif %}
+                        <!-- Product Details (shown when product is selected) -->
+                        <div id="productDetails" class="hidden mt-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                            <h4 class="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-2">
+                                <i class="fas fa-info-circle mr-1"></i>Product Details: <span id="productName"></span>
+                            </h4>
+                            <div class="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                                <p id="productDescription" class="italic"></p>
+                                <div class="grid grid-cols-2 gap-2 mt-2">
+                                    <p>Interest Rate: <strong id="productInterestRate"></strong></p>
+                                    <p>Type: <strong id="productType"></strong></p>
+                                    <p>Min Balance: <strong id="productMinBalance"></strong></p>
+                                    <p>Min Deposit: <strong id="productMinDeposit"></strong></p>
+                                    <p>Max Withdrawal: <strong id="productMaxWithdrawal"></strong></p>
+                                    <p>Withdrawal Fee: <strong id="productWithdrawalFee"></strong></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Branch -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.branch.label }} <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.branch }}
+                        {% if form.branch.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.branch.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.notes.label }}
+                        </label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.notes.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <a href="{% url 'core:savings_account_list' %}"
+                           class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            Cancel
+                        </a>
+                        <button type="submit"
+                                class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                            <i class="fas fa-save mr-2"></i>Create Savings Account
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Right Column: Product Information -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Product Information Card -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-info-circle text-primary-600 dark:text-primary-400 mr-2"></i>Product Information
+                </h3>
+                <div id="productInfo" class="hidden space-y-4">
+                    <div class="bg-primary-50 dark:bg-primary-900/20 rounded-lg p-4">
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Interest Rate</p>
+                        <p class="text-xl font-bold text-primary-600 dark:text-primary-400" id="infoInterestRate">-</p>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">Product Type</span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white" id="infoType">-</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">Minimum Balance</span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white" id="infoMinBalance">-</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">Minimum Deposit</span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white" id="infoMinDeposit">-</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">Maximum Withdrawal</span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white" id="infoMaxWithdrawal">-</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="productInfoPlaceholder" class="text-center py-8 text-gray-400 dark:text-gray-500">
+                    <i class="fas fa-piggy-bank text-4xl mb-2"></i>
+                    <p class="text-sm">Select a product to view details</p>
+                </div>
+            </div>
+
+            <!-- Information Notice -->
+            <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-info-circle text-blue-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700 dark:text-blue-300">
+                            After creating the savings account, it will be submitted for approval. Once approved,
+                            the client can start making deposits and withdrawals based on the product terms.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productSelect = document.getElementById('{{ form.savings_product.id_for_label }}');
+    let currentProductData = null;
+
+    // Function to format currency
+    function formatCurrency(amount) {
+        return `₦${parseFloat(amount).toLocaleString('en-NG', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
+
+    // Function to fetch and display product details
+    async function fetchProductDetails(productId) {
+        if (!productId) {
+            document.getElementById('productDetails').classList.add('hidden');
+            document.getElementById('productInfo').classList.add('hidden');
+            document.getElementById('productInfoPlaceholder').classList.remove('hidden');
+            currentProductData = null;
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/savings-product/${productId}/`);
+            if (!response.ok) {
+                console.error('Failed to fetch product details');
+                return;
+            }
+
+            const data = await response.json();
+            currentProductData = data;
+
+            // Update product details section
+            document.getElementById('productName').textContent = data.name;
+            document.getElementById('productDescription').textContent = data.description || 'No description available';
+            document.getElementById('productInterestRate').textContent = `${data.interest_rate}% per annum`;
+            document.getElementById('productType').textContent = data.product_type_display || data.product_type;
+            document.getElementById('productMinBalance').textContent = formatCurrency(data.minimum_balance || 0);
+            document.getElementById('productMinDeposit').textContent = formatCurrency(data.minimum_deposit || 0);
+            document.getElementById('productMaxWithdrawal').textContent = data.maximum_withdrawal ? formatCurrency(data.maximum_withdrawal) : 'Unlimited';
+            document.getElementById('productWithdrawalFee').textContent = data.withdrawal_fee ? formatCurrency(data.withdrawal_fee) : 'None';
+
+            document.getElementById('productDetails').classList.remove('hidden');
+
+            // Update right sidebar
+            document.getElementById('infoInterestRate').textContent = `${data.interest_rate}% per annum`;
+            document.getElementById('infoType').textContent = data.product_type_display || data.product_type;
+            document.getElementById('infoMinBalance').textContent = formatCurrency(data.minimum_balance || 0);
+            document.getElementById('infoMinDeposit').textContent = formatCurrency(data.minimum_deposit || 0);
+            document.getElementById('infoMaxWithdrawal').textContent = data.maximum_withdrawal ? formatCurrency(data.maximum_withdrawal) : 'Unlimited';
+
+            document.getElementById('productInfo').classList.remove('hidden');
+            document.getElementById('productInfoPlaceholder').classList.add('hidden');
+
+        } catch (error) {
+            console.error('Error fetching product details:', error);
+        }
+    }
+
+    // Listen for product change
+    productSelect.addEventListener('change', function() {
+        fetchProductDetails(this.value);
+    });
+
+    // Fetch details if product already selected
+    if (productSelect.value) {
+        fetchProductDetails(productSelect.value);
+    }
+});
+</script>
+{% endblock %}

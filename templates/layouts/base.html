@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="en" x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }"
+      :class="{ 'dark': darkMode }"
+      x-init="$watch('darkMode', val => localStorage.setItem('darkMode', val))">
+<head>
+    <!--
+        Anti-flash script: runs synchronously BEFORE any CSS is applied.
+        Applies the 'dark' class immediately so the page never renders in
+        the wrong mode, eliminating the light→dark flash on navigation.
+    -->
+    <script>
+        (function() {
+            if (localStorage.getItem('darkMode') === 'true') {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Seashore Microfinance{% endblock %}</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+     <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#fef3e2',
+                            100: '#fde7c5',
+                            200: '#fbcf8b',
+                            300: '#f9b751',
+                            400: '#f7a028',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            700: '#b45309',
+                            800: '#92400e',
+                            900: '#78350f',
+                        },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <!-- Alpine.js plugins (must load before Alpine core) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+   
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+    </style>
+
+    <style>
+        /* ── Scale the entire UI down on desktop so it doesn't feel zoomed-in ── */
+        /* 14px base (vs browser default 16px) = 87.5% scale on all rem units    */
+        @media (min-width: 1024px) {
+            html { font-size: 14px; }
+        }
+
+        .main-wrapper {
+            min-height: 100vh;
+        }
+        @media (min-width: 1024px) {
+            .main-wrapper {
+                margin-left: 256px;   /* matches sidebar w-64 = 256px */
+            }
+        }
+        /* Responsive images */
+        .main-wrapper img:not([class*="w-"]):not([class*="h-"]) {
+            max-width: 100%;
+            height: auto;
+        }
+        /* Word-wrap only where it makes sense — not in badges/buttons */
+        .main-wrapper td,
+        .main-wrapper p {
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+        /* Status badge/pill text never breaks mid-word */
+        .main-wrapper span[class*="rounded-full"],
+        .main-wrapper span[class*="rounded-lg"] {
+            white-space: nowrap;
+        }
+        /* Filter grids: 2-up on tablet (sidebar eats 256px of the viewport) */
+        @media (min-width: 640px) and (max-width: 1023px) {
+            .main-wrapper [class*="md:grid-cols-4"] {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .main-wrapper [class*="md:grid-cols-3"] {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        /* ── Compact desktop sidebar ─────────────────────────────────────────── */
+        @media (min-width: 1024px) {
+            /* Slightly smaller font for all nav text */
+            aside nav {
+                font-size: 0.75rem;          /* 10.5px at 14px base — crisp & compact */
+            }
+            /* Tighter vertical padding on every link and button */
+            aside nav a,
+            aside nav button {
+                padding-top: 0.3125rem;      /* ~4.4px — tighter than py-2 */
+                padding-bottom: 0.3125rem;
+            }
+            /* Sub-menu items (indented) even more compact */
+            aside nav .ml-8 a {
+                font-size: 0.6875rem;        /* ~9.6px */
+                padding-top: 0.1875rem;
+                padding-bottom: 0.1875rem;
+            }
+            /* Reduce gap between sidebar sections */
+            aside nav > div {
+                margin-bottom: 0.625rem;     /* ~8.75px — replaces mb-6 (21px) */
+            }
+            /* Section label spacing */
+            aside nav h3 {
+                margin-bottom: 0.25rem;      /* replaces mb-2 */
+                font-size: 0.625rem;         /* very small uppercase label */
+            }
+        }
+
+        /* ── Compact page-header action buttons ── */
+        /* Targets the flex-wrap gap-3 button groups used on all detail pages */
+        @media (min-width: 1024px) {
+            .main-wrapper .flex.flex-wrap.items-center.gap-3 > a,
+            .main-wrapper .flex.flex-wrap.items-center.gap-3 > button,
+            .main-wrapper .flex.flex-wrap.items-center.gap-3 > form > button {
+                padding-top:    0.25rem  !important;   /* py-1 */
+                padding-bottom: 0.25rem  !important;
+                padding-left:   0.75rem  !important;   /* px-3 */
+                padding-right:  0.75rem  !important;
+                font-size:      0.75rem  !important;   /* text-xs */
+            }
+        }
+
+        /* ── Responsive tables: prevent header wrap + compact typography ── */
+
+        /* 1. Header cells never wrap — fixes the multi-line column-header bug */
+        .main-wrapper table thead th {
+            white-space: nowrap;
+        }
+
+        /* 2. Compact font + padding on desktop (overrides Tailwind px-6 py-4 / text-sm) */
+        @media (min-width: 1024px) {
+            .main-wrapper table thead th {
+                font-size:      0.6875rem !important;   /* ~9.6px — crisp label */
+                padding-top:    0.375rem  !important;   /* py-1.5 */
+                padding-bottom: 0.375rem  !important;
+                padding-left:   0.75rem   !important;   /* px-3 */
+                padding-right:  0.75rem   !important;
+            }
+            .main-wrapper table tbody td {
+                font-size:      0.75rem   !important;   /* text-xs */
+                padding-top:    0.5rem    !important;   /* py-2 */
+                padding-bottom: 0.5rem    !important;
+                padding-left:   0.75rem   !important;   /* px-3 */
+                padding-right:  0.75rem   !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 font-sans antialiased">
+    
+    {% if user.is_authenticated %}
+        <!-- Authenticated Layout -->
+        <div class="min-h-screen" x-data="{ mobileMenuOpen: false, profileDropdownOpen: false, loansExpanded: false, reportsExpanded: false, approvalsExpanded: false, systemExpanded: false, collectionsExpanded: false }">
+            
+            <!-- Desktop Sidebar - Fixed -->
+            <aside class="hidden lg:flex lg:flex-col lg:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 fixed left-0 top-0 bottom-0">
+                
+                <!-- Logo & Company Info -->
+                <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center space-x-3">
+                        <img src="https://res.cloudinary.com/degqttxsx/image/upload/v1772089780/seashore-logo_withoutbg_t8ambq.png" alt="Seashore Logo" class="w-10 h-10 object-contain flex-shrink-0">
+                        <div>
+                            <h1 class="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wide">Seashore Finance</h1>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">ID - A240530</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="flex-1 px-3 py-3 overflow-y-auto">
+                    
+                    <!-- OVERVIEW Section - All Roles -->
+                    <div class="mb-6">
+                        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Overview</h3>
+                        <div class="space-y-1">
+                            <a href="{% url 'core:dashboard' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name == 'dashboard_alt' %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-th-large w-5 mr-3 text-base"></i>
+                                <span>Dashboard</span>
+                            </a>
+
+                            <a href="{% url 'core:notification_list' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if 'notification' in request.resolver_match.url_name %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-bell w-5 mr-3 text-base"></i>
+                                <span>Notifications</span>
+                                {% if unread_notification_count > 0 %}
+                                <span class="ml-auto bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">{{ unread_notification_count }}</span>
+                                {% endif %}
+                            </a>
+
+
+                        </div>
+                    </div>
+                    <!-- APPROVALS & REQUESTS - Manager, Director, Admin Only -->
+                    {% if user.user_role == 'manager' or user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+                    <div class="mb-6">
+                        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Approvals & Requests</h3>
+                        <div class="space-y-1">
+                            <div>
+                                <button @click="approvalsExpanded = !approvalsExpanded"
+                                        class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-clipboard-check w-5 mr-3 text-base"></i>
+                                        <span>Approvals</span>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-xs transition-transform" :class="{ 'rotate-90': approvalsExpanded }"></i>
+                                </button>
+                                <div x-show="approvalsExpanded" x-collapse class="ml-8 mt-1 space-y-1">
+                                    <a href="{% url 'core:client_list' %}?approval_status=pending" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Clients</a>
+                                    <a href="{% url 'core:loan_list' %}?status=pending" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Loans</a>
+                                    <a href="{% url 'core:loan_repayment_list' %}?status=pending" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Repayments</a>
+                                    <a href="{% url 'core:savings_account_list' %}?status=pending" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Savings Accounts</a>
+                                    <a href="{% url 'core:savings_transaction_list' %}?status=pending" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Savings Transactions</a>
+                                    {% if user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+                                    <a href="{% url 'core:user_list' %}?status=pending" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Staff Approvals</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- CLIENT MANAGEMENT - All Roles -->
+                    <div class="mb-6">
+                        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Client Management</h3>
+                        <div class="space-y-1">
+                            <a href="{% url 'core:client_list' %}" 
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if 'client' in request.resolver_match.url_name %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-users w-5 mr-3 text-base"></i>
+                                <span>Clients</span>
+                            </a>
+                            
+                            <!-- Groups - Manager, Director, Admin Only -->
+                            {% if user.user_role == 'manager' or user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+                            <a href="{% url 'core:group_list' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if 'group' in request.resolver_match.url_name %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-layer-group w-5 mr-3 text-base"></i>
+                                <span>Groups</span>
+                            </a>
+
+                            <a href="{% url 'core:assignment_list' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if 'assignment' in request.resolver_match.url_name %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-random w-5 mr-3 text-base"></i>
+                                <span>Assignment Requests</span>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- LOAN MANAGEMENT - All Roles -->
+                    <div class="mb-6">
+                        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Loan Management</h3>
+                        <div class="space-y-1">
+                            <div>
+                                <button @click="loansExpanded = !loansExpanded"
+                                        class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-coins w-5 mr-3 text-base"></i>
+                                        <span>Loans</span>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-xs transition-transform" :class="{ 'rotate-90': loansExpanded }"></i>
+                                </button>
+                                <div x-show="loansExpanded" x-collapse class="ml-8 mt-1 space-y-1">
+                                    <a href="{% url 'core:loan_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">All Loans</a>
+                                    <a href="{% url 'core:loan_create' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">New Application</a>
+                                    <a href="{% url 'core:loan_repayment_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Repayments</a>
+                                    {% if user.user_role == 'manager' or user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+                                    <a href="{% url 'core:restructure_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Restructure Requests</a>
+                                    <a href="{% url 'core:insurance_claim_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Insurance Claims</a>
+                                    {% endif %}
+                                    {% if user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+                                    <a href="{% url 'core:loan_product_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Loan Products</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FIELD OPERATIONS - All Staff -->
+                    <div class="mb-6">
+                        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Field Operations</h3>
+                        <div class="space-y-1">
+                            <a href="{% url 'core:followup_list' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if 'followup' in request.resolver_match.url_name %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-tasks w-5 mr-3 text-base"></i>
+                                <span>Follow-up Tasks</span>
+                            </a>
+
+                            <a href="{% url 'core:payment_promise_list' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if 'promise' in request.resolver_match.url_name %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-handshake w-5 mr-3 text-base"></i>
+                                <span>Payment Promises</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- SAVINGS MANAGEMENT - All Roles -->
+                    <div class="mb-6">
+                        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Savings Management</h3>
+                        <div class="space-y-1">
+                            <a href="{% url 'core:savings_account_list' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if 'savings_account' in request.resolver_match.url_name %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-piggy-bank w-5 mr-3 text-base"></i>
+                                <span>Savings Accounts</span>
+                            </a>
+
+                            <a href="{% url 'core:savings_transaction_list' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if 'savings_transaction' in request.resolver_match.url_name or 'savings_deposit' in request.resolver_match.url_name or 'savings_withdrawal' in request.resolver_match.url_name %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-exchange-alt w-5 mr-3 text-base"></i>
+                                <span>Transactions</span>
+                            </a>
+
+                            {% if user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+                            <a href="{% url 'core:savings_product_list' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if 'savings_product' in request.resolver_match.url_name %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-boxes w-5 mr-3 text-base"></i>
+                                <span>Savings Products</span>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- COLLECTIONS MANAGEMENT - Staff, Manager, Director, Admin -->
+                    {% if user.user_role in 'staff,manager' %}
+                    <div class="mb-6">
+                        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Collections</h3>
+                        <div class="space-y-1">
+                            
+                            <!-- Group Collections - Staff & Manager -->
+                            {% if user.user_role in 'staff,manager' %}
+                            <div>
+                                <button @click="collectionsExpanded = !collectionsExpanded"
+                                        class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-hand-holding-usd w-5 mr-3 text-base"></i>
+                                        <span>Group Collections</span>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-xs transition-transform" :class="{ 'rotate-90': collectionsExpanded }"></i>
+                                </button>
+                                <div x-show="collectionsExpanded" x-collapse class="ml-8 mt-1 space-y-1">
+                                    <a href="{% url 'core:group_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Select Group</a>
+                                    <a href="{% url 'core:group_collection_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">All Sessions</a>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- ACCOUNTING & REPORTS - Manager, Director, Admin -->
+                    {% if user.user_role in 'manager,director,admin,hr' %}
+                    <div class="mb-6">
+                        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Accounting & Reports</h3>
+                        <div class="space-y-1">
+                            <a href="{% url 'core:accounting_dashboard' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if 'accounting_dashboard' in request.resolver_match.url_name %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-tachometer-alt w-5 mr-3 text-base"></i>
+                                <span>Accounting Dashboard</span>
+                            </a>
+
+                            <a href="{% url 'core:journal_entry_list' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if 'journal_entry' in request.resolver_match.url_name %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-book w-5 mr-3 text-base"></i>
+                                <span>Journal Entries</span>
+                            </a>
+
+                            <a href="{% url 'core:coa_list' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if 'coa' in request.resolver_match.url_name %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-sitemap w-5 mr-3 text-base"></i>
+                                <span>Chart of Accounts</span>
+                            </a>
+
+                            <a href="{% url 'core:reconciliation_list' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if 'reconciliation' in request.resolver_match.url_name %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-balance-scale w-5 mr-3 text-base"></i>
+                                <span>Reconciliation</span>
+                            </a>
+
+                            <a href="{% url 'core:transfer_list' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if 'transfer' in request.resolver_match.url_name %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-exchange-alt w-5 mr-3 text-base"></i>
+                                <span>Branch Transfers</span>
+                            </a>
+
+                            <!-- Financial Reports Submenu -->
+                            <div x-data="{ reportsExpanded: false }">
+                                <button @click="reportsExpanded = !reportsExpanded"
+                                        class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-chart-line w-5 mr-3 text-base"></i>
+                                        <span>Financial Reports</span>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-xs transition-transform" :class="{ 'rotate-90': reportsExpanded }"></i>
+                                </button>
+                                <div x-show="reportsExpanded" x-collapse class="ml-8 mt-1 space-y-1">
+                                    <a href="{% url 'core:report_trial_balance' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                                        Trial Balance
+                                    </a>
+                                    <a href="{% url 'core:report_profit_loss' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                                        Profit & Loss
+                                    </a>
+                                    <a href="{% url 'core:report_balance_sheet' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                                        Balance Sheet
+                                    </a>
+                                    <a href="{% url 'core:report_general_ledger' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                                        General Ledger
+                                    </a>
+                                    <a href="{% url 'core:report_cash_flow' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                                        Cash Flow
+                                    </a>
+                                    <a href="{% url 'core:report_par_aging' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                                        PAR Aging Report
+                                    </a>
+                                    <a href="{% url 'core:report_loan_officer_performance' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                                        Loan Officer Performance
+                                    </a>
+                                    <a href="{% url 'core:report_savings_maturity' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                                        Savings Maturity
+                                    </a>
+                                    {% if user.user_role in 'director,admin,hr' %}
+                                    <a href="{% url 'core:report_transaction_audit' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                                        Transaction Audit
+                                    </a>
+                                    <a href="{% url 'core:audit_log' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                                        System Audit Log
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- DATA MANAGEMENT - Manager and above -->
+                    {% if user.user_role in 'manager,director,admin,hr' %}
+                    <div class="mb-6">
+                        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Data Management</h3>
+                        <div class="space-y-1">
+                            <a href="{% url 'core:import_clients' %}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                                <i class="fas fa-file-import w-5 mr-3 text-base"></i>Import Clients
+                            </a>
+                            <a href="{% url 'core:import_loans' %}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                                <i class="fas fa-file-import w-5 mr-3 text-base"></i>Import Loans
+                            </a>
+                            <a href="{% url 'core:import_savings' %}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                                <i class="fas fa-file-import w-5 mr-3 text-base"></i>Import Savings
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- SYSTEM MANAGEMENT - Director & Admin Only -->
+                    {% if user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+                    <div class="mb-6">
+                        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">System Management</h3>
+                        <div class="space-y-1">
+                            <div>
+                                <button @click="systemExpanded = !systemExpanded"
+                                        class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-cog w-5 mr-3 text-base"></i>
+                                        <span>System</span>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-xs transition-transform" :class="{ 'rotate-90': systemExpanded }"></i>
+                                </button>
+                                <div x-show="systemExpanded" x-collapse class="ml-8 mt-1 space-y-1">
+                                    <a href="{% url 'core:branch_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Branches</a>
+                                    <a href="{% url 'core:user_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Staff Management</a>
+                                    <a href="{% url 'core:user_profile' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Profile & Settings</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                </nav>
+                
+                <!-- Logout Button -->
+                <div class="p-3 border-t border-gray-200 dark:border-gray-700 space-y-1">
+                    <!-- 2FA Setup link -->
+                    <a href="{% url 'core:setup_2fa' %}"
+                       class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-all">
+                        <i class="fas fa-shield-alt mr-2 text-primary-500"></i>
+                        <span>
+                            {% if request.user.is_2fa_enabled %}
+                            2FA: <span class="text-green-600 dark:text-green-400 font-semibold">ON</span>
+                            {% else %}
+                            Enable 2FA
+                            {% endif %}
+                        </span>
+                    </a>
+                    <a href="{% url 'core:logout' %}"
+                       class="flex items-center justify-center px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">
+                        <i class="fas fa-sign-out-alt mr-2"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+
+            </aside>
+
+            <!-- Mobile Sidebar Overlay -->
+            <div x-show="mobileMenuOpen" 
+                 @click="mobileMenuOpen = false"
+                 x-transition:enter="transition-opacity ease-linear duration-300"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition-opacity ease-linear duration-300"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 class="fixed inset-0 bg-gray-900 bg-opacity-75 lg:hidden z-40"
+                 x-cloak></div>
+            
+            <!-- Mobile Sidebar Panel -->
+            <aside x-show="mobileMenuOpen"
+                   x-transition:enter="transition ease-in-out duration-300 transform"
+                   x-transition:enter-start="-translate-x-full"
+                   x-transition:enter-end="translate-x-0"
+                   x-transition:leave="transition ease-in-out duration-300 transform"
+                   x-transition:leave-start="translate-x-0"
+                   x-transition:leave-end="-translate-x-full"
+                   class="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 lg:hidden z-50 flex flex-col"
+                   x-cloak>
+                
+                <!-- Logo & Company Info -->
+                <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-gray-600 to-gray-800 dark:from-gray-500 dark:to-gray-700 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                            SF
+                        </div>
+                        <div>
+                            <h1 class="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide">Seashore Finance</h1>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">ID - A240530</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Mobile Navigation (Same as Desktop with @click close) -->
+                <!-- Mobile Navigation (Same as Desktop with @click close) -->
+<nav class="flex-1 px-4 py-4 overflow-y-auto">
+    
+    <!-- OVERVIEW Section - All Roles -->
+    <div class="mb-6">
+        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Overview</h3>
+        <div class="space-y-1">
+            <a href="{% url 'core:dashboard' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name == 'dashboard_alt' %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-th-large w-5 mr-3 text-base"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="{% url 'core:notification_list' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if 'notification' in request.resolver_match.url_name %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-bell w-5 mr-3 text-base"></i>
+                <span>Notifications</span>
+                {% if unread_notification_count > 0 %}
+                <span class="ml-auto bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">{{ unread_notification_count }}</span>
+                {% endif %}
+            </a>
+        </div>
+    </div>
+
+    <!-- APPROVALS & REQUESTS - Manager, Director, Admin Only -->
+    {% if user.user_role == 'manager' or user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+    <div class="mb-6">
+        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Approvals & Requests</h3>
+        <div class="space-y-1">
+            <div>
+                <button @click="approvalsExpanded = !approvalsExpanded"
+                        class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all">
+                    <div class="flex items-center">
+                        <i class="fas fa-clipboard-check w-5 mr-3 text-base"></i>
+                        <span>Approvals</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-xs transition-transform" :class="{ 'rotate-90': approvalsExpanded }"></i>
+                </button>
+                <div x-show="approvalsExpanded" x-collapse class="ml-8 mt-1 space-y-1">
+                    <a href="{% url 'core:client_list' %}?approval_status=pending" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Clients</a>
+                    <a href="{% url 'core:loan_list' %}?status=pending" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Loans</a>
+                    <a href="{% url 'core:loan_repayment_list' %}?status=pending" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Repayments</a>
+                    <a href="{% url 'core:savings_account_list' %}?status=pending" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Savings Accounts</a>
+                    <a href="{% url 'core:savings_transaction_list' %}?status=pending" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Savings Transactions</a>
+                    {% if user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+                    <a href="{% url 'core:user_list' %}?status=pending" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Staff Approvals</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- CLIENT MANAGEMENT - All Roles -->
+    <div class="mb-6">
+        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Client Management</h3>
+        <div class="space-y-1">
+            <a href="{% url 'core:client_list' %}" 
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if 'client' in request.resolver_match.url_name %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-users w-5 mr-3 text-base"></i>
+                <span>Clients</span>
+            </a>
+            
+            <!-- Groups - Manager, Director, Admin Only -->
+            {% if user.user_role == 'manager' or user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+            <a href="{% url 'core:group_list' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if 'group' in request.resolver_match.url_name %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-layer-group w-5 mr-3 text-base"></i>
+                <span>Groups</span>
+            </a>
+
+            <a href="{% url 'core:assignment_list' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if 'assignment' in request.resolver_match.url_name %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-random w-5 mr-3 text-base"></i>
+                <span>Assignment Requests</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- LOAN MANAGEMENT - All Roles -->
+    <div class="mb-6">
+        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Loan Management</h3>
+        <div class="space-y-1">
+            <div>
+                <button @click="loansExpanded = !loansExpanded"
+                        class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all">
+                    <div class="flex items-center">
+                        <i class="fas fa-coins w-5 mr-3 text-base"></i>
+                        <span>Loans</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-xs transition-transform" :class="{ 'rotate-90': loansExpanded }"></i>
+                </button>
+                <div x-show="loansExpanded" x-collapse class="ml-8 mt-1 space-y-1">
+                    <a href="{% url 'core:loan_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">All Loans</a>
+                    <a href="{% url 'core:loan_create' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">New Application</a>
+                    <a href="{% url 'core:loan_repayment_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Repayments</a>
+                    {% if user.user_role == 'manager' or user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+                    <a href="{% url 'core:restructure_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Restructure Requests</a>
+                    <a href="{% url 'core:insurance_claim_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Insurance Claims</a>
+                    {% endif %}
+                    {% if user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+                    <a href="{% url 'core:loan_product_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Loan Products</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIELD OPERATIONS - All Staff -->
+    <div class="mb-6">
+        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Field Operations</h3>
+        <div class="space-y-1">
+            <a href="{% url 'core:followup_list' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if 'followup' in request.resolver_match.url_name %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-tasks w-5 mr-3 text-base"></i>
+                <span>Follow-up Tasks</span>
+            </a>
+
+            <a href="{% url 'core:payment_promise_list' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if 'promise' in request.resolver_match.url_name %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-handshake w-5 mr-3 text-base"></i>
+                <span>Payment Promises</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- SAVINGS MANAGEMENT - All Roles -->
+    <div class="mb-6">
+        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Savings Management</h3>
+        <div class="space-y-1">
+            <a href="{% url 'core:savings_account_list' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if 'savings_account' in request.resolver_match.url_name %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-piggy-bank w-5 mr-3 text-base"></i>
+                <span>Savings Accounts</span>
+            </a>
+
+            <a href="{% url 'core:savings_transaction_list' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if 'savings_transaction' in request.resolver_match.url_name or 'savings_deposit' in request.resolver_match.url_name or 'savings_withdrawal' in request.resolver_match.url_name %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-exchange-alt w-5 mr-3 text-base"></i>
+                <span>Transactions</span>
+            </a>
+
+            {% if user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+            <a href="{% url 'core:savings_product_list' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if 'savings_product' in request.resolver_match.url_name %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-boxes w-5 mr-3 text-base"></i>
+                <span>Savings Products</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- COLLECTIONS MANAGEMENT - Staff, Manager, Director, Admin -->
+    {% if user.user_role in 'staff,manager' %}
+    <div class="mb-6">
+        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Collections</h3>
+        <div class="space-y-1">
+            
+            <!-- Group Collections - Staff & Manager -->
+            {% if user.user_role in 'staff,manager' %}
+            <div>
+                <button @click="collectionsExpanded = !collectionsExpanded"
+                        class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all">
+                    <div class="flex items-center">
+                        <i class="fas fa-hand-holding-usd w-5 mr-3 text-base"></i>
+                        <span>Group Collections</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-xs transition-transform" :class="{ 'rotate-90': collectionsExpanded }"></i>
+                </button>
+                <div x-show="collectionsExpanded" x-collapse class="ml-8 mt-1 space-y-1">
+                    <a href="{% url 'core:group_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Select Group</a>
+                    <a href="{% url 'core:group_collection_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">All Sessions</a>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ACCOUNTING & REPORTS - Manager, Director, Admin -->
+    {% if user.user_role in 'manager,director,admin,hr' %}
+    <div class="mb-6">
+        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Accounting & Reports</h3>
+        <div class="space-y-1">
+            <a href="{% url 'core:accounting_dashboard' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if 'accounting_dashboard' in request.resolver_match.url_name %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-tachometer-alt w-5 mr-3 text-base"></i>
+                <span>Accounting Dashboard</span>
+            </a>
+
+            <a href="{% url 'core:journal_entry_list' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if 'journal_entry' in request.resolver_match.url_name %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-book w-5 mr-3 text-base"></i>
+                <span>Journal Entries</span>
+            </a>
+
+            <a href="{% url 'core:coa_list' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if 'coa' in request.resolver_match.url_name %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-sitemap w-5 mr-3 text-base"></i>
+                <span>Chart of Accounts</span>
+            </a>
+
+            <a href="{% url 'core:reconciliation_list' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if 'reconciliation' in request.resolver_match.url_name %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-balance-scale w-5 mr-3 text-base"></i>
+                <span>Reconciliation</span>
+            </a>
+
+            <a href="{% url 'core:transfer_list' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if 'transfer' in request.resolver_match.url_name %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-exchange-alt w-5 mr-3 text-base"></i>
+                <span>Branch Transfers</span>
+            </a>
+
+            <!-- Financial Reports Submenu -->
+            <div x-data="{ reportsExpanded: false }">
+                <button @click="reportsExpanded = !reportsExpanded"
+                        class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                    <div class="flex items-center">
+                        <i class="fas fa-chart-line w-5 mr-3 text-base"></i>
+                        <span>Financial Reports</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-xs transition-transform" :class="{ 'rotate-90': reportsExpanded }"></i>
+                </button>
+                <div x-show="reportsExpanded" x-collapse class="ml-8 mt-1 space-y-1">
+                    <a href="{% url 'core:report_trial_balance' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        Trial Balance
+                    </a>
+                    <a href="{% url 'core:report_profit_loss' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        Profit & Loss
+                    </a>
+                    <a href="{% url 'core:report_balance_sheet' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        Balance Sheet
+                    </a>
+                    <a href="{% url 'core:report_general_ledger' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        General Ledger
+                    </a>
+                    <a href="{% url 'core:report_cash_flow' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        Cash Flow
+                    </a>
+                    <a href="{% url 'core:report_par_aging' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        PAR Aging Report
+                    </a>
+                    <a href="{% url 'core:report_loan_officer_performance' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        Loan Officer Performance
+                    </a>
+                    <a href="{% url 'core:report_savings_maturity' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        Savings Maturity
+                    </a>
+                    {% if user.user_role in 'director,admin,hr' %}
+                    <a href="{% url 'core:report_transaction_audit' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        Transaction Audit
+                    </a>
+                    <a href="{% url 'core:audit_log' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        System Audit Log
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- DATA MANAGEMENT - Manager and above (mobile) -->
+    {% if user.user_role in 'manager,director,admin,hr' %}
+    <div class="mb-4">
+        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Data Management</h3>
+        <div class="space-y-1">
+            <a href="{% url 'core:import_clients' %}" @click="mobileMenuOpen = false" class="flex items-center px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                <i class="fas fa-file-import w-5 mr-2"></i>Import Clients
+            </a>
+            <a href="{% url 'core:import_loans' %}" @click="mobileMenuOpen = false" class="flex items-center px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                <i class="fas fa-file-import w-5 mr-2"></i>Import Loans
+            </a>
+            <a href="{% url 'core:import_savings' %}" @click="mobileMenuOpen = false" class="flex items-center px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                <i class="fas fa-file-import w-5 mr-2"></i>Import Savings
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- SYSTEM MANAGEMENT - Director & Admin Only -->
+    {% if user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+    <div class="mb-6">
+        <h3 class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">System Management</h3>
+        <div class="space-y-1">
+            <div>
+                <button @click="systemExpanded = !systemExpanded"
+                        class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all">
+                    <div class="flex items-center">
+                        <i class="fas fa-cog w-5 mr-3 text-base"></i>
+                        <span>System</span>
+                    </div>
+                    <i class="fas fa-chevron-right text-xs transition-transform" :class="{ 'rotate-90': systemExpanded }"></i>
+                </button>
+                <div x-show="systemExpanded" x-collapse class="ml-8 mt-1 space-y-1">
+                    <a href="{% url 'core:branch_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Branches</a>
+                    <a href="{% url 'core:user_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Staff Management</a>
+                    <a href="{% url 'core:user_profile' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Profile & Settings</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+</nav>
+                
+                <!-- Logout Button -->
+                <div class="p-4 border-t border-gray-200 dark:border-gray-700 space-y-1">
+                    <a href="{% url 'core:setup_2fa' %}"
+                       class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-all">
+                        <i class="fas fa-shield-alt mr-2 text-primary-500"></i>
+                        <span>
+                            {% if request.user.is_2fa_enabled %}
+                            2FA: <span class="text-green-600 dark:text-green-400 font-semibold">ON</span>
+                            {% else %}
+                            Enable 2FA
+                            {% endif %}
+                        </span>
+                    </a>
+                    <a href="{% url 'core:logout' %}"
+                       class="flex items-center justify-center px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">
+                        <i class="fas fa-sign-out-alt mr-2"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+
+            </aside>
+            
+            <!-- Main Content -->
+            <div class="main-wrapper">
+                
+                <!-- Top Header -->
+                <header class="h-14 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
+                    <div class="h-full px-4 lg:px-6 flex items-center justify-between">
+
+                        <!-- Left: Menu + Title -->
+                        <div class="flex items-center space-x-3">
+                            <button @click="mobileMenuOpen = !mobileMenuOpen"
+                                    class="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <i class="fas fa-bars text-gray-600 dark:text-gray-400"></i>
+                            </button>
+                            <h2 class="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">
+                                {% block page_title %}Dashboard{% endblock %}
+                            </h2>
+                        </div>
+                        
+                        <!-- Right: Icons + Profile -->
+                        <div class="flex items-center space-x-3">
+                            
+                            <!-- Notifications Bell -->
+                            <div x-data="notificationBell()" x-init="init()" class="relative" @click.outside="open = false">
+                                <button @click="toggle()"
+                                        class="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                        aria-label="Notifications">
+                                    <i class="fas fa-bell text-gray-600 dark:text-gray-400"></i>
+                                    {% if unread_notification_count > 0 %}
+                                    <span class="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                                        {% if unread_notification_count > 9 %}9+{% else %}{{ unread_notification_count }}{% endif %}
+                                    </span>
+                                    {% endif %}
+                                </button>
+
+                                <!-- Dropdown Panel -->
+                                <div x-show="open" x-cloak
+                                     x-transition:enter="transition ease-out duration-150"
+                                     x-transition:enter-start="opacity-0 scale-95 translate-y-1"
+                                     x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                                     x-transition:leave="transition ease-in duration-100"
+                                     x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                                     x-transition:leave-end="opacity-0 scale-95 translate-y-1"
+                                     class="absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+
+                                    <!-- Header -->
+                                    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                                        <h3 class="font-semibold text-gray-900 dark:text-white text-sm">Notifications</h3>
+                                        <template x-if="unreadCount > 0">
+                                            <button @click="markAllRead()"
+                                                    class="text-xs text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 font-medium transition-colors">
+                                                Mark all read
+                                            </button>
+                                        </template>
+                                    </div>
+
+                                    <!-- Loading state -->
+                                    <div x-show="loading" class="flex items-center justify-center py-8">
+                                        <i class="fas fa-circle-notch fa-spin text-gray-400 text-xl"></i>
+                                    </div>
+
+                                    <!-- Notification items -->
+                                    <div x-show="!loading" class="max-h-80 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-700">
+                                        <template x-if="items.length === 0">
+                                            <div class="text-center py-10 text-gray-400 dark:text-gray-500">
+                                                <i class="fas fa-bell-slash text-2xl mb-2 block"></i>
+                                                <p class="text-sm">No notifications</p>
+                                            </div>
+                                        </template>
+                                        <template x-for="n in items" :key="n.id">
+                                            <a :href="n.url"
+                                               @click="markRead(n)"
+                                               class="flex items-start space-x-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors block cursor-pointer"
+                                               :class="{ 'bg-primary-50 dark:bg-primary-900/10': !n.is_read }">
+                                                <!-- Icon dot -->
+                                                <div class="flex-shrink-0 mt-0.5">
+                                                    <template x-if="n.is_urgent">
+                                                        <div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                                                            <i class="fas fa-exclamation-circle text-red-500 text-xs"></i>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="!n.is_urgent">
+                                                        <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                                            <i class="fas fa-bell text-gray-400 text-xs"></i>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                                <!-- Content -->
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate" x-text="n.title"
+                                                       :class="{ 'font-bold': !n.is_read }"></p>
+                                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2" x-text="n.message"></p>
+                                                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1" x-text="n.created_at"></p>
+                                                </div>
+                                                <!-- Unread dot -->
+                                                <template x-if="!n.is_read">
+                                                    <span class="flex-shrink-0 mt-2 w-2 h-2 bg-primary-500 rounded-full"></span>
+                                                </template>
+                                            </a>
+                                        </template>
+                                    </div>
+
+                                    <!-- Footer -->
+                                    <div class="px-4 py-2.5 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                                        <a href="{% url 'core:notification_list' %}"
+                                           class="block text-center text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200 transition-colors">
+                                            View all notifications
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <script>
+                            function notificationBell() {
+                                return {
+                                    open: false,
+                                    loading: false,
+                                    items: [],
+                                    unreadCount: {{ unread_notification_count|default:0 }},
+                                    _csrfToken: null,
+
+                                    init() {
+                                        this._csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value
+                                            || document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+                                    },
+
+                                    toggle() {
+                                        this.open = !this.open;
+                                        if (this.open) this.load();
+                                    },
+
+                                    load() {
+                                        this.loading = true;
+                                        fetch('{% url "core:notification_data" %}', {
+                                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                                        })
+                                        .then(r => r.json())
+                                        .then(data => {
+                                            this.items = data.notifications;
+                                            this.unreadCount = data.unread_count;
+                                            this.loading = false;
+                                        })
+                                        .catch(() => { this.loading = false; });
+                                    },
+
+                                    markRead(notif) {
+                                        if (notif.is_read) return;
+                                        notif.is_read = true;
+                                        if (this.unreadCount > 0) this.unreadCount--;
+                                        fetch('{% url "core:notification_list" %}' + notif.id + '/read/', {
+                                            method: 'POST',
+                                            headers: {
+                                                'X-CSRFToken': this._csrfToken,
+                                                'X-Requested-With': 'XMLHttpRequest'
+                                            }
+                                        }).catch(() => {});
+                                    },
+
+                                    markAllRead() {
+                                        fetch('{% url "core:notification_mark_all_read" %}', {
+                                            method: 'POST',
+                                            headers: {
+                                                'X-CSRFToken': this._csrfToken,
+                                                'X-Requested-With': 'XMLHttpRequest'
+                                            }
+                                        })
+                                        .then(r => r.json())
+                                        .then(() => {
+                                            this.items.forEach(n => n.is_read = true);
+                                            this.unreadCount = 0;
+                                        }).catch(() => {});
+                                    }
+                                };
+                            }
+                            </script>
+                            
+                            <!-- Dark Mode Toggle -->
+                            <button @click="darkMode = !darkMode" 
+                                    class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                <i class="fas fa-sun text-gray-600 dark:text-gray-400" x-show="!darkMode"></i>
+                                <i class="fas fa-moon text-amber-500" x-show="darkMode" x-cloak></i>
+                            </button>
+                            
+                            <!-- Profile Avatar -->
+                            <div class="relative">
+                                <button @click="profileDropdownOpen = !profileDropdownOpen"
+                                        class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white font-bold text-sm shadow-lg hover:shadow-xl transition-all">
+                                    {{ user.first_name.0|default:"P" }}{{ user.last_name.0|default:"E" }}
+                                </button>
+                                
+                                <!-- Profile Dropdown Panel -->
+                                <div x-show="profileDropdownOpen"
+                                     @click.away="profileDropdownOpen = false"
+                                     x-transition:enter="transition ease-out duration-200"
+                                     x-transition:enter-start="opacity-0 scale-95"
+                                     x-transition:enter-end="opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-150"
+                                     x-transition:leave-start="opacity-100 scale-100"
+                                     x-transition:leave-end="opacity-0 scale-95"
+                                     class="absolute right-0 mt-3 w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50"
+                                     x-cloak>
+                                    
+                                    <!-- Profile Header -->
+                                    <div class="p-6 text-center border-b border-gray-200 dark:border-gray-700">
+                                        <div class="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white font-bold text-3xl shadow-lg mb-4">
+                                            {{ user.first_name.0|default:"P" }}{{ user.last_name.0|default:"E" }}
+                                        </div>
+                                        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">
+                                            {{ user.get_full_name|default:"User" }}
+                                        </h3>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                                            Joined {{ user.date_joined|date:"M d, Y" }}
+                                        </p>
+                                        <span class="inline-flex px-3 py-1 text-xs font-semibold text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full">
+                                            {{ user.get_user_role_display|title }}
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Contact Details -->
+                                    <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                                        <h4 class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Contact Details</h4>
+                                        <div class="space-y-3">
+                                            <div class="flex items-center text-sm">
+                                                <i class="fas fa-envelope w-5 text-gray-400 mr-3"></i>
+                                                <span class="text-gray-700 dark:text-gray-300">{{ user.email }}</span>
+                                            </div>
+                                            <div class="flex items-center text-sm">
+                                                <i class="fas fa-phone w-5 text-gray-400 mr-3"></i>
+                                                <span class="text-gray-700 dark:text-gray-300">{% if user.phone %}{{ user.phone }}{% else %}Not provided{% endif %}</span>
+                                            </div>
+                                            <div class="flex items-center text-sm">
+                                                <i class="fas fa-map-marker-alt w-5 text-gray-400 mr-3"></i>
+                                                <span class="text-gray-700 dark:text-gray-300">{% if user.address %}{{ user.address }}{% else %}Not provided{% endif %}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Action Links -->
+                                    <div class="p-4">
+                                        <a href="{% url 'core:user_profile' %}" 
+                                           class="flex items-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors mb-2">
+                                            <i class="fas fa-user-circle w-5 mr-3"></i>
+                                            <span>My Profile</span>
+                                        </a>
+                                        <a href="{% url 'core:user_profile_edit' %}"
+                                           class="flex items-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors mb-2">
+                                            <i class="fas fa-cog w-5 mr-3"></i>
+                                            <span>Settings</span>
+                                        </a>
+                                        <a href="{% url 'core:setup_2fa' %}"
+                                           class="flex items-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors mb-2">
+                                            <i class="fas fa-shield-alt w-5 mr-3 text-primary-500"></i>
+                                            <span>
+                                                {% if request.user.is_2fa_enabled %}
+                                                2FA <span class="ml-1 text-xs text-green-600 dark:text-green-400 font-semibold">(ON)</span>
+                                                {% else %}
+                                                Enable 2FA
+                                                {% endif %}
+                                            </span>
+                                        </a>
+                                        <a href="{% url 'core:logout' %}"
+                                           class="flex items-center px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                                            <i class="fas fa-sign-out-alt w-5 mr-3"></i>
+                                            <span>Logout</span>
+                                        </a>
+                                    </div>
+                                    
+                                    <!-- Dark Mode Toggle in Dropdown -->
+                                    <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                                        <button @click="darkMode = !darkMode" 
+                                                class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center transition-colors">
+                                            <i class="fas fa-sun text-gray-600 dark:text-gray-400" x-show="!darkMode"></i>
+                                            <i class="fas fa-moon text-amber-500" x-show="darkMode" x-cloak></i>
+                                        </button>
+                                    </div>
+                                    
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+                </header>
+                
+                <!-- Main Content Area -->
+                <main class="p-4 lg:p-6">
+                    
+                    <!-- Messages -->
+                    {% if messages %}
+                        <div class="mb-6 space-y-2">
+                            {% for message in messages %}
+                                <div x-data="{ show: true }" x-show="show" x-transition
+                                     class="flex items-center justify-between p-4 rounded-xl {% if message.tags == 'error' %}bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800{% elif message.tags == 'success' %}bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800{% elif message.tags == 'warning' %}bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800{% else %}bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800{% endif %}">
+                                    <p class="{% if message.tags == 'error' %}text-red-800 dark:text-red-200{% elif message.tags == 'success' %}text-green-800 dark:text-green-200{% elif message.tags == 'warning' %}text-yellow-800 dark:text-yellow-200{% else %}text-blue-800 dark:text-blue-200{% endif %}">
+                                        {{ message }}
+                                    </p>
+                                    <button @click="show = false" class="text-gray-400 hover:text-gray-600">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    {% block content %}{% endblock %}
+                    
+                </main>
+                
+            </div>
+            
+        </div>
+    {% else %}
+        <!-- Guest Layout -->
+        {% block guest_content %}{% endblock %}
+    {% endif %}
+    
+    {% block extra_js %}{% endblock %}
+
+    <!-- ── Global Searchable Select ─────────────────────────────────────────
+         Auto-upgrades every <select> (non-multiple) that has more than 3
+         options into a searchable dropdown.  No view or form changes needed.
+         To opt a select OUT, add the attribute  data-no-search="true".
+    ──────────────────────────────────────────────────────────────────────── -->
+    <script>
+    (function () {
+        'use strict';
+
+        // ── Constructor ─────────────────────────────────────────────────────
+        function SS(el) {
+            this.el          = el;
+            this._open       = false;
+            this._focusIdx   = -1;
+            this._build();
+            this._bind();
+            this._syncTrigger();
+        }
+
+        // ── Build DOM ───────────────────────────────────────────────────────
+        SS.prototype._build = function () {
+            var el = this.el;
+
+            /* Wrap */
+            var wrap = document.createElement('div');
+            wrap.className = 'ss-wrap relative';
+            el.parentNode.insertBefore(wrap, el);
+            wrap.appendChild(el);
+
+            /* Hide native select while keeping it in the form */
+            el.setAttribute('tabindex', '-1');
+            el.setAttribute('aria-hidden', 'true');
+            el.style.cssText = 'position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;';
+
+            /* Trigger button */
+            var btn = document.createElement('button');
+            btn.type      = 'button';
+            btn.className =
+                'ss-trigger w-full flex items-center justify-between gap-2 px-4 py-2.5 ' +
+                'border border-gray-300 dark:border-gray-600 rounded-lg ' +
+                'bg-white dark:bg-gray-700 text-left text-sm cursor-pointer ' +
+                'hover:border-amber-400 dark:hover:border-amber-500 ' +
+                'focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 ' +
+                'transition-all duration-150';
+            btn.setAttribute('aria-haspopup', 'listbox');
+            btn.setAttribute('aria-expanded', 'false');
+
+            var txt = document.createElement('span');
+            txt.className = 'ss-trigger-text truncate flex-1 text-gray-400';
+
+            var chev = document.createElement('span');
+            chev.className = 'flex-shrink-0';
+            chev.innerHTML = '<i class="fas fa-chevron-down text-gray-400 text-xs ss-chev transition-transform duration-150"></i>';
+
+            btn.appendChild(txt);
+            btn.appendChild(chev);
+            wrap.appendChild(btn);
+
+            /* Dropdown panel */
+            var panel = document.createElement('div');
+            panel.className =
+                'ss-panel hidden absolute left-0 right-0 mt-1 ' +
+                'bg-white dark:bg-gray-800 ' +
+                'border border-gray-200 dark:border-gray-600 ' +
+                'rounded-lg shadow-xl overflow-hidden';
+            panel.style.zIndex = '9999';
+
+            /* Search bar inside panel */
+            var searchWrap = document.createElement('div');
+            searchWrap.className = 'p-2 border-b border-gray-100 dark:border-gray-700';
+
+            var searchInner = document.createElement('div');
+            searchInner.className = 'relative';
+            searchInner.innerHTML = '<i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>';
+
+            var inp = document.createElement('input');
+            inp.type        = 'text';
+            inp.placeholder = 'Search\u2026';
+            inp.autocomplete = 'off';
+            inp.spellcheck  = false;
+            inp.className   =
+                'w-full pl-8 pr-3 py-1.5 text-sm rounded-md ' +
+                'bg-gray-50 dark:bg-gray-700 ' +
+                'border border-gray-200 dark:border-gray-600 ' +
+                'text-gray-900 dark:text-white placeholder-gray-400 ' +
+                'focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 ' +
+                'transition-colors';
+
+            searchInner.appendChild(inp);
+            searchWrap.appendChild(searchInner);
+            panel.appendChild(searchWrap);
+
+            /* Options list */
+            var list = document.createElement('div');
+            list.className = 'ss-list max-h-56 overflow-y-auto py-1';
+            panel.appendChild(list);
+
+            /* Empty state */
+            var empty = document.createElement('div');
+            empty.className = 'ss-empty hidden py-5 text-center text-sm text-gray-400 dark:text-gray-500';
+            empty.innerHTML =
+                '<i class="fas fa-search-minus block text-xl mb-1 opacity-30"></i>' +
+                'No results found.';
+            panel.appendChild(empty);
+
+            wrap.appendChild(panel);
+
+            /* Store refs */
+            this.wrap   = wrap;
+            this.btn    = btn;
+            this.txt    = txt;
+            this.panel  = panel;
+            this.inp    = inp;
+            this.list   = list;
+            this.empty  = empty;
+        };
+
+        // ── Bind events ─────────────────────────────────────────────────────
+        SS.prototype._bind = function () {
+            var self = this;
+
+            this.btn.addEventListener('click', function () {
+                self._open ? self._close() : self._openPanel();
+            });
+
+            this.btn.addEventListener('keydown', function (e) {
+                if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    self._openPanel();
+                }
+            });
+
+            this.inp.addEventListener('input', function () {
+                self._focusIdx = -1;
+                self._renderList(self.inp.value);
+            });
+
+            this.inp.addEventListener('keydown', function (e) {
+                self._onKey(e);
+            });
+
+            /* Close on outside click */
+            document.addEventListener('click', function (e) {
+                if (!self.wrap.contains(e.target)) self._close();
+            });
+
+            /* Keep trigger in sync if native select is changed by other JS */
+            this.el.addEventListener('change', function () {
+                self._syncTrigger();
+            });
+        };
+
+        // ── Sync trigger text with current selection ─────────────────────────
+        SS.prototype._syncTrigger = function () {
+            var el  = this.el;
+            var idx = el.selectedIndex;
+            var opt = idx >= 0 ? el.options[idx] : null;
+
+            if (opt && opt.value !== '') {
+                this.txt.textContent = opt.text;
+                this.txt.classList.remove('text-gray-400', 'dark:text-gray-500', 'italic');
+                this.txt.classList.add('text-gray-900', 'dark:text-white');
+            } else {
+                /* Placeholder */
+                var ph = el.dataset.placeholder;
+                if (!ph) {
+                    var first = el.options[0];
+                    ph = (first && first.value === '') ? first.text : '\u2014 Select \u2014';
+                }
+                this.txt.textContent = ph;
+                this.txt.classList.add('text-gray-400', 'dark:text-gray-500');
+                this.txt.classList.remove('text-gray-900', 'dark:text-white');
+            }
+        };
+
+        // ── Open / Close ─────────────────────────────────────────────────────
+        SS.prototype._openPanel = function () {
+            this._open = true;
+            this.panel.classList.remove('hidden');
+            this.btn.setAttribute('aria-expanded', 'true');
+            this.btn.querySelector('.ss-chev').style.transform = 'rotate(180deg)';
+            this.btn.classList.add('border-amber-400', 'ring-2', 'ring-amber-200', 'dark:ring-amber-900/40');
+            this.inp.value  = '';
+            this._focusIdx  = -1;
+            this._renderList('');
+            this.inp.focus();
+        };
+
+        SS.prototype._close = function () {
+            this._open = false;
+            this.panel.classList.add('hidden');
+            this.btn.setAttribute('aria-expanded', 'false');
+            this.btn.querySelector('.ss-chev').style.transform = '';
+            this.btn.classList.remove('border-amber-400', 'ring-2', 'ring-amber-200', 'dark:ring-amber-900/40');
+            this._focusIdx = -1;
+        };
+
+        // ── Render option rows ───────────────────────────────────────────────
+        SS.prototype._renderList = function (query) {
+            var self       = this;
+            var q          = (query || '').toLowerCase();
+            var currentVal = this.el.value;
+
+            this.list.innerHTML = '';
+
+            var visible = Array.from(this.el.options).filter(function (opt) {
+                if (opt.disabled && opt.value === '') {
+                    return q === '';   /* show blank / placeholder only when no query */
+                }
+                if (opt.disabled) return false;
+                return opt.text.toLowerCase().indexOf(q) !== -1;
+            });
+
+            if (visible.length === 0) {
+                this.empty.classList.remove('hidden');
+                return;
+            }
+            this.empty.classList.add('hidden');
+
+            visible.forEach(function (opt, i) {
+                var isSelected = (opt.value === currentVal);
+                var isBlank    = (opt.value === '' && opt.disabled);
+
+                var row = document.createElement('button');
+                row.type = 'button';
+                row.setAttribute('role', 'option');
+                row.setAttribute('aria-selected', String(isSelected));
+                row.dataset.idx = i;
+
+                var baseClass =
+                    'ss-option w-full text-left px-4 py-2 text-sm flex items-center justify-between gap-2 ' +
+                    'transition-colors focus:outline-none ';
+
+                if (isSelected) {
+                    row.className = baseClass +
+                        'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 font-medium';
+                } else if (isBlank) {
+                    row.className = baseClass +
+                        'text-gray-400 dark:text-gray-500 italic hover:bg-gray-50 dark:hover:bg-gray-700/50';
+                } else {
+                    row.className = baseClass +
+                        'text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700/50';
+                }
+
+                var textSpan = document.createElement('span');
+                textSpan.className = 'truncate';
+                if (q && !isBlank) {
+                    textSpan.innerHTML = self._hl(opt.text, query);
+                } else {
+                    textSpan.textContent = opt.text;
+                }
+                row.appendChild(textSpan);
+
+                if (isSelected) {
+                    var chk = document.createElement('i');
+                    chk.className = 'fas fa-check text-amber-500 flex-shrink-0 text-xs';
+                    row.appendChild(chk);
+                }
+
+                row.addEventListener('mousedown', function (e) {
+                    e.preventDefault();
+                    self._select(opt.value);
+                });
+
+                self.list.appendChild(row);
+            });
+        };
+
+        // ── Select a value ───────────────────────────────────────────────────
+        SS.prototype._select = function (value) {
+            this.el.value = value;
+            this.el.dispatchEvent(new Event('change', { bubbles: true }));
+            this._syncTrigger();
+            this._close();
+            this.btn.focus();
+        };
+
+        // ── Keyboard navigation ──────────────────────────────────────────────
+        SS.prototype._onKey = function (e) {
+            var rows = this.list.querySelectorAll('.ss-option');
+            if (!rows.length) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                this._focusIdx = Math.min(this._focusIdx + 1, rows.length - 1);
+                this._applyFocus(rows);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                this._focusIdx = Math.max(this._focusIdx - 1, 0);
+                this._applyFocus(rows);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (this._focusIdx >= 0 && rows[this._focusIdx]) {
+                    rows[this._focusIdx].dispatchEvent(new MouseEvent('mousedown'));
+                }
+            } else if (e.key === 'Escape' || e.key === 'Tab') {
+                this._close();
+                this.btn.focus();
+            }
+        };
+
+        SS.prototype._applyFocus = function (rows) {
+            var idx = this._focusIdx;
+            rows.forEach(function (r, i) {
+                r.classList.toggle('ring-1', i === idx);
+                r.classList.toggle('ring-amber-300', i === idx);
+                r.classList.toggle('dark:ring-amber-700', i === idx);
+                if (i === idx) r.scrollIntoView({ block: 'nearest' });
+            });
+        };
+
+        // ── Highlight matched text ───────────────────────────────────────────
+        SS.prototype._hl = function (text, query) {
+            var idx = text.toLowerCase().indexOf(query.toLowerCase());
+            if (idx === -1) return this._esc(text);
+            return this._esc(text.slice(0, idx)) +
+                '<mark class="bg-yellow-100 dark:bg-yellow-700/40 text-inherit not-italic rounded-sm px-0.5">' +
+                this._esc(text.slice(idx, idx + query.length)) +
+                '</mark>' +
+                this._esc(text.slice(idx + query.length));
+        };
+
+        SS.prototype._esc = function (s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        };
+
+        // ── Auto-initialise ──────────────────────────────────────────────────
+        function init() {
+            document.querySelectorAll('select').forEach(function (sel) {
+                if (sel.multiple)           return;  /* chip-picker handles multiple */
+                if (sel.dataset.noSearch)   return;  /* explicitly opted out */
+                if (sel.dataset.ssInit)     return;  /* already done */
+                if (sel.options.length < 2) return;  /* nothing to search */
+                sel.dataset.ssInit = 'true';
+                new SS(sel);
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+
+    <!-- ================================================================
+         Money Input Formatter
+         Automatically formats monetary inputs with thousands separators.
+         Display: "3,000,000.00"  |  Submitted value: "3000000.00"
+         ================================================================ -->
+    <script>
+    (function () {
+        var MONEY_SELECTORS = [
+            'input[name*="amount"]',
+            'input[name*="balance"]',
+            'input[name="value"]',
+            'input[name="proposed_installment"]',
+            'input[name="monthly_income"]',
+            'input[name="daily_withdrawal_limit"]',
+        ].join(',');
+
+        function formatMoney(raw) {
+            // Strip everything except digits and a single dot
+            var clean = raw.replace(/[^0-9.]/g, '');
+            // Allow only one decimal point
+            var parts = clean.split('.');
+            if (parts.length > 2) parts = [parts[0], parts.slice(1).join('')];
+            // Add thousands separator to integer part
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            return parts.length === 2 ? parts[0] + '.' + parts[1] : parts[0];
+        }
+
+        function countDigitsBefore(str, pos) {
+            return str.substring(0, pos).replace(/[^0-9.]/g, '').length;
+        }
+
+        function findPosForDigitCount(formatted, count) {
+            var seen = 0;
+            for (var i = 0; i < formatted.length; i++) {
+                if (/[0-9.]/.test(formatted[i])) seen++;
+                if (seen === count) return i + 1;
+            }
+            return formatted.length;
+        }
+
+        function applyFormat(input) {
+            var caret  = input.selectionStart;
+            var digits = countDigitsBefore(input.value, caret);
+            var formatted = formatMoney(input.value);
+            input.value = formatted;
+            var newPos = findPosForDigitCount(formatted, digits);
+            try { input.setSelectionRange(newPos, newPos); } catch (e) {}
+        }
+
+        function stripCommas(input) {
+            input.value = input.value.replace(/,/g, '');
+        }
+
+        function initMoneyInput(input) {
+            if (input.dataset.moneyInit) return;
+            input.dataset.moneyInit = '1';
+
+            // Switch to text so commas are accepted by the browser
+            input.type = 'text';
+            input.inputMode = 'decimal';
+
+            // Format any pre-filled value (edit forms, default values)
+            if (input.value !== '') {
+                input.value = formatMoney(input.value);
+            }
+
+            input.addEventListener('input', function () { applyFormat(this); });
+
+            // Strip commas before submit so Django receives a plain number
+            var form = input.closest('form');
+            if (form && !form.dataset.moneyFormInit) {
+                form.dataset.moneyFormInit = '1';
+                form.addEventListener('submit', function () {
+                    form.querySelectorAll('[data-money-init]').forEach(stripCommas);
+                });
+            }
+        }
+
+        function initAll(root) {
+            (root || document).querySelectorAll(MONEY_SELECTORS).forEach(initMoneyInput);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function () { initAll(); });
+        } else {
+            initAll();
+        }
+
+        // Pick up inputs added dynamically (modals, Alpine clones, etc.)
+        new MutationObserver(function (mutations) {
+            mutations.forEach(function (m) {
+                m.addedNodes.forEach(function (node) {
+                    if (node.nodeType !== 1) return;
+                    if (node.matches && node.matches(MONEY_SELECTORS)) initMoneyInput(node);
+                    if (node.querySelectorAll) initAll(node);
+                });
+            });
+        }).observe(document.documentElement, { childList: true, subtree: true });
+    })();
+    </script>
+
+    <!-- ================================================================
+         Responsive Table Auto-Wrapper
+         Wraps every <table> inside .main-wrapper in overflow-x-auto so
+         tables scroll horizontally on small screens. Tables already
+         inside an overflow-x-auto parent are skipped.
+         ================================================================ -->
+    <script>
+    (function () {
+        function wrapTables() {
+            document.querySelectorAll('.main-wrapper table').forEach(function (tbl) {
+                var p = tbl.parentElement;
+                if (p && (p.classList.contains('overflow-x-auto') || p.classList.contains('table-responsive'))) return;
+                var wrap = document.createElement('div');
+                wrap.className = 'overflow-x-auto';
+                p.insertBefore(wrap, tbl);
+                wrap.appendChild(tbl);
+            });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', wrapTables);
+        } else {
+            wrapTables();
+        }
+    })();
+    </script>
+
+</body>
+</html>

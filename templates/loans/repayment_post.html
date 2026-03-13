@@ -1,0 +1,183 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:loan_repayment_list' %}" class="hover:text-primary-600">Repayment Postings</a>
+            <span>/</span>
+            <span>Post Repayment</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Record a loan repayment for manager approval</p>
+        </div>
+
+    {% if loan %}
+    <!-- Loan Summary Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Loan Details</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Loan ID</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white font-mono">{{ loan.loan_number }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Client</p>
+                <a href="{% url 'core:client_detail' loan.client.id %}"
+                   class="text-base font-medium text-primary-600 dark:text-primary-400 hover:underline">
+                    {{ loan.client.get_full_name }}
+                </a>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Loan Product</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.loan_product.name }}</p>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Principal Amount</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ loan.principal_amount|floatformat:2|intcomma }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Total Repayment</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ loan.total_repayment|floatformat:2|intcomma }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Outstanding Balance</p>
+                <p class="text-lg font-bold text-red-600 dark:text-red-400">₦{{ loan.outstanding_balance|floatformat:2|intcomma }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Repayment Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post">
+            {% csrf_token %}
+
+            {% if loan %}
+            <!-- Hidden loan field when posting from specific loan -->
+            <input type="hidden" name="loan" value="{{ loan.id }}">
+            {% else %}
+            <!-- Loan Selection -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.loan.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.loan }}
+                {% if form.loan.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.loan.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Select the loan for this repayment</p>
+            </div>
+            {% endif %}
+
+            <!-- Repayment Amount -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.amount.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.amount }}
+                {% if form.amount.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.amount.errors.0 }}</p>
+                {% endif %}
+                {% if loan %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Outstanding balance: ₦{{ loan.outstanding_balance|floatformat:2|intcomma }}
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- Payment Method -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.payment_method.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.payment_method }}
+                {% if form.payment_method.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.payment_method.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Payment Reference -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.payment_reference.label }}
+                </label>
+                {{ form.payment_reference }}
+                {% if form.payment_reference.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.payment_reference.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Optional: Transaction reference or receipt number</p>
+            </div>
+
+            <!-- Payment Details -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.payment_details.label }}
+                </label>
+                {{ form.payment_details }}
+                {% if form.payment_details.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.payment_details.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Payment Date -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.payment_date.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.payment_date }}
+                {% if form.payment_date.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.payment_date.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Submission Notes -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.submission_notes.label }}
+                </label>
+                {{ form.submission_notes }}
+                {% if form.submission_notes.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.submission_notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Information Notice -->
+            <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-info-circle text-blue-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Approval Required</h3>
+                        <p class="text-sm text-blue-700 dark:text-blue-300">
+                            This repayment posting will be submitted for approval by your branch manager or a senior staff member.
+                            Once approved, the amount will be deducted from the loan balance and recorded as a transaction.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3 pt-4">
+                <a href="{% if loan %}{% url 'core:loan_detail' loan.id %}{% else %}{% url 'core:loan_repayment_list' %}{% endif %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-check mr-2"></i>Submit for Approval
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

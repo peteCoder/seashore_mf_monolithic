@@ -1,0 +1,561 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:loan_list' %}" class="hover:text-primary-600">Loans</a>
+            <span>/</span>
+            <span>Create Loan Application</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Complete loan application details</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column: Form -->
+        <div class="lg:col-span-2">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <form method="post" enctype="multipart/form-data" id="loanForm">
+                    {% csrf_token %}
+
+                    <!-- Client Selection -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.client.label }} <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.client }}
+                        {% if form.client.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.client.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Loan Product Selection -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.loan_product.label }} <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.loan_product }}
+                        {% if form.loan_product.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.loan_product.errors.0 }}</p>
+                        {% endif %}
+                        <!-- Loan Product Details (shown when product is selected) -->
+                        <div id="productDetails" class="hidden mt-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                            <h4 class="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-2">
+                                <i class="fas fa-info-circle mr-1"></i>Product Details: <span id="productName"></span>
+                            </h4>
+                            <div class="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                                <p id="productDescription" class="italic"></p>
+                                <div class="grid grid-cols-2 gap-2 mt-2">
+                                    <p>Interest Rate: <strong id="productInterestRate"></strong></p>
+                                    <p>Type: <strong id="productType"></strong></p>
+                                    <p>Min Amount: <strong id="productMinAmount"></strong></p>
+                                    <p>Max Amount: <strong id="productMaxAmount"></strong></p>
+                                    <p>Min Duration: <strong id="productMinDuration"></strong></p>
+                                    <p>Max Duration: <strong id="productMaxDuration"></strong></p>
+                                </div>
+                                <div id="productRequirements" class="mt-2 pt-2 border-t border-blue-300 dark:border-blue-700"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Principal Amount -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.principal_amount.label }} <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.principal_amount }}
+                        {% if form.principal_amount.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.principal_amount.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" id="principalHint">Enter the requested loan amount</p>
+                    </div>
+
+                    <!-- Duration in Months -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.duration_months.label }} <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.duration_months }}
+                        {% if form.duration_months.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.duration_months.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" id="durationHint">Loan repayment period in months</p>
+                    </div>
+
+                    <!-- Loan Purpose -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.purpose.label }} <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.purpose }}
+                        {% if form.purpose.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.purpose.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Purpose Details -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.purpose_details.label }}
+                        </label>
+                        {{ form.purpose_details }}
+                        {% if form.purpose_details.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.purpose_details.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Loan Sector -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.loan_sector.label }}
+                        </label>
+                        {{ form.loan_sector }}
+                        {% if form.loan_sector.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.loan_sector.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Linked Savings Account -->
+                    {% if form.linked_account %}
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.linked_account.label }}
+                        </label>
+                        {{ form.linked_account }}
+                        {% if form.linked_account.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.linked_account.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Optional: Link to client's savings account</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Branch -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.branch.label }} <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.branch }}
+                        {% if form.branch.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.branch.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Client Signature -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Client Signature <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.client_signature }}
+                        {% if form.client_signature.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.client_signature.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Upload the client's signature image</p>
+                        <div id="signaturePreview" class="hidden mt-2">
+                            <img id="signaturePreviewImg" src="" alt="Signature preview"
+                                 class="h-24 w-48 object-cover rounded-lg border border-gray-300 dark:border-gray-600">
+                        </div>
+                    </div>
+
+                    <!-- Calculate Button -->
+                    <div class="mb-6">
+                        <button type="button" id="calculateBtn"
+                                class="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
+                            <i class="fas fa-calculator mr-2"></i>Calculate Loan Details
+                        </button>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <a href="{% url 'core:loan_list' %}"
+                           class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            Cancel
+                        </a>
+                        <button type="submit"
+                                class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                            <i class="fas fa-save mr-2"></i>Create Loan Application
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Right Column: Loan Calculator & Fee Breakdown -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Loan Calculator -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-calculator text-primary-600 dark:text-primary-400 mr-2"></i>Loan Calculator
+                </h3>
+                <div id="calculatorResults" class="hidden space-y-4">
+                    <div class="bg-primary-50 dark:bg-primary-900/20 rounded-lg p-4">
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Principal Amount</p>
+                        <p class="text-2xl font-bold text-primary-600 dark:text-primary-400" id="calcPrincipal">-</p>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">Interest Rate</span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white" id="calcInterestRate">-</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">Duration</span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white" id="calcDuration">-</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">Total Interest</span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white" id="calcTotalInterest">-</span>
+                        </div>
+                        <div class="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                            <span class="text-sm font-semibold text-gray-900 dark:text-white">Total Repayment</span>
+                            <span class="text-sm font-bold text-gray-900 dark:text-white" id="calcTotalRepayment">-</span>
+                        </div>
+                        <div class="flex items-center justify-between pt-2">
+                            <span class="text-sm font-semibold text-gray-900 dark:text-white" id="installmentLabel">Installment</span>
+                            <span class="text-lg font-bold text-primary-600 dark:text-primary-400" id="calcMonthlyPayment">-</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="calculatorPlaceholder" class="text-center py-8 text-gray-400 dark:text-gray-500">
+                    <i class="fas fa-calculator text-4xl mb-2"></i>
+                    <p class="text-sm">Fill in the loan details and click calculate</p>
+                </div>
+            </div>
+
+            <!-- Fee Breakdown -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-receipt text-primary-600 dark:text-primary-400 mr-2"></i>Application Fees
+                </h3>
+                <div id="feeBreakdown" class="hidden space-y-3">
+                    <div id="feeItems">
+                        <!-- Fee items will be populated dynamically -->
+                    </div>
+                    <div class="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                        <span class="text-sm font-bold text-gray-900 dark:text-white">Total Fees</span>
+                        <span class="text-lg font-bold text-primary-600 dark:text-primary-400" id="feeTotal">-</span>
+                    </div>
+                </div>
+                <div id="feePlaceholder" class="text-center py-8 text-gray-400 dark:text-gray-500">
+                    <i class="fas fa-receipt text-4xl mb-2"></i>
+                    <p class="text-sm">Fees will be calculated based on loan product</p>
+                </div>
+            </div>
+
+            <!-- Information Notice -->
+            <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-info-circle text-blue-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700 dark:text-blue-300">
+                            After creating the loan application, the client must pay the application fees before the loan can be reviewed for approval.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const calculateBtn = document.getElementById('calculateBtn');
+    const loanProductSelect = document.getElementById('{{ form.loan_product.id_for_label }}');
+    const principalInput = document.getElementById('{{ form.principal_amount.id_for_label }}');
+    const durationInput = document.getElementById('{{ form.duration_months.id_for_label }}');
+    const clientSelect = document.getElementById('{{ form.client.id_for_label }}');
+    const linkedAccountSelect = document.getElementById('{{ form.linked_account.id_for_label }}');
+
+    // ── Linked account: populate dynamically when client changes ──────────────
+    const SAVINGS_ACCOUNTS_URL = '/clients/ajax/savings-accounts/';
+
+    async function loadLinkedAccounts(clientId) {
+        if (!linkedAccountSelect) return;
+        linkedAccountSelect.innerHTML = '<option value="">---------</option>';
+        if (!clientId) return;
+
+        try {
+            const resp = await fetch(`${SAVINGS_ACCOUNTS_URL}?client_id=${clientId}`);
+            if (!resp.ok) return;
+            const data = await resp.json();
+
+            if (data.accounts.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'No active savings accounts for this client';
+                opt.disabled = true;
+                linkedAccountSelect.appendChild(opt);
+            } else {
+                data.accounts.forEach(acc => {
+                    const opt = document.createElement('option');
+                    opt.value = acc.id;
+                    opt.textContent = acc.label;
+                    linkedAccountSelect.appendChild(opt);
+                });
+            }
+        } catch (e) {
+            console.error('Failed to load savings accounts:', e);
+        }
+    }
+
+    if (clientSelect) {
+        clientSelect.addEventListener('change', function() {
+            loadLinkedAccounts(this.value);
+        });
+        // Populate immediately if a client is already selected (e.g. form re-render after error)
+        if (clientSelect.value) {
+            loadLinkedAccounts(clientSelect.value);
+        }
+    }
+
+    // Store current product data
+    let currentProductData = null;
+
+    // Function to format currency
+    function formatCurrency(amount) {
+        return `₦${parseFloat(amount).toLocaleString('en-NG', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
+
+    // Calculate number of installments based on repayment frequency
+    function getNumInstallments(freq, durationMonths) {
+        if (freq === 'daily')       return durationMonths * 20;  // 20 standard working days/month
+        if (freq === 'weekly')      return durationMonths * 4;
+        if (freq === 'fortnightly') return durationMonths * 2;
+        if (freq === 'yearly')      return Math.max(1, Math.floor(durationMonths / 12));
+        return durationMonths; // monthly (default)
+    }
+
+    // Function to fetch and display loan product details
+    async function fetchProductDetails(productId) {
+        if (!productId) {
+            document.getElementById('productDetails').classList.add('hidden');
+            currentProductData = null;
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/loan-product/${productId}/`);
+            if (!response.ok) {
+                console.error('Failed to fetch product details');
+                return;
+            }
+
+            const data = await response.json();
+            currentProductData = data;
+
+            // Update installment label to match the product's repayment frequency
+            const lbl = document.getElementById('installmentLabel');
+            if (lbl) lbl.textContent = (data.repayment_frequency_display || 'Monthly') + ' Installment';
+
+            // Update product details section
+            document.getElementById('productName').textContent = data.name;
+            document.getElementById('productDescription').textContent = data.description || 'No description available';
+            document.getElementById('productInterestRate').textContent = `${(data.monthly_interest_rate * 100).toFixed(2)}% per month`;
+            document.getElementById('productType').textContent = data.loan_type_display;
+            document.getElementById('productMinAmount').textContent = formatCurrency(data.min_principal);
+            document.getElementById('productMaxAmount').textContent = formatCurrency(data.max_principal);
+            document.getElementById('productMinDuration').textContent = `${data.min_duration_months} months`;
+            document.getElementById('productMaxDuration').textContent = `${data.max_duration_months} months`;
+
+            // Update requirements
+            let requirements = [];
+            if (data.requires_guarantors > 0) requirements.push(`Requires ${data.requires_guarantors} guarantor(s)`);
+            if (data.requires_collateral) requirements.push('Requires collateral');
+            if (data.requires_insurance) requirements.push('Requires insurance');
+            if (data.min_membership_months > 0) requirements.push(`Min ${data.min_membership_months} months membership`);
+
+            const reqElement = document.getElementById('productRequirements');
+            if (requirements.length > 0) {
+                reqElement.innerHTML = '<strong>Requirements:</strong> ' + requirements.join(' | ');
+            } else {
+                reqElement.innerHTML = '';
+            }
+
+            document.getElementById('productDetails').classList.remove('hidden');
+
+            // Update hint texts
+            document.getElementById('principalHint').textContent =
+                `Amount must be between ${formatCurrency(data.min_principal)} and ${formatCurrency(data.max_principal)}`;
+            document.getElementById('durationHint').textContent =
+                `Duration must be between ${data.min_duration_months} and ${data.max_duration_months} months`;
+
+        } catch (error) {
+            console.error('Error fetching product details:', error);
+        }
+    }
+
+    // Listen for loan product change
+    loanProductSelect.addEventListener('change', function() {
+        fetchProductDetails(this.value);
+    });
+
+    // Fetch details if product already selected
+    if (loanProductSelect.value) {
+        fetchProductDetails(loanProductSelect.value);
+    }
+
+    // ── Signature preview ─────────────────────────────────────────────────────
+    const signatureInput = document.getElementById('{{ form.client_signature.id_for_label }}');
+    if (signatureInput) {
+        signatureInput.addEventListener('change', function () {
+            const file = this.files[0];
+            if (file) {
+                document.getElementById('signaturePreviewImg').src = URL.createObjectURL(file);
+                document.getElementById('signaturePreview').classList.remove('hidden');
+            }
+        });
+    }
+
+    // Calculate button click handler
+    calculateBtn.addEventListener('click', function() {
+        const loanProductId = loanProductSelect.value;
+        const principal = parseFloat(principalInput.value.replace(/,/g, ''));
+        const duration = parseInt(durationInput.value);
+
+        if (!loanProductId) {
+            alert('Please select a loan product');
+            return;
+        }
+        if (!principal || principal <= 0) {
+            alert('Please enter a valid principal amount');
+            return;
+        }
+        if (!duration || duration <= 0) {
+            alert('Please enter a valid duration');
+            return;
+        }
+
+        if (!currentProductData) {
+            alert('Product data not loaded yet. Please wait.');
+            return;
+        }
+
+        // Use actual product interest rate
+        const monthlyRate = currentProductData.monthly_interest_rate;
+        const interestRatePercent = monthlyRate * 100;
+
+        // Calculate interest (flat rate: P × R × T, T in months)
+        const totalInterest = principal * monthlyRate * duration;
+        const totalRepayment = principal + totalInterest;
+        // Split total repayment by the actual number of installments for this frequency
+        const numInstallments = getNumInstallments(currentProductData.repayment_frequency, duration);
+        const monthlyPayment = totalRepayment / numInstallments;
+
+        // Calculate fees based on product fee structure
+        let totalFees = 0;
+        const feeItems = [];
+
+        const fees = currentProductData.fees;
+
+        // Risk Premium
+        if (fees.risk_premium.enabled) {
+            let riskPremiumFee = 0;
+            if (fees.risk_premium.calculation === 'percentage') {
+                riskPremiumFee = principal * fees.risk_premium.rate;
+                feeItems.push({
+                    name: 'Risk Premium',
+                    percentage: `${fees.risk_premium.rate_percent.toFixed(2)}%`,
+                    amount: riskPremiumFee
+                });
+            } else {
+                riskPremiumFee = fees.risk_premium.rate;
+                feeItems.push({
+                    name: 'Risk Premium',
+                    percentage: 'Flat',
+                    amount: riskPremiumFee
+                });
+            }
+            totalFees += riskPremiumFee;
+        }
+
+        // RP Income
+        if (fees.rp_income.enabled) {
+            let rpIncomeFee = 0;
+            if (fees.rp_income.calculation === 'percentage') {
+                rpIncomeFee = principal * fees.rp_income.rate;
+                feeItems.push({
+                    name: 'RP Income',
+                    percentage: `${fees.rp_income.rate_percent.toFixed(2)}%`,
+                    amount: rpIncomeFee
+                });
+            } else {
+                rpIncomeFee = fees.rp_income.rate;
+                feeItems.push({
+                    name: 'RP Income',
+                    percentage: 'Flat',
+                    amount: rpIncomeFee
+                });
+            }
+            totalFees += rpIncomeFee;
+        }
+
+        // Tech Fee
+        if (fees.tech_fee.enabled) {
+            let techFee = 0;
+            if (fees.tech_fee.calculation === 'percentage') {
+                techFee = principal * fees.tech_fee.rate;
+                feeItems.push({
+                    name: 'Tech Fee',
+                    percentage: `${fees.tech_fee.rate_percent.toFixed(2)}%`,
+                    amount: techFee
+                });
+            } else {
+                techFee = fees.tech_fee.rate;
+                feeItems.push({
+                    name: 'Tech Fee',
+                    percentage: 'Flat',
+                    amount: techFee
+                });
+            }
+            totalFees += techFee;
+        }
+
+        // Loan Form Fee
+        if (fees.loan_form_fee.enabled) {
+            feeItems.push({
+                name: 'Loan Form Fee',
+                percentage: 'Fixed',
+                amount: fees.loan_form_fee.amount
+            });
+            totalFees += fees.loan_form_fee.amount;
+        }
+
+        // Update calculator display
+        document.getElementById('calculatorResults').classList.remove('hidden');
+        document.getElementById('calculatorPlaceholder').classList.add('hidden');
+
+        document.getElementById('calcPrincipal').textContent = formatCurrency(principal);
+        document.getElementById('calcInterestRate').textContent = `${interestRatePercent.toFixed(2)}% per month`;
+        document.getElementById('calcDuration').textContent = `${duration} months`;
+        document.getElementById('calcTotalInterest').textContent = formatCurrency(totalInterest);
+        document.getElementById('calcTotalRepayment').textContent = formatCurrency(totalRepayment);
+        document.getElementById('calcMonthlyPayment').textContent = formatCurrency(monthlyPayment);
+
+        // Update fee breakdown display
+        document.getElementById('feeBreakdown').classList.remove('hidden');
+        document.getElementById('feePlaceholder').classList.add('hidden');
+
+        const feeItemsContainer = document.getElementById('feeItems');
+        feeItemsContainer.innerHTML = '';
+
+        feeItems.forEach(fee => {
+            const feeRow = document.createElement('div');
+            feeRow.className = 'flex items-center justify-between text-sm';
+            feeRow.innerHTML = `
+                <span class="text-gray-600 dark:text-gray-400">
+                    ${fee.name} <span class="text-xs text-gray-400">(${fee.percentage})</span>
+                </span>
+                <span class="font-medium text-gray-900 dark:text-white">${formatCurrency(fee.amount)}</span>
+            `;
+            feeItemsContainer.appendChild(feeRow);
+        });
+
+        document.getElementById('feeTotal').textContent = formatCurrency(totalFees);
+    });
+});
+</script>
+{% endblock %}

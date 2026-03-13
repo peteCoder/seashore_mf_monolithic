@@ -1,0 +1,297 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div x-data="{ activeTab: 'overview' }" class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+                <a href="{% url 'core:savings_account_list' %}" class="hover:text-primary-600">Savings Accounts</a>
+                <span>/</span>
+                <a href="{% url 'core:client_detail' account.client.id %}" class="hover:text-primary-600">
+                    {{ account.client.get_full_name }}
+                </a>
+                <span>/</span>
+                <span>Account Details</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        </div>
+        <div>
+            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium
+                         {% if account.status == 'pending' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
+                         {% elif account.status == 'active' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
+                         {% elif account.status == 'dormant' %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300
+                         {% elif account.status == 'closed' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
+                         {% else %}bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300{% endif %}">
+                {{ account.get_status_display }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex flex-wrap items-center gap-3">
+        {% if account.status == 'pending' and checker.can_approve_accounts %}
+        <a href="{% url 'core:savings_account_approve' account.id %}"
+           class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors">
+            <i class="fas fa-check mr-2"></i>Review Account
+        </a>
+        {% endif %}
+
+        {% if account.status == 'active' %}
+        <a href="{% url 'core:savings_deposit_post_for_account' account.id %}"
+           class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
+            <i class="fas fa-plus-circle mr-2"></i>Post Deposit
+        </a>
+        <a href="{% url 'core:savings_withdrawal_post_for_account' account.id %}"
+           class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors">
+            <i class="fas fa-minus-circle mr-2"></i>Post Withdrawal
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Tabs -->
+    <div class="border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+        <nav class="-mb-px flex space-x-4 sm:space-x-8 min-w-max">
+            <button @click="activeTab = 'overview'"
+                    :class="activeTab === 'overview' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                Overview
+            </button>
+            <button @click="activeTab = 'transactions'"
+                    :class="activeTab === 'transactions' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                Transaction History ({{ transactions|length }})
+            </button>
+            <button @click="activeTab = 'postings'"
+                    :class="activeTab === 'postings' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                Pending Postings ({{ pending_postings|length }})
+            </button>
+        </nav>
+    </div>
+
+    <!-- Tab Content: Overview -->
+    <div x-show="activeTab === 'overview'" x-cloak class="space-y-6">
+        <!-- Account Summary Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Current Balance</p>
+                    <p class="text-2xl font-bold text-green-600 dark:text-green-400">₦{{ account.balance|floatformat:2|intcomma }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Available Balance</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">₦{{ account.available_balance|floatformat:2|intcomma }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Interest Earned</p>
+                    <p class="text-2xl font-bold text-primary-600 dark:text-primary-400">₦{{ account.interest_earned|floatformat:2|intcomma }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Account Details -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Account Details</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Account Number</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white font-mono">{{ account.account_number }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Client</p>
+                    <a href="{% url 'core:client_detail' account.client.id %}"
+                       class="text-base font-medium text-primary-600 dark:text-primary-400 hover:underline">
+                        {{ account.client.get_full_name }}
+                    </a>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Savings Product</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.savings_product.name }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.branch.name }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Opening Date</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.created_at|date:"F d, Y" }}</p>
+                </div>
+                {% if account.activated_at %}
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Activated Date</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.activated_at|date:"F d, Y" }}</p>
+                </div>
+                {% endif %}
+                {% if account.notes %}
+                <div class="md:col-span-2">
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Notes</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Product Details -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Product Information</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Interest Rate</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.savings_product.interest_rate }}% per annum</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Minimum Balance</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ account.savings_product.minimum_balance|floatformat:2|intcomma }}</p>
+                </div>
+                {% if account.savings_product.minimum_deposit %}
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Minimum Deposit</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ account.savings_product.minimum_deposit|floatformat:2|intcomma }}</p>
+                </div>
+                {% endif %}
+                {% if account.savings_product.maximum_withdrawal %}
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Maximum Withdrawal</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ account.savings_product.maximum_withdrawal|floatformat:2|intcomma }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Approval Information -->
+        {% if account.approved_by %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Approval Information</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Approved By</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.approved_by.get_full_name }}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ account.approved_at|date:"F d, Y g:i A" }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Tab Content: Transaction History -->
+    <div x-show="activeTab === 'transactions'" x-cloak>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Reference</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Balance After</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for transaction in transactions %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">{{ transaction.transaction_ref }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                            {% if transaction.transaction_type == 'deposit' %}
+                            <span class="text-green-600 dark:text-green-400"><i class="fas fa-arrow-down mr-1"></i>Deposit</span>
+                            {% elif transaction.transaction_type == 'withdrawal' %}
+                            <span class="text-red-600 dark:text-red-400"><i class="fas fa-arrow-up mr-1"></i>Withdrawal</span>
+                            {% else %}
+                            {{ transaction.get_transaction_type_display }}
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">₦{{ transaction.amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">₦{{ transaction.balance_after|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ transaction.transaction_date|date:"M d, Y" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                         {% if transaction.status == 'completed' %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                                         {% elif transaction.status == 'pending' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300
+                                         {% else %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300{% endif %}">
+                                {{ transaction.get_status_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                            No transactions yet
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab Content: Pending Postings -->
+    <div x-show="activeTab === 'postings'" x-cloak>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Posting Ref</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Submitted By</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for posting in pending_postings %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">{{ posting.posting_ref }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                            {% if posting.posting_type == 'deposit' %}
+                            <span class="text-green-600 dark:text-green-400"><i class="fas fa-arrow-down mr-1"></i>Deposit</span>
+                            {% else %}
+                            <span class="text-red-600 dark:text-red-400"><i class="fas fa-arrow-up mr-1"></i>Withdrawal</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">₦{{ posting.amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ posting.transaction_date|date:"M d, Y" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ posting.submitted_by.get_full_name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                         {% if posting.status == 'approved' %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                                         {% elif posting.status == 'rejected' %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300
+                                         {% else %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300{% endif %}">
+                                {{ posting.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            {% if posting.status == 'pending' and checker.can_approve_savings %}
+                            <a href="{% url 'core:savings_transaction_approve' posting.id %}"
+                               class="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300">
+                                Review
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                            No pending postings
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="flex justify-start">
+        <a href="{% url 'core:savings_account_list' %}"
+           class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Accounts
+        </a>
+    </div>
+</div>
+{% endblock %}

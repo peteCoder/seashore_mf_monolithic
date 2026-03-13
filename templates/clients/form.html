@@ -1,0 +1,1014 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}
+{% if is_create %}Register New Client{% else %}Edit Client{% endif %} - Seashore Microfinance
+{% endblock %}
+
+{% block content %}
+<div x-data="clientFormApp()" x-cloak>
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            {% if is_create %}Register New Client{% else %}Edit Client: {{ client.get_full_name }}{% endif %}
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400">
+            {% if is_create %}Complete all required fields across the 5 tabs{% else %}Update client information{% endif %}
+        </p>
+    </div>
+
+    <!-- Progress Indicator -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <template x-for="(tab, index) in tabs" :key="index">
+                <div class="flex-1 relative flex items-center">
+                    <div class="flex items-center justify-center w-full">
+                        <div class="rounded-full transition duration-500 ease-in-out h-12 w-12 flex items-center justify-center border-2"
+                             :class="{
+                                 'bg-primary-600 border-primary-600 text-white': currentTab === index,
+                                 'bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400': currentTab !== index
+                             }">
+                            <span x-text="index + 1"></span>
+                        </div>
+                    </div>
+                    <div x-show="index < tabs.length - 1" class="flex-1 h-0.5 mx-2"
+                         :class="{
+                             'bg-primary-600': currentTab > index,
+                             'bg-gray-300 dark:bg-gray-600': currentTab <= index
+                         }">
+                    </div>
+                    <div class="absolute top-14 left-1/2 transform -translate-x-1/2 text-xs font-medium text-center whitespace-nowrap"
+                         :class="{
+                             'text-primary-600 dark:text-primary-400': currentTab === index,
+                             'text-gray-500 dark:text-gray-400': currentTab !== index
+                         }"
+                         x-text="tab.name">
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="post" id="clientForm" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <!-- All Form Errors Summary (visible immediately) -->
+        {% if form.errors %}
+        <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-red-400 text-lg"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-semibold text-red-800 dark:text-red-300">
+                        Please correct the error{{ form.errors|length|pluralize }} below:
+                    </h3>
+                    <ul class="mt-2 text-sm text-red-700 dark:text-red-300 list-disc list-inside space-y-1">
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                            <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                        {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Tab Content Container -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+
+            <!-- Per-tab validation error banner -->
+            <div x-show="tabError"
+                 x-cloak
+                 x-transition:enter="transition ease-out duration-150"
+                 x-transition:enter-start="opacity-0 -translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 class="mb-5 flex items-start gap-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-300">
+                <i class="fas fa-exclamation-circle shrink-0 mt-0.5"></i>
+                <span x-text="tabError"></span>
+            </div>
+
+            <!-- Tab 1: Personal Information -->
+            <div id="client-tab-0" x-show="currentTab === 0" x-transition>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Personal Information</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- First Name -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            First Name <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.first_name.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Last Name -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Last Name <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.last_name.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Nickname -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Nickname
+                        </label>
+                        {{ form.nickname }}
+                        {% if form.nickname.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.nickname.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Email -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Email Address <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.email.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Phone -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Phone Number <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.phone.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Alternate Phone -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Alternate Phone
+                        </label>
+                        {{ form.alternate_phone }}
+                        {% if form.alternate_phone.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.alternate_phone.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Date of Birth -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Date of Birth <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.date_of_birth }}
+                        {% if form.date_of_birth.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.date_of_birth.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Gender -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Gender <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.gender }}
+                        {% if form.gender.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.gender.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Marital Status -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Marital Status
+                        </label>
+                        {{ form.marital_status }}
+                        {% if form.marital_status.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.marital_status.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Number of Dependents -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Number of Dependents
+                        </label>
+                        {{ form.number_of_dependents }}
+                        {% if form.number_of_dependents.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.number_of_dependents.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Education Level -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Education Level
+                        </label>
+                        {{ form.education_level }}
+                        {% if form.education_level.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.education_level.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Contact & Address -->
+            <div id="client-tab-1" x-show="currentTab === 1" x-transition>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Contact & Address</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Address -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Residential Address <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.address }}
+                        {% if form.address.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.address.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- City -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            City <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.city }}
+                        {% if form.city.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.city.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- State -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            State <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.state }}
+                        {% if form.state.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.state.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Postal Code -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Postal Code
+                        </label>
+                        {{ form.postal_code }}
+                        {% if form.postal_code.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.postal_code.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Country -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Country
+                        </label>
+                        {{ form.country }}
+                        {% if form.country.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.country.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Landmark -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Nearest Landmark
+                        </label>
+                        {{ form.landmark }}
+                        {% if form.landmark.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.landmark.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Location -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Location Type
+                        </label>
+                        {{ form.location }}
+                        {% if form.location.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.location.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Residential Status -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Residential Status
+                        </label>
+                        {{ form.residential_status }}
+                        {% if form.residential_status.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.residential_status.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Union Location -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Union Location
+                        </label>
+                        {{ form.union_location }}
+                        {% if form.union_location.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.union_location.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Identification & Documents -->
+            <div id="client-tab-2" x-show="currentTab === 2" x-transition>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Identification & Documents</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- ID Type -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            ID Type <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.id_type }}
+                        {% if form.id_type.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.id_type.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- ID Number -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            ID Number <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.id_number }}
+                        {% if form.id_number.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.id_number.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- BVN -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Bank Verification Number (BVN)
+                        </label>
+                        {{ form.bvn }}
+                        {% if form.bvn.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.bvn.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Profile Picture -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Profile Picture {% if is_create %}<span class="text-red-500">*</span>{% endif %}
+                        </label>
+                        <input type="file"
+                               name="profile_picture"
+                               accept="image/*"
+                               @change="handleFileChange($event, 'profile_picture')"
+                               class="block w-full text-sm text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 focus:outline-none">
+                        <div x-show="filePreviews['profile_picture']" class="mt-2">
+                            <img :src="filePreviews['profile_picture']" class="h-32 w-32 object-cover rounded-lg border border-gray-300 dark:border-gray-600">
+                        </div>
+                    </div>
+
+                    <!-- ID Card Front -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            ID Card (Front)
+                        </label>
+                        <input type="file"
+                               name="id_card_front"
+                               accept="image/*"
+                               @change="handleFileChange($event, 'id_card_front')"
+                               class="block w-full text-sm text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 focus:outline-none">
+                        <div x-show="filePreviews['id_card_front']" class="mt-2">
+                            <img :src="filePreviews['id_card_front']" class="h-32 w-48 object-cover rounded-lg border border-gray-300 dark:border-gray-600">
+                        </div>
+                    </div>
+
+                    <!-- ID Card Back -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            ID Card (Back)
+                        </label>
+                        <input type="file"
+                               name="id_card_back"
+                               accept="image/*"
+                               @change="handleFileChange($event, 'id_card_back')"
+                               class="block w-full text-sm text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 focus:outline-none">
+                        <div x-show="filePreviews['id_card_back']" class="mt-2">
+                            <img :src="filePreviews['id_card_back']" class="h-32 w-48 object-cover rounded-lg border border-gray-300 dark:border-gray-600">
+                        </div>
+                    </div>
+
+                    <!-- Signature -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Signature {% if is_create %}<span class="text-red-500">*</span>{% endif %}
+                        </label>
+                        <input type="file"
+                               name="signature"
+                               accept="image/*"
+                               @change="handleFileChange($event, 'signature')"
+                               class="block w-full text-sm text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 focus:outline-none">
+                        <div x-show="filePreviews['signature']" class="mt-2">
+                            <img :src="filePreviews['signature']" class="h-24 w-48 object-cover rounded-lg border border-gray-300 dark:border-gray-600">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Employment & Business -->
+            <div id="client-tab-3" x-show="currentTab === 3" x-transition>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Employment & Business Information</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Occupation -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Occupation
+                        </label>
+                        {{ form.occupation }}
+                        {% if form.occupation.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.occupation.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Employer -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Employer
+                        </label>
+                        {{ form.employer }}
+                        {% if form.employer.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.employer.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Monthly Income -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Monthly Income (₦)
+                        </label>
+                        {{ form.monthly_income }}
+                        {% if form.monthly_income.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.monthly_income.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Years in Business -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Years in Business
+                        </label>
+                        {{ form.years_in_business }}
+                        {% if form.years_in_business.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.years_in_business.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Business Name -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Business Name
+                        </label>
+                        {{ form.business_name }}
+                        {% if form.business_name.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.business_name.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Business Type -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Business Type
+                        </label>
+                        {{ form.business_type }}
+                        {% if form.business_type.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.business_type.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Business Type 2 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Secondary Business Type
+                        </label>
+                        {{ form.business_type_2 }}
+                        {% if form.business_type_2.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.business_type_2.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Business Landmark -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Business Landmark
+                        </label>
+                        {{ form.business_landmark }}
+                        {% if form.business_landmark.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.business_landmark.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Business Location -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Business Location
+                        </label>
+                        {{ form.business_location }}
+                        {% if form.business_location.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.business_location.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Business Address -->
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Business Address
+                        </label>
+                        {{ form.business_address }}
+                        {% if form.business_address.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.business_address.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: Banking & Emergency Contact -->
+            <div id="client-tab-4" x-show="currentTab === 4" x-transition>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Banking & Emergency Contact</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Banking Section -->
+                    <div class="md:col-span-2">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Banking Details</h3>
+                    </div>
+
+                    <!-- Account Number -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Account Number
+                        </label>
+                        {{ form.account_number }}
+                        {% if form.account_number.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.account_number.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Bank Name -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Bank Name
+                        </label>
+                        {{ form.bank_name }}
+                        {% if form.bank_name.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.bank_name.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Emergency Contact Section -->
+                    <div class="md:col-span-2 mt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Emergency Contact</h3>
+                    </div>
+
+                    <!-- Emergency Contact Name -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Contact Name
+                        </label>
+                        {{ form.emergency_contact_name }}
+                        {% if form.emergency_contact_name.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.emergency_contact_name.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Emergency Contact Phone -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Contact Phone
+                        </label>
+                        {{ form.emergency_contact_phone }}
+                        {% if form.emergency_contact_phone.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.emergency_contact_phone.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Emergency Contact Relationship -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Relationship
+                        </label>
+                        {{ form.emergency_contact_relationship }}
+                        {% if form.emergency_contact_relationship.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.emergency_contact_relationship.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Emergency Contact Address -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Contact Address
+                        </label>
+                        {{ form.emergency_contact_address }}
+                        {% if form.emergency_contact_address.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.emergency_contact_address.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Branch & Group Section -->
+                    <div class="md:col-span-2 mt-6">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Branch & Group Assignment</h3>
+                    </div>
+
+                    <!-- Branch -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Branch <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.branch }}
+                        {% if form.branch.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.branch.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Group -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Group
+                        </label>
+                        {{ form.group }}
+                        {% if form.group.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.group.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Group Role -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Group Role
+                        </label>
+                        {{ form.group_role }}
+                        {% if form.group_role.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.group_role.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Origin Channel -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Origin Channel
+                        </label>
+                        {{ form.origin_channel }}
+                        {% if form.origin_channel.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.origin_channel.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <button type="button"
+                        @click="previousTab()"
+                        x-show="currentTab > 0"
+                        class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Previous
+                </button>
+
+                <div class="ml-auto flex space-x-3">
+                    <a href="{% if is_create %}{% url 'core:client_list' %}{% else %}{% url 'core:client_detail' client.id %}{% endif %}"
+                       class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        Cancel
+                    </a>
+
+                    <button type="button"
+                            @click="nextTab()"
+                            x-show="currentTab < tabs.length - 1"
+                            :disabled="isValidating || isSubmitting"
+                            class="px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors">
+                        <span x-show="isValidating" x-cloak>
+                            <i class="fas fa-spinner fa-spin mr-2"></i>Checking...
+                        </span>
+                        <span x-show="!isValidating">
+                            Next <i class="fas fa-arrow-right ml-1"></i>
+                        </span>
+                    </button>
+
+                    {% if is_create %}
+                    <button type="button"
+                            @click="submitForm()"
+                            x-show="currentTab === tabs.length - 1"
+                            :disabled="isSubmitting || isValidating"
+                            class="px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors">
+                        <span x-show="isSubmitting" x-cloak>
+                            <i class="fas fa-spinner fa-spin mr-2"></i>Registering...
+                        </span>
+                        <span x-show="!isSubmitting">
+                            <i class="fas fa-save mr-2"></i>Register Client
+                        </span>
+                    </button>
+                    {% else %}
+                    <button type="button"
+                            @click="submitForm()"
+                            x-show="currentTab === tabs.length - 1"
+                            :disabled="isSubmitting || isValidating"
+                            class="px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors">
+                        <span x-show="isSubmitting" class="inline-flex items-center gap-2">
+                            <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                            </svg>
+                            Updating...
+                        </span>
+                        <span x-show="!isSubmitting">
+                            <i class="fas fa-save mr-2"></i>Update Client
+                        </span>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function clientFormApp() {
+    return {
+        currentTab: {{ error_tab|default:0 }},
+        isValidating: false,
+        isSubmitting: false,
+        tabError: '',
+        isCreate: {{ is_create|yesno:"true,false" }},
+        tabs: [
+            { name: 'Personal Info' },
+            { name: 'Contact & Address' },
+            { name: 'Identification' },
+            { name: 'Employment' },
+            { name: 'Banking & Emergency' }
+        ],
+
+        // ── File tracking ──────────────────────────────────────────────────
+        // Files selected by the user this session, keyed by field name.
+        // This ensures files chosen on a hidden tab are always submitted,
+        // regardless of browser FormData behaviour with display:none elements.
+        selectedFiles: {},
+
+        // Preview URLs for image fields (initialised with existing Cloudinary URLs for edit)
+        filePreviews: {
+            profile_picture: '{% if client and client.profile_picture %}{{ client.profile_picture.url }}{% endif %}',
+            id_card_front:   '{% if client and client.id_card_front %}{{ client.id_card_front.url }}{% endif %}',
+            id_card_back:    '{% if client and client.id_card_back %}{{ client.id_card_back.url }}{% endif %}',
+            signature:       '{% if client and client.signature %}{{ client.signature.url }}{% endif %}',
+        },
+
+        handleFileChange(event, fieldName) {
+            const file = event.target.files[0];
+            if (file) {
+                this.selectedFiles[fieldName] = file;
+                this.filePreviews[fieldName] = URL.createObjectURL(file);
+            }
+        },
+
+        // ── Error display ───────────────────────────────────────────────────
+
+        _clearErrors() {
+            document.querySelectorAll('.ajax-field-error').forEach(el => el.remove());
+            document.querySelectorAll('[data-ajax-error]').forEach(el => {
+                el.style.outline = '';
+                el.style.outlineOffset = '';
+                el.removeAttribute('data-ajax-error');
+            });
+            this.tabError = '';
+        },
+
+        _showErrors(errors) {
+            this._clearErrors();
+            const tabDiv = document.getElementById(`client-tab-${this.currentTab}`);
+            let firstEl = null;
+
+            for (const [fieldName, messages] of Object.entries(errors)) {
+                if (!messages || !messages.length) continue;
+                const input = tabDiv
+                    ? tabDiv.querySelector(`[name="${fieldName}"]`)
+                    : document.querySelector(`[name="${fieldName}"]`);
+                if (!input) continue;
+
+                input.style.outline = '2px solid #ef4444';
+                input.style.outlineOffset = '1px';
+                input.setAttribute('data-ajax-error', '1');
+
+                const p = document.createElement('p');
+                p.className = 'ajax-field-error mt-1 text-sm text-red-600 dark:text-red-400';
+                p.textContent = messages[0];
+                input.after(p);
+
+                if (!firstEl) firstEl = input;
+            }
+
+            const count = Object.keys(errors).length;
+            if (count > 0) {
+                this.tabError = count === 1
+                    ? 'Please fix the highlighted field before continuing.'
+                    : `Please fix the ${count} highlighted fields before continuing.`;
+                if (firstEl) {
+                    firstEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstEl.focus();
+                }
+            }
+        },
+
+        // ── Server-side tab validation (AJAX, create only) ─────────────────
+
+        async _validateTabAjax() {
+            const tabDiv = document.getElementById(`client-tab-${this.currentTab}`);
+            const data = new FormData();
+            data.append('tab', this.currentTab);
+
+            tabDiv.querySelectorAll('input, select, textarea').forEach(el => {
+                if (!el.name) return;
+                if (el.type === 'file') {
+                    // Use tracked file if available, otherwise fall back to input.files
+                    const file = this.selectedFiles[el.name] || (el.files && el.files[0]);
+                    if (file) data.append(el.name, file);
+                } else if (el.type === 'checkbox') {
+                    if (el.checked) data.append(el.name, el.value);
+                } else if (el.type === 'radio') {
+                    if (el.checked) data.append(el.name, el.value);
+                } else {
+                    data.append(el.name, el.value);
+                }
+            });
+
+            const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const resp = await fetch("{% url 'core:client_validate_tab' %}", {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrf },
+                body: data,
+            });
+            return resp.json();
+        },
+
+        // ── Browser-native fallback ────────────────────────────────────────
+
+        _validateTabNative() {
+            const controls = [
+                ...this.$el.querySelectorAll('input:not([type="hidden"]), select, textarea')
+            ].filter(el => el.offsetParent !== null);
+            const invalid = controls.filter(el => !el.checkValidity());
+            if (!invalid.length) return { valid: true, errors: {} };
+            const errors = {};
+            invalid.forEach(el => {
+                if (el.name) errors[el.name] = [el.validationMessage || 'This field is required.'];
+            });
+            return { valid: false, errors };
+        },
+
+        // ── Navigation ──────────────────────────────────────────────────────
+
+        async nextTab() {
+            if (this.isValidating || this.isSubmitting) return;
+            this.isValidating = true;
+            try {
+                let result;
+                if (this.isCreate) {
+                    result = await this._validateTabAjax();
+                } else {
+                    result = this._validateTabNative();
+                }
+                if (result.valid) {
+                    this._clearErrors();
+                    this.currentTab++;
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    this._showErrors(result.errors);
+                }
+            } catch (err) {
+                console.warn('AJAX validation unavailable, falling back to browser validation:', err);
+                const fallback = this._validateTabNative();
+                if (fallback.valid) {
+                    this._clearErrors();
+                    this.currentTab++;
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    this._showErrors(fallback.errors);
+                }
+            } finally {
+                this.isValidating = false;
+            }
+        },
+
+        previousTab() {
+            if (this.currentTab > 0) {
+                this._clearErrors();
+                this.currentTab--;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        },
+
+        // ── AJAX submit (both create and edit) ─────────────────────────────
+
+        async submitForm() {
+            if (this.isSubmitting || this.isValidating) return;
+
+            // Validate the last tab before submitting
+            this.isValidating = true;
+            let lastTabOk;
+            try {
+                lastTabOk = await this._validateTabAjax();
+            } catch (err) {
+                lastTabOk = this._validateTabNative();
+            } finally {
+                this.isValidating = false;
+            }
+
+            if (!lastTabOk.valid) {
+                this._showErrors(lastTabOk.errors);
+                return;
+            }
+
+            this._clearErrors();
+            this.isSubmitting = true;
+
+            try {
+                const formEl = document.getElementById('clientForm');
+
+                // Build FormData from the form, then explicitly override file fields
+                // using our tracked selectedFiles map. This guarantees files chosen
+                // on hidden tabs (display:none via x-show) are always included.
+                const data = new FormData(formEl);
+                for (const [fieldName, file] of Object.entries(this.selectedFiles)) {
+                    data.delete(fieldName);   // remove any (possibly empty) entry
+                    data.append(fieldName, file);
+                }
+
+                const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const url = this.isCreate
+                    ? "{% url 'core:client_create_ajax' %}"
+                    : "{% if not is_create %}{% url 'core:client_update_ajax' client_id=client.id %}{% endif %}";
+
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrf },
+                    body: data,
+                });
+                const result = await resp.json();
+
+                if (result.success) {
+                    window.location.href = result.redirect_url;
+                } else {
+                    const errorTab = result.error_tab ?? 0;
+                    this.currentTab = errorTab;
+                    await this.$nextTick();
+                    const tabErrors = Object.fromEntries(
+                        Object.entries(result.errors).filter(
+                            ([f]) => this._fieldTab(f) === errorTab
+                        )
+                    );
+                    this._showErrors(tabErrors);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            } catch (err) {
+                console.error('Submit error:', err);
+                alert('A network error occurred. Please check your connection and try again.');
+            } finally {
+                this.isSubmitting = false;
+            }
+        },
+
+        // Field name → tab index (mirrors _FIELD_TAB in client_ajax_views.py)
+        _fieldTab(name) {
+            const map = {
+                first_name: 0, last_name: 0, nickname: 0, email: 0, phone: 0,
+                alternate_phone: 0, date_of_birth: 0, gender: 0, marital_status: 0,
+                number_of_dependents: 0, education_level: 0,
+                address: 1, city: 1, state: 1, postal_code: 1, country: 1,
+                landmark: 1, location: 1, residential_status: 1, union_location: 1,
+                id_type: 2, id_number: 2, bvn: 2, profile_picture: 2,
+                id_card_front: 2, id_card_back: 2, signature: 2,
+                occupation: 3, employer: 3, monthly_income: 3, years_in_business: 3,
+                business_name: 3, business_type: 3, business_type_2: 3,
+                business_landmark: 3, business_location: 3, business_address: 3,
+                account_number: 4, bank_name: 4, emergency_contact_name: 4,
+                emergency_contact_phone: 4, emergency_contact_relationship: 4,
+                emergency_contact_address: 4, branch: 4, group: 4,
+                group_role: 4, origin_channel: 4,
+            };
+            return map[name] ?? 0;
+        },
+    }
+}
+</script>
+{% endblock %}

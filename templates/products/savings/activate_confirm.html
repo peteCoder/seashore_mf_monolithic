@@ -1,0 +1,85 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Activate Savings Product - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Activate Savings Product</h1>
+        <p class="text-gray-600 dark:text-gray-400">Make this product available for new accounts</p>
+    </div>
+
+    <!-- Product Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center mb-4">
+            <div class="h-12 w-12 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center mr-4">
+                <i class="fas fa-piggy-bank text-2xl text-primary-600 dark:text-primary-400"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ product.name }}</h2>
+                <p class="text-gray-600 dark:text-gray-400">{{ product.code }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Product Type</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ product.get_product_type_display }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Interest Rate</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ product.interest_rate_annual }}% p.a.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Notice -->
+    <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-green-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-green-800 dark:text-green-300 mb-1">What happens when you activate?</h3>
+                <div class="text-sm text-green-700 dark:text-green-300 space-y-1">
+                    <ul class="list-disc ml-5 mt-1">
+                        <li>This product will become available for creating new savings accounts</li>
+                        <li>Staff will be able to see and select this product when opening accounts</li>
+                        <li>All product features and configurations will take effect immediately</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activation Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="mb-6">
+                <p class="text-gray-700 dark:text-gray-300 mb-4">
+                    Are you sure you want to activate <strong class="text-green-600 dark:text-green-400">{{ product.name }}</strong>?
+                </p>
+
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                    Once activated, this product will be available for creating new savings accounts across all branches.
+                </p>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3">
+                <a href="{% url 'core:savings_product_detail' product.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-play-circle mr-2"></i>Activate Product
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

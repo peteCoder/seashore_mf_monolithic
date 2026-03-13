@@ -1,0 +1,311 @@
+{% extends "layouts/base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="space-y-6" x-data="{ selectedGlLineId: '', selectedGlLineDesc: '' }">
+
+    <!-- Header -->
+    <div class="flex items-start justify-between">
+        <div>
+            <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+                <a href="{% url 'core:reconciliation_list' %}" class="hover:text-gray-700 dark:hover:text-gray-200">Reconciliations</a>
+                <span>/</span>
+                <span>{{ recon.recon_ref }}</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {{ recon.branch.name }} &middot; {{ recon.period_start|date:"d M Y" }} — {{ recon.period_end|date:"d M Y" }}
+                &middot; Account: {{ recon.gl_account.gl_code }} {{ recon.gl_account.account_name }}
+            </p>
+        </div>
+        <div class="flex items-center gap-3">
+            {% if recon.status != 'completed' %}
+            <form method="post" action="{% url 'core:reconciliation_complete' recon.id %}">
+                {% csrf_token %}
+                <button type="submit"
+                        {% if not recon.is_complete_eligible %}disabled title="All bank lines must be matched first"{% endif %}
+                        class="px-4 py-2 text-sm font-medium rounded-lg transition-colors
+                               {% if recon.is_complete_eligible %}bg-green-600 hover:bg-green-700 text-white{% else %}bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed{% endif %}">
+                    <i class="fas fa-check-circle mr-1"></i>Mark Complete
+                </button>
+            </form>
+            {% else %}
+            <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                <i class="fas fa-check-circle mr-1.5"></i>Completed
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Stats bar -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 border-l-4 border-l-blue-500">
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Opening Balance</p>
+            <p class="text-lg font-bold text-gray-900 dark:text-white">₦{{ recon.opening_balance|floatformat:2|intcomma }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 border-l-4 border-l-indigo-500">
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">GL Closing</p>
+            <p class="text-lg font-bold text-gray-900 dark:text-white">₦{{ gl_closing|floatformat:2|intcomma }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 border-l-4 border-l-purple-500">
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Bank Closing</p>
+            <p class="text-lg font-bold text-gray-900 dark:text-white">₦{{ recon.bank_statement_closing_balance|floatformat:2|intcomma }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 border-l-4 {% if difference == 0 %}border-l-green-500{% else %}border-l-red-500{% endif %}">
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Difference</p>
+            <p class="text-lg font-bold {% if difference == 0 %}text-green-600{% else %}text-red-600{% endif %}">₦{{ difference|floatformat:2|intcomma }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 border-l-4 border-l-green-500">
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Matched</p>
+            <p class="text-lg font-bold text-green-600">{{ matched_count }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 border-l-4 {% if unmatched_count == 0 %}border-l-green-500{% else %}border-l-amber-500{% endif %}">
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Unmatched</p>
+            <p class="text-lg font-bold {% if unmatched_count == 0 %}text-green-600{% else %}text-amber-600{% endif %}">{{ unmatched_count }}</p>
+        </div>
+    </div>
+
+    <!-- Selected GL line indicator -->
+    <div x-show="selectedGlLineId" x-cloak
+         class="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg text-sm">
+        <i class="fas fa-mouse-pointer text-amber-600"></i>
+        <span class="text-amber-700 dark:text-amber-300">
+            GL line selected: <strong x-text="selectedGlLineDesc"></strong>
+        </span>
+        <button @click="selectedGlLineId = ''; selectedGlLineDesc = ''" type="button"
+                class="ml-auto text-amber-500 hover:text-amber-700">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+        <!-- GL Lines Panel (left) -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-gray-900 dark:text-white">Unmatched GL Lines</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Click a row to select it, then click "Match" on the bank side</p>
+                </div>
+                <span class="text-xs text-gray-500 dark:text-gray-400">{{ gl_lines|length }} line{{ gl_lines|length|pluralize }}</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead class="bg-gray-50 dark:bg-gray-700/50">
+                        <tr>
+                            <th class="text-left px-3 py-2 font-semibold text-gray-600 dark:text-gray-400">Date</th>
+                            <th class="text-left px-3 py-2 font-semibold text-gray-600 dark:text-gray-400">Journal / Description</th>
+                            <th class="text-right px-3 py-2 font-semibold text-gray-600 dark:text-gray-400">Debit</th>
+                            <th class="text-right px-3 py-2 font-semibold text-gray-600 dark:text-gray-400">Credit</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        {% for line in gl_lines %}
+                        <tr @click="selectedGlLineId = '{{ line.id }}'; selectedGlLineDesc = '{{ line.journal_entry.journal_number }}: {{ line.description|default:line.journal_entry.description|truncatechars:40 }}'"
+                            :class="selectedGlLineId === '{{ line.id }}' ? 'bg-amber-50 dark:bg-amber-900/20 cursor-pointer' : 'hover:bg-gray-50 dark:hover:bg-gray-700/30 cursor-pointer'"
+                            class="transition-colors">
+                            <td class="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                {{ line.journal_entry.transaction_date|date:"d M" }}
+                            </td>
+                            <td class="px-3 py-2">
+                                <p class="font-medium text-gray-900 dark:text-white">{{ line.journal_entry.journal_number }}</p>
+                                <p class="text-gray-400 truncate max-w-[180px]">{{ line.description|default:line.journal_entry.description }}</p>
+                            </td>
+                            <td class="px-3 py-2 text-right text-green-600 font-medium">
+                                {% if line.debit_amount %}₦{{ line.debit_amount|floatformat:2|intcomma }}{% else %}—{% endif %}
+                            </td>
+                            <td class="px-3 py-2 text-right text-red-500 font-medium">
+                                {% if line.credit_amount %}₦{{ line.credit_amount|floatformat:2|intcomma }}{% else %}—{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="px-3 py-8 text-center text-gray-400 dark:text-gray-500">
+                                <i class="fas fa-check-circle text-green-400 text-xl mb-2 block"></i>
+                                All GL lines are matched
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if gl_lines %}
+                    <tfoot class="bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700">
+                        <tr>
+                            <td colspan="2" class="px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400">Unmatched Totals</td>
+                            <td class="px-3 py-2 text-right text-xs font-semibold text-green-600">₦{{ gl_total_debits|floatformat:2|intcomma }}</td>
+                            <td class="px-3 py-2 text-right text-xs font-semibold text-red-500">₦{{ gl_total_credits|floatformat:2|intcomma }}</td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <!-- Bank Statement Lines Panel (right) -->
+        <div class="space-y-4">
+            <!-- Add Line Form -->
+            {% if recon.status != 'completed' %}
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700" x-data="{ open: false }">
+                <button @click="open = !open" type="button"
+                        class="w-full flex items-center justify-between px-5 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-xl">
+                    <span><i class="fas fa-plus mr-2 text-primary-500"></i>Add Bank Statement Line</span>
+                    <i class="fas fa-chevron-down transition-transform" :class="open ? 'rotate-180' : ''"></i>
+                </button>
+                <div x-show="open" x-collapse class="border-t border-gray-100 dark:border-gray-700">
+                    <form method="post" action="{% url 'core:reconciliation_add_line' recon.id %}" class="p-5 space-y-3">
+                        {% csrf_token %}
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date *</label>
+                                {{ add_line_form.line_date }}
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Reference</label>
+                                {{ add_line_form.reference }}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Description *</label>
+                            {{ add_line_form.description }}
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Debit (money out)</label>
+                                {{ add_line_form.debit_amount }}
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Credit (money in)</label>
+                                {{ add_line_form.credit_amount }}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
+                            {{ add_line_form.notes }}
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit" class="px-4 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg">
+                                <i class="fas fa-plus mr-1"></i>Add Line
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Bank Lines Table -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-sm font-semibold text-gray-900 dark:text-white">Bank Statement Lines</h2>
+                        <p class="text-xs text-gray-400 mt-0.5">Select a GL line first, then click "Match"</p>
+                    </div>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ bank_lines|length }} line{{ bank_lines|length|pluralize }}</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead class="bg-gray-50 dark:bg-gray-700/50">
+                            <tr>
+                                <th class="text-left px-3 py-2 font-semibold text-gray-600 dark:text-gray-400">Date</th>
+                                <th class="text-left px-3 py-2 font-semibold text-gray-600 dark:text-gray-400">Description</th>
+                                <th class="text-right px-3 py-2 font-semibold text-gray-600 dark:text-gray-400">Debit</th>
+                                <th class="text-right px-3 py-2 font-semibold text-gray-600 dark:text-gray-400">Credit</th>
+                                <th class="text-center px-3 py-2 font-semibold text-gray-600 dark:text-gray-400">Status</th>
+                                {% if recon.status != 'completed' %}<th class="px-3 py-2"></th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                            {% for bank_line in bank_lines %}
+                            <tr class="{% if bank_line.status == 'matched' %}bg-green-50/50 dark:bg-green-900/10{% endif %}">
+                                <td class="px-3 py-2 whitespace-nowrap text-gray-500 dark:text-gray-400">{{ bank_line.line_date|date:"d M" }}</td>
+                                <td class="px-3 py-2">
+                                    <p class="text-gray-900 dark:text-white truncate max-w-[160px]">{{ bank_line.description }}</p>
+                                    {% if bank_line.matched_gl_line %}
+                                    <p class="text-green-600 dark:text-green-400 text-xs">↔ {{ bank_line.matched_gl_line.journal_entry.journal_number }}</p>
+                                    {% endif %}
+                                </td>
+                                <td class="px-3 py-2 text-right text-red-500 font-medium">
+                                    {% if bank_line.debit_amount %}₦{{ bank_line.debit_amount|floatformat:2|intcomma }}{% else %}—{% endif %}
+                                </td>
+                                <td class="px-3 py-2 text-right text-green-600 font-medium">
+                                    {% if bank_line.credit_amount %}₦{{ bank_line.credit_amount|floatformat:2|intcomma }}{% else %}—{% endif %}
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    {% if bank_line.status == 'matched' %}
+                                    <span class="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Matched</span>
+                                    {% elif bank_line.status == 'disputed' %}
+                                    <span class="px-1.5 py-0.5 rounded text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Disputed</span>
+                                    {% else %}
+                                    <span class="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">Unmatched</span>
+                                    {% endif %}
+                                </td>
+                                {% if recon.status != 'completed' %}
+                                <td class="px-3 py-2">
+                                    {% if bank_line.status == 'unmatched' %}
+                                    <form method="post" action="{% url 'core:reconciliation_match' recon.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="match">
+                                        <input type="hidden" name="bank_line_id" value="{{ bank_line.id }}">
+                                        <input type="hidden" name="gl_line_id" :value="selectedGlLineId">
+                                        <button type="submit"
+                                                :disabled="!selectedGlLineId"
+                                                :class="selectedGlLineId ? 'bg-primary-600 hover:bg-primary-700 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'"
+                                                class="px-2 py-1 text-xs rounded transition-colors">
+                                            Match
+                                        </button>
+                                    </form>
+                                    {% elif bank_line.status == 'matched' %}
+                                    <form method="post" action="{% url 'core:reconciliation_match' recon.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="unmatch">
+                                        <input type="hidden" name="bank_line_id" value="{{ bank_line.id }}">
+                                        <button type="submit" class="px-2 py-1 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded hover:bg-red-100">
+                                            Unmatch
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="px-3 py-8 text-center text-gray-400 dark:text-gray-500">
+                                    No bank statement lines yet. Add lines using the form above.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if bank_lines %}
+                        <tfoot class="bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700">
+                            <tr>
+                                <td colspan="2" class="px-3 py-2 text-xs font-semibold text-gray-600 dark:text-gray-400">Bank Totals</td>
+                                <td class="px-3 py-2 text-right text-xs font-semibold text-red-500">₦{{ bank_debits|floatformat:2|intcomma }}</td>
+                                <td class="px-3 py-2 text-right text-xs font-semibold text-green-600">₦{{ bank_credits|floatformat:2|intcomma }}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Metadata -->
+    {% if recon.notes %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</p>
+        <p class="text-sm text-gray-600 dark:text-gray-400">{{ recon.notes }}</p>
+    </div>
+    {% endif %}
+
+    {% if recon.status == 'completed' %}
+    <div class="flex items-center gap-3 px-4 py-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg text-sm">
+        <i class="fas fa-check-circle text-green-500"></i>
+        <span class="text-green-700 dark:text-green-300">
+            Completed by <strong>{{ recon.completed_by.get_full_name }}</strong> on {{ recon.completed_at|date:"d M Y H:i" }}
+        </span>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+{% load humanize %}
+{% block content %}
+<div class="p-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Trial Balance</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Verify that total debits equal total credits
+        </p>
+    </div>
+
+    <!-- Filter Form -->
+    <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end">
+            {% csrf_token %}
+
+            <div>
+                <label for="{{ form.date_from.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.date_from.label }}
+                </label>
+                {{ form.date_from }}
+            </div>
+
+            <div>
+                <label for="{{ form.date_to.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.date_to.label }}
+                </label>
+                {{ form.date_to }}
+            </div>
+
+            <div>
+                <label for="{{ form.branch.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.branch.label }}
+                </label>
+                {{ form.branch }}
+            </div>
+
+            <div>
+                <label for="{{ form.account_type.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.account_type.label }}
+                </label>
+                {{ form.account_type }}
+            </div>
+
+            <div class="flex items-center">
+                {{ form.show_zero_balances }}
+                <label for="{{ form.show_zero_balances.id_for_label }}" class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                    {{ form.show_zero_balances.label }}
+                </label>
+            </div>
+
+            <div>
+                <button type="submit" class="w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md transition-colors flex items-center justify-center gap-2">
+                    <i class="fas fa-calculator"></i> Generate Report
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {% if report_data %}
+    <!-- Report Header -->
+    <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white">TRIAL BALANCE</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">
+            For the period: {{ report_data.date_from|date:"Y-m-d" }} to {{ report_data.date_to|date:"Y-m-d" }}
+        </p>
+        {% if report_data.branch %}
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            Branch: {{ report_data.branch.name }}
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Balance Validation -->
+    <div class="mb-6 {% if report_data.is_balanced %}bg-green-50 dark:bg-green-900/20{% else %}bg-red-50 dark:bg-red-900/20{% endif %} border {% if report_data.is_balanced %}border-green-200 dark:border-green-800{% else %}border-red-200 dark:border-red-800{% endif %} rounded-lg p-4">
+        <div class="flex items-center justify-center gap-3">
+            <i class="fas {% if report_data.is_balanced %}fa-check-circle text-green-600 dark:text-green-400{% else %}fa-exclamation-triangle text-red-600 dark:text-red-400{% endif %} text-2xl"></i>
+            <p class="text-lg font-medium {% if report_data.is_balanced %}text-green-800 dark:text-green-200{% else %}text-red-800 dark:text-red-200{% endif %}">
+                {% if report_data.is_balanced %}BALANCED — Debits equal Credits{% else %}NOT BALANCED — Please review!{% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Trial Balance Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">GL Code</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Account Name</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Debit</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Credit</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for item in report_data.trial_balance %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono font-medium text-gray-900 dark:text-white">
+                            {{ item.account.gl_code }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                            {{ item.account.account_name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-green-600 dark:text-green-400">
+                            {% if item.debit > 0 %}₦{{ item.debit|floatformat:2|intcomma }}{% else %}-{% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-red-600 dark:text-red-400">
+                            {% if item.credit > 0 %}₦{{ item.credit|floatformat:2|intcomma }}{% else %}-{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <!-- Totals Row -->
+                    <tr class="bg-gray-100 dark:bg-gray-700 font-bold text-lg">
+                        <td colspan="2" class="px-6 py-4 text-right text-gray-900 dark:text-white">TOTALS:</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right font-bold text-green-600 dark:text-green-400">
+                            ₦{{ report_data.total_debits|floatformat:2|intcomma }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right font-bold text-red-600 dark:text-red-400">
+                            ₦{{ report_data.total_credits|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Export Options -->
+    <div class="mt-6 flex flex-wrap justify-end gap-3">
+        <a href="?date_from={{ report_data.date_from|date:'Y-m-d' }}&date_to={{ report_data.date_to|date:'Y-m-d' }}{% if report_data.branch %}&branch={{ report_data.branch.id }}{% endif %}&export=excel"
+           class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm transition-colors inline-flex items-center gap-2">
+            <i class="fas fa-file-excel"></i> Export Excel
+        </a>
+        <a href="?date_from={{ report_data.date_from|date:'Y-m-d' }}&date_to={{ report_data.date_to|date:'Y-m-d' }}{% if report_data.branch %}&branch={{ report_data.branch.id }}{% endif %}&export=pdf"
+           class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm transition-colors inline-flex items-center gap-2">
+            <i class="fas fa-file-pdf"></i> Export PDF
+        </a>
+        <button onclick="window.print()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 inline-flex items-center gap-2">
+            <i class="fas fa-print"></i> Print
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+@media print {
+    .no-print { display: none; }
+    body { background: white; }
+}
+</style>
+{% endblock %}

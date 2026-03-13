@@ -1,0 +1,139 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+{% block content %}
+<div class="p-6">
+    <h1 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">General Ledger</h1>
+
+    <!-- Filter Form -->
+    <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+            {% csrf_token %}
+
+            <div>
+                <label for="{{ form.account.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.account.label }}
+                </label>
+                {{ form.account }}
+            </div>
+
+            <div>
+                <label for="{{ form.date_from.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.date_from.label }}
+                </label>
+                {{ form.date_from }}
+            </div>
+
+            <div>
+                <label for="{{ form.date_to.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.date_to.label }}
+                </label>
+                {{ form.date_to }}
+            </div>
+
+            <div>
+                <label for="{{ form.branch.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.branch.label }}
+                </label>
+                {{ form.branch }}
+            </div>
+
+            <div>
+                <button type="submit" class="w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md transition-colors flex items-center justify-center gap-2">
+                    <i class="fas fa-book"></i> Generate Report
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {% if report_data %}
+    <!-- Account Info -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+            {{ report_data.account.gl_code }} — {{ report_data.account.account_name }}
+        </h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            {{ report_data.date_from|date:"Y-m-d" }} to {{ report_data.date_to|date:"Y-m-d" }}
+        </p>
+        <p class="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            Opening Balance: <span class="text-gray-900 dark:text-white font-semibold">₦{{ report_data.opening_balance|floatformat:2|intcomma }}</span>
+        </p>
+    </div>
+
+    <!-- Ledger Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase whitespace-nowrap">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase whitespace-nowrap">Journal</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Description</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase whitespace-nowrap">Debit</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase whitespace-nowrap">Credit</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase whitespace-nowrap">Balance</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for txn in report_data.transactions %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td class="px-6 py-3 text-sm whitespace-nowrap text-gray-800 dark:text-gray-200">
+                            {{ txn.line.journal_entry.transaction_date|date:"Y-m-d" }}
+                        </td>
+                        <td class="px-6 py-3 text-sm whitespace-nowrap font-mono text-gray-800 dark:text-gray-200">
+                            {{ txn.line.journal_entry.journal_number }}
+                        </td>
+                        <td class="px-6 py-3 text-sm text-gray-800 dark:text-gray-200">
+                            {{ txn.line.description|truncatewords:8 }}
+                        </td>
+                        <td class="px-6 py-3 text-right text-sm text-green-600 dark:text-green-400 whitespace-nowrap">
+                            {% if txn.line.debit_amount > 0 %}₦{{ txn.line.debit_amount|floatformat:2|intcomma }}{% else %}-{% endif %}
+                        </td>
+                        <td class="px-6 py-3 text-right text-sm text-red-600 dark:text-red-400 whitespace-nowrap">
+                            {% if txn.line.credit_amount > 0 %}₦{{ txn.line.credit_amount|floatformat:2|intcomma }}{% else %}-{% endif %}
+                        </td>
+                        <td class="px-6 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                            ₦{{ txn.running_balance|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-sm text-gray-400 dark:text-gray-500">
+                            No transactions in this period
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="bg-gray-100 dark:bg-gray-700 font-bold">
+                        <td colspan="5" class="px-6 py-3 text-right text-sm text-gray-900 dark:text-white">Closing Balance:</td>
+                        <td class="px-6 py-3 text-right text-sm text-gray-900 dark:text-white whitespace-nowrap">
+                            ₦{{ report_data.closing_balance|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Export Options -->
+    <div class="mt-6 flex flex-wrap justify-end gap-3">
+        <a href="?account={{ report_data.account.id }}&date_from={{ report_data.date_from|date:'Y-m-d' }}&date_to={{ report_data.date_to|date:'Y-m-d' }}{% if report_data.branch %}&branch={{ report_data.branch.id }}{% endif %}&export=excel"
+           class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm transition-colors inline-flex items-center gap-2">
+            <i class="fas fa-file-excel"></i> Export Excel
+        </a>
+        <a href="?account={{ report_data.account.id }}&date_from={{ report_data.date_from|date:'Y-m-d' }}&date_to={{ report_data.date_to|date:'Y-m-d' }}{% if report_data.branch %}&branch={{ report_data.branch.id }}{% endif %}&export=pdf"
+           class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm transition-colors inline-flex items-center gap-2">
+            <i class="fas fa-file-pdf"></i> Export PDF
+        </a>
+        <button onclick="window.print()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 inline-flex items-center gap-2">
+            <i class="fas fa-print"></i> Print
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+@media print {
+    .no-print { display: none; }
+    body { background: white; }
+}
+</style>
+{% endblock %}

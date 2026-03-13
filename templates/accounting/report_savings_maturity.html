@@ -1,0 +1,105 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+{% block title %}Savings Maturity Report — Seashore Microfinance{% endblock %}
+{% block content %}
+<div class="p-6">
+
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Savings Maturity Report</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Fixed deposit accounts maturing within the next {{ months_out }} month{{ months_out|pluralize }} — as of {{ today|date:"d M Y" }}
+        </p>
+    </div>
+
+    <!-- Filters -->
+    <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-5">
+        <form method="get" class="flex flex-wrap gap-4 items-end">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Look-ahead (months)</label>
+                <select name="months" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+                    <option value="1"  {% if months_out == 1  %}selected{% endif %}>1 month</option>
+                    <option value="2"  {% if months_out == 2  %}selected{% endif %}>2 months</option>
+                    <option value="3"  {% if months_out == 3  %}selected{% endif %}>3 months</option>
+                    <option value="6"  {% if months_out == 6  %}selected{% endif %}>6 months</option>
+                    <option value="12" {% if months_out == 12 %}selected{% endif %}>12 months</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch</label>
+                <select name="branch" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+                    <option value="">All Branches</option>
+                    {% for branch in branches %}
+                    <option value="{{ branch.id }}" {% if selected_branch == branch.id|stringformat:"s" %}selected{% endif %}>{{ branch.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-sm font-medium">
+                <i class="fas fa-filter mr-2"></i>Filter
+            </button>
+        </form>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border-l-4 border-blue-500">
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Total Accounts</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ total_count }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border-l-4 border-green-500">
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Total Balance</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white">₦{{ total_balance|floatformat:2|intcomma }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border-l-4 {% if overdue %}border-red-500{% else %}border-gray-300{% endif %}">
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Overdue (Past Maturity)</p>
+            <p class="text-2xl font-bold {% if overdue %}text-red-600 dark:text-red-400{% else %}text-gray-900 dark:text-white{% endif %}">{{ overdue|length }}</p>
+        </div>
+    </div>
+
+    {% with groups=overdue %}
+    {% if overdue %}
+    <div class="mb-6">
+        <h2 class="text-base font-semibold text-red-600 dark:text-red-400 mb-3 flex items-center">
+            <i class="fas fa-exclamation-triangle mr-2"></i>Past Maturity ({{ overdue|length }})
+        </h2>
+        {% include "accounting/_maturity_table.html" with rows=overdue %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    {% if this_month %}
+    <div class="mb-6">
+        <h2 class="text-base font-semibold text-amber-600 dark:text-amber-400 mb-3 flex items-center">
+            <i class="fas fa-calendar-day mr-2"></i>This Month ({{ this_month|length }})
+        </h2>
+        {% include "accounting/_maturity_table.html" with rows=this_month %}
+    </div>
+    {% endif %}
+
+    {% if next_month %}
+    <div class="mb-6">
+        <h2 class="text-base font-semibold text-blue-600 dark:text-blue-400 mb-3 flex items-center">
+            <i class="fas fa-calendar-alt mr-2"></i>Next Month ({{ next_month|length }})
+        </h2>
+        {% include "accounting/_maturity_table.html" with rows=next_month %}
+    </div>
+    {% endif %}
+
+    {% if later %}
+    <div class="mb-6">
+        <h2 class="text-base font-semibold text-gray-600 dark:text-gray-400 mb-3 flex items-center">
+            <i class="fas fa-calendar mr-2"></i>Later ({{ later|length }})
+        </h2>
+        {% include "accounting/_maturity_table.html" with rows=later %}
+    </div>
+    {% endif %}
+
+    {% if not total_count %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+        <i class="fas fa-piggy-bank text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
+        <p class="text-gray-500 dark:text-gray-400">No fixed deposit accounts maturing in this window.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

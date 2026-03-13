@@ -1,0 +1,101 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">{{ page_title }}</h1>
+        <p class="text-gray-600 dark:text-gray-400">Review and approve or reject this membership request</p>
+    </div>
+
+    <!-- Membership Request Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center mb-4">
+            <div class="h-12 w-12 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center mr-4">
+                <i class="fas fa-user text-2xl text-primary-600 dark:text-primary-400"></i>
+            </div>
+            <div>
+                <a href="{% url 'core:client_detail' membership_request.client.id %}"
+                   class="text-xl font-bold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400">
+                    {{ membership_request.client.full_name }}
+                </a>
+                <p class="text-gray-600 dark:text-gray-400">{{ membership_request.client.client_id }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Group</p>
+                <a href="{% url 'core:group_detail' membership_request.group.id %}"
+                   class="text-base font-medium text-primary-600 dark:text-primary-400 hover:underline">
+                    {{ membership_request.group.name }}
+                </a>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Requested Role</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ membership_request.get_requested_role_display }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Requested By</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ membership_request.requested_by.get_full_name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Requested On</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ membership_request.requested_at|date:"M d, Y H:i" }}</p>
+            </div>
+            <div class="col-span-2">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Client Branch</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ membership_request.client.branch.name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Decision <span class="text-red-500">*</span>
+                </label>
+                <div class="space-y-2">
+                    {% for choice in form.decision %}
+                    <label class="flex items-center p-3 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        {{ choice.tag }}
+                        <span class="ml-2 text-gray-900 dark:text-white">{{ choice.choice_label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% if form.decision.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.decision.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Notes
+                </label>
+                {{ form.notes }}
+                {% if form.notes.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3">
+                <a href="{% url 'core:group_detail' membership_request.group.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-check mr-2"></i>Submit Decision
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

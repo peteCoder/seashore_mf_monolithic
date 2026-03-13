@@ -1,0 +1,144 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Enable Two-Factor Authentication — Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto p-6">
+
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Add an extra layer of security to your account with a time-based one-time password (TOTP).
+        </p>
+    </div>
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-sm
+        {% if 'error' in msg.tags %}bg-red-50 border border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300
+        {% elif 'success' in msg.tags %}bg-green-50 border border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300
+        {% else %}bg-blue-50 border border-blue-200 text-blue-700{% endif %}">
+        {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Steps -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Left: QR Code & Instructions -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-600 text-white text-xs font-bold mr-2">1</span>
+                Scan this QR code
+            </h2>
+
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Open your authenticator app (Google Authenticator, Authy, Microsoft Authenticator,
+                or any TOTP-compatible app) and scan the QR code below.
+            </p>
+
+            <!-- QR Code -->
+            <div class="flex justify-center mb-4">
+                <div class="p-3 bg-white border-2 border-gray-200 rounded-lg inline-block">
+                    <img src="{{ qr_data_uri }}" alt="2FA QR Code" class="w-48 h-48">
+                </div>
+            </div>
+
+            <!-- Manual entry fallback -->
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 mt-4">
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                    Can't scan? Enter this secret manually:
+                </p>
+                <p class="font-mono text-sm text-gray-900 dark:text-white tracking-wider break-all">
+                    {{ provisional_secret }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Right: Confirm Code -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-600 text-white text-xs font-bold mr-2">2</span>
+                Confirm the code
+            </h2>
+
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                After scanning, your app will display a 6-digit code that refreshes every 30 seconds.
+                Enter it below to verify the setup.
+            </p>
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Verification Code
+                    </label>
+                    <input
+                        type="text"
+                        name="code"
+                        inputmode="numeric"
+                        pattern="[0-9]{6}"
+                        maxlength="6"
+                        required
+                        autofocus
+                        placeholder="6-digit code"
+                        class="w-full text-center text-2xl font-bold tracking-widest
+                               px-4 py-3 border-2 border-gray-300 dark:border-gray-600
+                               rounded-xl bg-white dark:bg-gray-700
+                               text-gray-900 dark:text-white
+                               focus:border-primary-500 focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-900/30
+                               transition-all outline-none"
+                    >
+                </div>
+
+                <button type="submit"
+                        class="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-colors text-sm">
+                    <i class="fas fa-shield-alt mr-2"></i>Enable Two-Factor Authentication
+                </button>
+            </form>
+
+            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <a href="{% url 'core:dashboard' %}"
+                   class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+                    <i class="fas fa-times mr-1"></i>Cancel — don't enable 2FA now
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Security note -->
+    <div class="mt-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4 text-sm text-amber-700 dark:text-amber-300">
+        <i class="fas fa-info-circle mr-2"></i>
+        <strong>Important:</strong> If you lose access to your authenticator app you will be locked out of your account.
+        Contact your system administrator to reset 2FA.
+    </div>
+
+    <!-- Disable 2FA section (only shown if already enabled) -->
+    {% if request.user.is_2fa_enabled %}
+    <div class="mt-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-5">
+        <h3 class="text-sm font-semibold text-red-700 dark:text-red-300 mb-2">
+            <i class="fas fa-exclamation-triangle mr-1"></i>Disable Two-Factor Authentication
+        </h3>
+        <p class="text-xs text-red-600 dark:text-red-400 mb-3">
+            Disabling 2FA will make your account less secure. You will need to confirm your current password.
+        </p>
+        <form method="post" action="{% url 'core:disable_2fa' %}">
+            {% csrf_token %}
+            <div class="flex items-center gap-3">
+                <input type="password" name="current_password" placeholder="Current password" required
+                       class="flex-1 px-3 py-2 text-sm border border-red-300 dark:border-red-600 rounded-lg
+                              bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                              focus:border-red-500 focus:ring-1 focus:ring-red-200 outline-none">
+                <button type="submit"
+                        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors">
+                    Disable 2FA
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

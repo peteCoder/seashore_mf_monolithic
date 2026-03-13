@@ -1,0 +1,93 @@
+{% extends "layouts/base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="max-w-2xl space-y-6">
+
+    <!-- Header -->
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="{% url 'core:loan_detail' loan.id %}" class="hover:text-gray-700 dark:hover:text-gray-200">{{ loan.loan_number }}</a>
+            <span>/</span><span>File Insurance Claim</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ loan.client.get_full_name }} &middot; {{ loan.branch.name }}</p>
+    </div>
+
+    <!-- Loan summary -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Loan Summary</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold">Loan Number</p>
+                <p class="font-semibold text-gray-900 dark:text-white">{{ loan.loan_number }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold">Outstanding</p>
+                <p class="font-semibold text-red-600">₦{{ loan.outstanding_balance|floatformat:2|intcomma }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold">Status</p>
+                <p class="font-semibold text-gray-900 dark:text-white">{{ loan.get_status_display }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold">Product</p>
+                <p class="font-semibold text-gray-900 dark:text-white">{{ loan.loan_product.name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+            {% if form.non_field_errors %}
+            <div class="px-6 py-4 bg-red-50 dark:bg-red-900/20 rounded-t-xl">
+                {% for error in form.non_field_errors %}<p class="text-sm text-red-600 dark:text-red-400">{{ error }}</p>{% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Claim Type <span class="text-red-500">*</span></label>
+                    {{ form.claim_type }}
+                    {% if form.claim_type.errors %}<p class="mt-1 text-xs text-red-600">{{ form.claim_type.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Event Date <span class="text-red-500">*</span></label>
+                    {{ form.event_date }}
+                    {% if form.event_date.errors %}<p class="mt-1 text-xs text-red-600">{{ form.event_date.errors.0 }}</p>{% endif %}
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Claim Amount (₦) <span class="text-red-500">*</span></label>
+                    {{ form.claim_amount }}
+                    <p class="mt-1 text-xs text-gray-400">Defaults to outstanding loan balance</p>
+                    {% if form.claim_amount.errors %}<p class="mt-1 text-xs text-red-600">{{ form.claim_amount.errors.0 }}</p>{% endif %}
+                </div>
+            </div>
+
+            <div class="px-6 py-5 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Event Description <span class="text-red-500">*</span></label>
+                    {{ form.description }}
+                    {% if form.description.errors %}<p class="mt-1 text-xs text-red-600">{{ form.description.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ form.document_references.label }}</label>
+                    {{ form.document_references }}
+                    {% if form.document_references.errors %}<p class="mt-1 text-xs text-red-600">{{ form.document_references.errors.0 }}</p>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-4">
+            <a href="{% url 'core:loan_detail' loan.id %}" class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                <i class="fas fa-arrow-left mr-1"></i>Cancel
+            </a>
+            <button type="submit" class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg">
+                <i class="fas fa-shield-alt mr-2"></i>File Claim
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

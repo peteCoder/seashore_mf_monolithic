@@ -1,0 +1,265 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:savings_transaction_list' %}" class="hover:text-primary-600">Transaction Postings</a>
+            <span>/</span>
+            <span>Review Posting</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Review and make a decision on this {% if posting_type == 'deposit' %}deposit{% else %}withdrawal{% endif %} posting</p>
+    </div>
+
+    <!-- Posting Details Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Posting Details</h2>
+            {% if posting_type == 'deposit' %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                <i class="fas fa-arrow-down mr-2"></i>Deposit
+            </span>
+            {% else %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300">
+                <i class="fas fa-arrow-up mr-2"></i>Withdrawal
+            </span>
+            {% endif %}
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Posting Reference</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white font-mono">{{ posting.posting_ref }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Amount</p>
+                <p class="text-2xl font-bold text-primary-600 dark:text-primary-400">₦{{ posting.amount|floatformat:2|intcomma }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Payment Method</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ posting.get_payment_method_display }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Transaction Date</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">
+                    {% if posting_type == 'deposit' %}
+                    {{ posting.payment_date|date:"F d, Y" }}
+                    {% else %}
+                    {{ posting.withdrawal_date|date:"F d, Y" }}
+                    {% endif %}
+                </p>
+            </div>
+            {% if posting.payment_reference %}
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Payment Reference</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ posting.payment_reference }}</p>
+            </div>
+            {% endif %}
+            {% if posting.payment_details %}
+            <div class="md:col-span-2">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Payment Details</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ posting.payment_details }}</p>
+            </div>
+            {% endif %}
+            <div class="md:col-span-2">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Submitted By</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">
+                    {{ posting.submitted_by.get_full_name }} on {{ posting.submitted_at|date:"F d, Y g:i A" }}
+                </p>
+            </div>
+            {% if posting.submission_notes %}
+            <div class="md:col-span-2">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Submission Notes</p>
+                <div class="mt-1 p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                    <p class="text-base text-gray-900 dark:text-white">{{ posting.submission_notes }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Account Details Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Savings Account</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Account Number</p>
+                <a href="{% url 'core:savings_account_detail' posting.savings_account.id %}"
+                   class="text-base font-medium text-primary-600 dark:text-primary-400 hover:underline font-mono">
+                    {{ posting.savings_account.account_number }}
+                </a>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Client</p>
+                <a href="{% url 'core:client_detail' posting.client.id %}"
+                   class="text-base font-medium text-primary-600 dark:text-primary-400 hover:underline">
+                    {{ posting.client.get_full_name }}
+                </a>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Savings Product</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ posting.savings_account.savings_product.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Account Status</p>
+                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                             {% if posting.savings_account.status == 'active' %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                             {% elif posting.savings_account.status == 'pending' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300
+                             {% else %}bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300{% endif %}">
+                    {{ posting.savings_account.get_status_display }}
+                </span>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Current Balance</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ posting.savings_account.balance|floatformat:2|intcomma }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Available Balance</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ posting.savings_account.available_balance|floatformat:2|intcomma }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Minimum Balance</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ posting.savings_account.savings_product.minimum_balance|floatformat:2|intcomma }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Impact Preview -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">Approval Impact</h3>
+                <div class="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                    <p>If you approve this posting:</p>
+                    <ul class="list-disc list-inside ml-2 space-y-1">
+                        {% if posting_type == 'deposit' %}
+                        <li>₦{{ posting.amount|floatformat:2|intcomma }} will be added to the account balance</li>
+                        <li>New balance will be: ₦{% widthratio posting.savings_account.balance 1 1 as current_balance %}{{ posting.savings_account.balance|add:posting.amount|floatformat:2|intcomma }}</li>
+                        {% else %}
+                        <li>₦{{ posting.amount|floatformat:2|intcomma }} will be deducted from the account balance</li>
+                        <li>New balance will be: ₦{% widthratio posting.savings_account.balance 1 1 as current_balance %}{{ posting.savings_account.balance|add:"-"|add:posting.amount|floatformat:2|intcomma }}</li>
+                        {% if posting.is_early_withdrawal %}
+                        <li>Early withdrawal penalty: ₦{{ posting.penalty_amount|floatformat:2|intcomma }}</li>
+                        {% endif %}
+                        {% endif %}
+                        <li>A transaction will be created and recorded in the system</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if posting_type == 'withdrawal' and not posting.savings_account.can_withdraw.0 %}
+    <!-- Withdrawal Warning -->
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">Withdrawal Notice</h3>
+                <p class="text-sm text-yellow-700 dark:text-yellow-300">
+                    {{ posting.savings_account.can_withdraw.1 }}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Approval Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6">Make Your Decision</h2>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- Decision Radio Buttons -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Decision <span class="text-red-500">*</span>
+                </label>
+                <div class="space-y-3">
+                    <label class="flex items-center p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <input type="radio" name="decision" value="approve" class="h-4 w-4 text-primary-600 focus:ring-primary-500" required>
+                        <div class="ml-3">
+                            <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                                <i class="fas fa-check-circle text-green-600 dark:text-green-400 mr-2"></i>Approve Posting
+                            </span>
+                            <span class="block text-sm text-gray-500 dark:text-gray-400 mt-1">Approve and apply this {% if posting_type == 'deposit' %}deposit{% else %}withdrawal{% endif %} to the account</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <input type="radio" name="decision" value="reject" class="h-4 w-4 text-primary-600 focus:ring-primary-500" required>
+                        <div class="ml-3">
+                            <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                                <i class="fas fa-times-circle text-red-600 dark:text-red-400 mr-2"></i>Reject Posting
+                            </span>
+                            <span class="block text-sm text-gray-500 dark:text-gray-400 mt-1">Reject this posting with reason</span>
+                        </div>
+                    </label>
+                </div>
+                {% if form.decision.errors %}
+                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ form.decision.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Review Notes -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.notes.label }}
+                </label>
+                {{ form.notes }}
+                {% if form.notes.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.notes.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Optional notes about your decision (required for rejection, minimum 10 characters)
+                </p>
+            </div>
+
+            <!-- Warning -->
+            <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">Important</h3>
+                        <p class="text-sm text-yellow-700 dark:text-yellow-300">
+                            Your decision will be final. If approved, the transaction cannot be reversed.
+                            If rejected, the posting will need to be resubmitted.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3 pt-4">
+                <a href="{% url 'core:savings_transaction_list' %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-check mr-2"></i>Submit Decision
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

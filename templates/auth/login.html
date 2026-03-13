@@ -1,0 +1,242 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Login - Seashore Microfinance{% endblock %}
+
+{% block guest_content %}
+<div class="min-h-screen flex">
+    
+    <!-- Left Side - Dark Branding Panel -->
+    <div class="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
+        <!-- Diagonal Pattern Background -->
+        <div class="absolute inset-0 opacity-10">
+            <div class="absolute inset-0" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,.05) 35px, rgba(255,255,255,.05) 70px);"></div>
+        </div>
+        
+        <!-- Content -->
+        <div class="relative z-10 flex flex-col justify-between p-12 text-white">
+            <!-- Logo & Brand -->
+            <div class="space-y-6">
+                <div class="flex items-center space-x-4">
+                    <img src="https://res.cloudinary.com/degqttxsx/image/upload/v1772089780/seashore-logo_withoutbg_t8ambq.png" alt="Seashore Logo" class="w-14 h-14 object-contain flex-shrink-0">
+                    <div>
+                        <h1 class="text-2xl font-bold uppercase tracking-wide">Seashore</h1>
+                        <p class="text-sm text-gray-400 uppercase tracking-wider">Financial Company</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-3 pt-8">
+                    <h2 class="text-4xl font-bold leading-tight">
+                        Professional<br/>
+                        Microfinance<br/>
+                        Management
+                    </h2>
+                    <p class="text-gray-400 text-lg">
+                        Empowering communities through accessible financial services
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Features List -->
+            <div class="space-y-4">
+                <div class="flex items-center space-x-3 text-gray-300">
+                    <i class="fas fa-shield-alt text-amber-500"></i>
+                    <span class="text-sm">Bank-grade security & encryption</span>
+                </div>
+                <div class="flex items-center space-x-3 text-gray-300">
+                    <i class="fas fa-chart-line text-amber-500"></i>
+                    <span class="text-sm">Real-time analytics & reporting</span>
+                </div>
+                <div class="flex items-center space-x-3 text-gray-300">
+                    <i class="fas fa-users text-amber-500"></i>
+                    <span class="text-sm">Efficient client management</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Side - Login Form -->
+    <div class="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-800 relative min-h-screen">
+        
+        <!-- Mobile Logo -->
+        <div class="lg:hidden absolute top-8 left-1/2 -translate-x-1/2 flex items-center space-x-3">
+            <img src="https://res.cloudinary.com/degqttxsx/image/upload/v1772089780/seashore-logo_withoutbg_t8ambq.png" alt="Seashore Logo" class="w-10 h-10 object-contain flex-shrink-0">
+            <div>
+                <h1 class="text-lg font-bold text-gray-900 dark:text-white">SEASHORE</h1>
+                <p class="text-xs text-gray-500 dark:text-gray-400">FINANCIAL COMPANY</p>
+            </div>
+        </div>
+        
+        <!-- Login Card -->
+        <div class="w-full h-full lg:h-auto flex items-center justify-center px-6 py-8 lg:p-8">
+            <div class="w-full max-w-md lg:max-w-lg">
+                <div class="bg-white dark:bg-gray-900 rounded-none lg:rounded-3xl lg:shadow-2xl p-8 lg:p-10 min-h-screen lg:min-h-0 flex flex-col justify-center">
+                    
+                    <!-- Header -->
+                    <div class="mb-10 pt-16 lg:pt-0">
+                        <h2 class="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                            Welcome back
+                        </h2>
+                        <p class="text-gray-600 dark:text-gray-400 text-base">
+                            Login to your profile.
+                        </p>
+                    </div>
+                    
+                    <!-- Login Form -->
+                    <form method="post" class="space-y-6">
+                        {% csrf_token %}
+                        
+                        <!-- Account Lockout Error -->
+                        {% if lockout_error %}
+                        <div class="p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg">
+                            <div class="flex items-start">
+                                <i class="fas fa-lock text-red-500 mt-0.5 mr-3"></i>
+                                <p class="text-sm text-red-600 dark:text-red-400 font-medium">{{ lockout_error }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Non-field Errors (Display at top before fields) -->
+                        {% if form.non_field_errors %}
+                        <div class="p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg">
+                            <div class="flex items-start">
+                                <i class="fas fa-exclamation-circle text-red-500 mt-0.5 mr-3"></i>
+                                <div>
+                                    {% for error in form.non_field_errors %}
+                                    <p class="text-sm text-red-600 dark:text-red-400 font-medium">{{ error }}</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Email Field with Animated Label -->
+                        <div class="relative">
+                            <input type="email" 
+                                   name="email" 
+                                   id="id_email"
+                                   placeholder=" "
+                                   class="peer w-full px-6 py-4 bg-gray-100 dark:bg-gray-800 border-0 rounded-2xl text-gray-900 dark:text-white placeholder-transparent focus:ring-2 focus:ring-amber-500 focus:bg-white dark:focus:bg-gray-700 transition-all {% if form.email.errors %}ring-2 ring-red-500{% endif %}"
+                                   value="{{ form.email.value|default:'' }}"
+                                   required>
+                            <label for="id_email" 
+                                   class="absolute left-6 top-4 text-gray-500 dark:text-gray-400 transition-all duration-200 pointer-events-none
+                                          peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500
+                                          peer-focus:top-1 peer-focus:text-xs peer-focus:text-amber-600 dark:peer-focus:text-amber-500
+                                          peer-[:not(:placeholder-shown)]:top-1 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-amber-600 dark:peer-[:not(:placeholder-shown)]:text-amber-500">
+                                Email address
+                            </label>
+                            {% if form.email.errors %}
+                            <p class="text-sm text-red-500 mt-2 ml-2 flex items-center">
+                                <i class="fas fa-exclamation-circle mr-1"></i>
+                                {{ form.email.errors.0 }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Password Field with Animated Label -->
+                        <div class="relative" x-data="{ showPassword: false }">
+                            <input :type="showPassword ? 'text' : 'password'" 
+                                   name="password" 
+                                   id="id_password"
+                                   placeholder=" "
+                                   class="peer w-full px-6 py-4 bg-gray-100 dark:bg-gray-800 border-0 rounded-2xl text-gray-900 dark:text-white placeholder-transparent focus:ring-2 focus:ring-amber-500 focus:bg-white dark:focus:bg-gray-700 transition-all pr-12 {% if form.password.errors %}ring-2 ring-red-500{% endif %}"
+                                   required>
+                            <label for="id_password" 
+                                   class="absolute left-6 top-4 text-gray-500 dark:text-gray-400 transition-all duration-200 pointer-events-none
+                                          peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500
+                                          peer-focus:top-1 peer-focus:text-xs peer-focus:text-amber-600 dark:peer-focus:text-amber-500
+                                          peer-[:not(:placeholder-shown)]:top-1 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-amber-600 dark:peer-[:not(:placeholder-shown)]:text-amber-500">
+                                Password
+                            </label>
+                            <button type="button" 
+                                    @click="showPassword = !showPassword"
+                                    class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors z-10">
+                                <i class="fas" :class="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
+                            </button>
+                            {% if form.password.errors %}
+                            <p class="text-sm text-red-500 mt-2 ml-2 flex items-center">
+                                <i class="fas fa-exclamation-circle mr-1"></i>
+                                {{ form.password.errors.0 }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Forgot Password -->
+                        <div class="flex items-center justify-end text-sm pt-1">
+                            <a href="{% url 'core:password_reset_request' %}"
+                               class="text-amber-600 hover:text-amber-700 dark:text-amber-500 dark:hover:text-amber-400 font-medium transition-colors">
+                                Forgot password?
+                            </a>
+                        </div>
+                        
+                        <!-- Submit Button -->
+                        <button type="submit" 
+                                class="w-full py-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold rounded-2xl transition-all shadow-lg shadow-amber-500/30 hover:shadow-xl hover:shadow-amber-500/40 transform hover:scale-[1.01] active:scale-[0.99]">
+                            Sign in
+                        </button>
+                    </form>
+                    
+                    <!-- Go Back Link -->
+                    <!-- <div class="mt-10 text-center">
+                        <a href="{% url 'core:register' %}" 
+                           class="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors group">
+                            <i class="fas fa-chevron-left mr-2 text-xs group-hover:-translate-x-1 transition-transform"></i>
+                            <span class="text-sm font-medium">Go back</span>
+                        </a>
+                    </div> -->
+                    
+                    <!-- Footer Note - Mobile Only -->
+                    <p class="text-center text-sm text-gray-500 dark:text-gray-500 mt-10 lg:hidden">
+                        Protected by bank-grade security
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Dark Mode Toggle - Bottom Right (All Screens) -->
+        <button @click="darkMode = !darkMode" 
+                class="fixed bottom-6 right-6 w-12 h-12 bg-white dark:bg-gray-800 rounded-full shadow-lg hover:shadow-xl border border-gray-200 dark:border-gray-700 flex items-center justify-center transition-all hover:scale-110 z-50 group">
+            <i class="fas fa-moon text-gray-600 dark:text-gray-400 group-hover:text-amber-500 dark:group-hover:text-amber-400 transition-colors dark:hidden"></i>
+            <i class="fas fa-sun text-amber-500 transition-colors hidden dark:block"></i>
+        </button>
+        
+        <!-- Desktop Footer Note -->
+        <p class="hidden lg:block absolute bottom-6 left-1/2 -translate-x-1/2 text-center text-sm text-gray-500 dark:text-gray-500">
+            Protected by bank-grade security
+        </p>
+    </div>
+    
+</div>
+
+<style>
+/* Custom styles for sleek animations */
+input:focus + label,
+input:not(:placeholder-shown) + label {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+}
+
+/* Smooth transitions for all interactive elements */
+input,
+button,
+a {
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+}
+
+/* Enhanced focus states */
+input:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+/* Mobile full screen optimization */
+@media (max-width: 1023px) {
+    .min-h-screen {
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,641 @@
+{% extends 'layouts/base.html' %}
+{% load humanize audit_tags %}
+{% block title %}Audit Dashboard — Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="p-4 sm:p-6 lg:p-8"
+     x-data="{
+        tab: '{{ tab }}',
+        modal: false,
+        modalTitle: '',
+        modalModel: '',
+        modalRecord: '',
+        modalActor: '',
+        modalTime: '',
+        modalAction: '',
+        modalChanges: [],
+        openChanges(title, model, record, actor, time, action, changes) {
+            this.modalTitle  = title;
+            this.modalModel  = model;
+            this.modalRecord = record;
+            this.modalActor  = actor;
+            this.modalTime   = time;
+            this.modalAction = action;
+            this.modalChanges = changes;
+            this.modal = true;
+        }
+     }">
+
+    <!-- ── Page Header ────────────────────────────────────────────────── -->
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+                <i class="fas fa-shield-alt text-amber-500 mr-2"></i>Audit Dashboard
+            </h1>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Complete audit trail — financial journals and model-level activity changes.
+            </p>
+        </div>
+        <!-- Quick stats pills -->
+        <div class="flex items-center gap-3 flex-shrink-0">
+            <div class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                <i class="fas fa-book text-amber-500 text-sm"></i>
+                <span class="text-xs text-gray-500 dark:text-gray-400">Journals</span>
+                <span class="text-sm font-bold text-gray-900 dark:text-white">{{ journal_total|intcomma }}</span>
+            </div>
+            <div class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                <i class="fas fa-history text-blue-500 text-sm"></i>
+                <span class="text-xs text-gray-500 dark:text-gray-400">Activities</span>
+                <span class="text-sm font-bold text-gray-900 dark:text-white">{{ activity_total|intcomma }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Tab Bar ────────────────────────────────────────────────────── -->
+    <div class="mb-6">
+        <div class="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl w-fit">
+            <a href="?tab=financial&date_from={{ date_from }}&date_to={{ date_to }}&user={{ user_filter }}"
+               class="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all
+                      {% if tab == 'financial' %}bg-white dark:bg-gray-700 text-amber-600 dark:text-amber-400 shadow-sm{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200{% endif %}">
+                <i class="fas fa-book text-xs"></i>
+                Financial Audit
+                <span class="text-xs {% if tab == 'financial' %}bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300{% else %}bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400{% endif %} px-2 py-0.5 rounded-full font-semibold">
+                    {{ journal_total|intcomma }}
+                </span>
+            </a>
+            <a href="?tab=activity&date_from={{ date_from }}&date_to={{ date_to }}&user={{ user_filter }}"
+               class="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all
+                      {% if tab == 'activity' %}bg-white dark:bg-gray-700 text-amber-600 dark:text-amber-400 shadow-sm{% else %}text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200{% endif %}">
+                <i class="fas fa-history text-xs"></i>
+                Activity Audit
+                <span class="text-xs {% if tab == 'activity' %}bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300{% else %}bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400{% endif %} px-2 py-0.5 rounded-full font-semibold">
+                    {{ activity_total|intcomma }}
+                </span>
+            </a>
+        </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- TAB 1: FINANCIAL AUDIT (Journal Entries)                         -->
+    <!-- ================================================================ -->
+    {% if tab == 'financial' %}
+
+    <!-- Filter Card -->
+    <div class="mb-5 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+        <form method="get" class="flex flex-wrap gap-4 items-end">
+            <input type="hidden" name="tab" value="financial">
+            <div class="flex flex-col gap-1 min-w-[130px]">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">From</label>
+                <input type="date" name="date_from" value="{{ date_from }}"
+                       class="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+            </div>
+            <div class="flex flex-col gap-1 min-w-[130px]">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">To</label>
+                <input type="date" name="date_to" value="{{ date_to }}"
+                       class="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+            </div>
+            <div class="flex flex-col gap-1 min-w-[160px]">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Entry Type</label>
+                <select name="entry_type"
+                        class="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+                    <option value="">All Types</option>
+                    {% for val, label in entry_type_choices %}
+                    <option value="{{ val }}" {% if entry_type_filter == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex flex-col gap-1 min-w-[160px]">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">User</label>
+                <input type="text" name="user" value="{{ user_filter }}" placeholder="Name or username…"
+                       class="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+            </div>
+            <div class="flex gap-2 mt-auto">
+                <button type="submit"
+                        class="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold shadow-sm transition-all">
+                    <i class="fas fa-search text-xs"></i>Search
+                </button>
+                <a href="?tab=financial"
+                   class="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium transition-all">
+                    <i class="fas fa-times text-xs"></i>Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Journal Table Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <!-- Card Header -->
+        <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-book text-amber-600 dark:text-amber-400 text-sm"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm font-semibold text-gray-900 dark:text-white">Financial Journal Entries</h2>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ journal_total|intcomma }} total records</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-max w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 dark:bg-gray-700/60 border-b border-gray-100 dark:border-gray-700">
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Date Posted</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Journal No.</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Type</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Description</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Amount</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide hidden md:table-cell">Branch</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide hidden lg:table-cell">Created By</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide hidden lg:table-cell">Posted By</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    {% for entry in journal_page %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors group">
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span class="text-xs text-gray-500 dark:text-gray-400">{{ entry.posted_at|date:"d M Y" }}</span>
+                            <span class="block text-xs text-gray-400 dark:text-gray-500">{{ entry.posted_at|date:"H:i" }}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="font-mono text-xs font-semibold text-gray-700 dark:text-gray-300">{{ entry.journal_number }}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-800/30">
+                                {{ entry.get_entry_type_display }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 max-w-xs">
+                            <span class="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">{{ entry.description|truncatechars:60 }}</span>
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <span class="text-sm font-bold text-gray-900 dark:text-white">₦{{ entry.get_total_debits|floatformat:2|intcomma }}</span>
+                        </td>
+                        <td class="px-4 py-3 hidden md:table-cell">
+                            <span class="text-xs text-gray-500 dark:text-gray-400">{{ entry.branch.name|default:"—" }}</span>
+                        </td>
+                        <td class="px-4 py-3 hidden lg:table-cell">
+                            <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ entry.created_by.get_full_name|default:entry.created_by.username }}</span>
+                        </td>
+                        <td class="px-4 py-3 hidden lg:table-cell">
+                            {% if entry.posted_by %}
+                            <span class="text-xs text-gray-600 dark:text-gray-400">{{ entry.posted_by.get_full_name|default:entry.posted_by.username }}</span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 italic">
+                                <i class="fas fa-robot text-xs"></i>Auto
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <a href="{% url 'core:journal_entry_detail' entry.id %}"
+                               class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors opacity-0 group-hover:opacity-100"
+                               title="View entry">
+                                <i class="fas fa-external-link-alt text-xs"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-6 py-16 text-center">
+                            <div class="flex flex-col items-center gap-3">
+                                <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                    <i class="fas fa-book text-gray-400 dark:text-gray-500 text-xl"></i>
+                                </div>
+                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">No journal entries match the selected filters.</p>
+                                <a href="?tab=financial" class="text-xs text-amber-600 hover:text-amber-700 underline">Clear filters</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if journal_page %}
+                <tfoot>
+                    <tr class="bg-gray-50 dark:bg-gray-700/60 border-t-2 border-gray-300 dark:border-gray-600">
+                        <td colspan="3" class="px-4 py-3 text-xs font-bold text-gray-700 dark:text-gray-200 text-right hidden md:table-cell">
+                            Page Total
+                        </td>
+                        <td colspan="3" class="px-4 py-3 text-xs font-bold text-gray-700 dark:text-gray-200 md:hidden">
+                            Page Total
+                        </td>
+                        <td class="px-4 py-3 text-right text-xs font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap">
+                            {{ journal_page|length }} entr{{ journal_page|length|pluralize:"y,ies" }}
+                        </td>
+                        <td colspan="4" class="hidden md:table-cell"></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if journal_page.has_other_pages %}
+        <div class="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                Page <span class="font-semibold text-gray-700 dark:text-gray-300">{{ journal_page.number }}</span>
+                of <span class="font-semibold text-gray-700 dark:text-gray-300">{{ journal_page.paginator.num_pages }}</span>
+            </p>
+            <div class="flex items-center gap-1">
+                {% if journal_page.has_previous %}
+                <a href="?tab=financial&page={{ journal_page.previous_page_number }}&date_from={{ date_from }}&date_to={{ date_to }}&entry_type={{ entry_type_filter }}&user={{ user_filter }}"
+                   class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+                    <i class="fas fa-chevron-left text-xs"></i>Prev
+                </a>
+                {% endif %}
+                {% if journal_page.has_next %}
+                <a href="?tab=financial&page={{ journal_page.next_page_number }}&date_from={{ date_from }}&date_to={{ date_to }}&entry_type={{ entry_type_filter }}&user={{ user_filter }}"
+                   class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+                    Next<i class="fas fa-chevron-right text-xs"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% endif %}
+
+    <!-- ================================================================ -->
+    <!-- TAB 2: ACTIVITY AUDIT (django-auditlog LogEntry)                 -->
+    <!-- ================================================================ -->
+    {% if tab == 'activity' %}
+
+    <!-- Filter Card -->
+    <div class="mb-5 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+        <form method="get" class="flex flex-wrap gap-4 items-end">
+            <input type="hidden" name="tab" value="activity">
+            <div class="flex flex-col gap-1 min-w-[130px]">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">From</label>
+                <input type="date" name="date_from" value="{{ date_from }}"
+                       class="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+            </div>
+            <div class="flex flex-col gap-1 min-w-[130px]">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">To</label>
+                <input type="date" name="date_to" value="{{ date_to }}"
+                       class="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+            </div>
+            <div class="flex flex-col gap-1 min-w-[160px]">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Model</label>
+                <select name="model"
+                        class="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+                    <option value="">All Models</option>
+                    {% for m in registered_models %}
+                    <option value="{{ m }}" {% if model_filter == m %}selected{% endif %}>
+                        {% for k, v in model_labels.items %}{% if k == m %}{{ v }}{% endif %}{% endfor %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex flex-col gap-1 min-w-[130px]">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Action</label>
+                <select name="action"
+                        class="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+                    <option value="">All Actions</option>
+                    <option value="0" {% if action_filter == "0" %}selected{% endif %}>Create</option>
+                    <option value="1" {% if action_filter == "1" %}selected{% endif %}>Update</option>
+                    <option value="2" {% if action_filter == "2" %}selected{% endif %}>Delete</option>
+                </select>
+            </div>
+            <div class="flex flex-col gap-1 min-w-[160px]">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">User</label>
+                <input type="text" name="user" value="{{ user_filter }}" placeholder="Name or username…"
+                       class="px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl text-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+            </div>
+            <div class="flex gap-2 mt-auto">
+                <button type="submit"
+                        class="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-semibold shadow-sm transition-all">
+                    <i class="fas fa-search text-xs"></i>Search
+                </button>
+                <a href="?tab=activity"
+                   class="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium transition-all">
+                    <i class="fas fa-times text-xs"></i>Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Activity Table Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <!-- Card Header -->
+        <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-history text-blue-600 dark:text-blue-400 text-sm"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm font-semibold text-gray-900 dark:text-white">Model Activity Log</h2>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ activity_total|intcomma }} total records · Click <span class="font-semibold text-amber-600 dark:text-amber-400">fields changed</span> to inspect changes</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-max w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 dark:bg-gray-700/60 border-b border-gray-100 dark:border-gray-700">
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Timestamp</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Actor</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Action</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Model</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Record</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Fields Changed</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide hidden lg:table-cell">IP Address</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    {% for log in activity_page %}
+                    {# Store all modal data as data-* attributes; JSON is HTML-entity escaped so double-quotes are safe #}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
+
+                        <!-- Timestamp -->
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span class="text-xs text-gray-600 dark:text-gray-400">{{ log.timestamp|date:"d M Y" }}</span>
+                            <span class="block text-xs text-gray-400 dark:text-gray-500">{{ log.timestamp|date:"H:i:s" }}</span>
+                        </td>
+
+                        <!-- Actor -->
+                        <td class="px-4 py-3">
+                            {% if log.actor %}
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                                    <span class="text-xs font-bold text-amber-700 dark:text-amber-400">
+                                        {{ log.actor.get_full_name|default:log.actor.username|slice:":1"|upper }}
+                                    </span>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-semibold text-gray-800 dark:text-gray-200">{{ log.actor.get_full_name|default:log.actor.username }}</p>
+                                    <p class="text-xs text-gray-400 dark:text-gray-500">{{ log.actor.get_user_role_display|default:"" }}</p>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                    <i class="fas fa-robot text-xs text-gray-400"></i>
+                                </div>
+                                <span class="text-xs text-gray-400 dark:text-gray-500 italic">System</span>
+                            </div>
+                            {% endif %}
+                        </td>
+
+                        <!-- Action badge -->
+                        <td class="px-4 py-3">
+                            {% if log.action == 0 %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/30">
+                                <i class="fas fa-plus text-xs"></i>Create
+                            </span>
+                            {% elif log.action == 1 %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-800/30">
+                                <i class="fas fa-pen text-xs"></i>Update
+                            </span>
+                            {% elif log.action == 2 %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-100 dark:border-red-800/30">
+                                <i class="fas fa-trash text-xs"></i>Delete
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                                {{ log.get_action_display }}
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Model -->
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 border border-violet-100 dark:border-violet-800/30">
+                                {{ log.content_type.model|capfirst }}
+                            </span>
+                        </td>
+
+                        <!-- Record -->
+                        <td class="px-4 py-3 max-w-[180px]">
+                            <span class="text-xs text-gray-600 dark:text-gray-400 block truncate" title="{{ log.object_repr }}">
+                                {{ log.object_repr|truncatechars:45 }}
+                            </span>
+                            <span class="text-xs text-gray-400 dark:text-gray-500 font-mono">#{{ log.object_id }}</span>
+                        </td>
+
+                        <!-- Fields Changed — modal trigger -->
+                        <td class="px-4 py-3">
+                            {% if log.changes_dict %}
+                            <button type="button"
+                                    data-log-title="{{ log.content_type.model|capfirst }} #{{ log.object_id }}"
+                                    data-log-model="{{ log.content_type.model|capfirst }}"
+                                    data-log-record="{{ log.object_repr|truncatechars:80 }}"
+                                    data-log-actor="{% if log.actor %}{{ log.actor.get_full_name|default:log.actor.username }}{% else %}System{% endif %}"
+                                    data-log-time="{{ log.timestamp|date:'d M Y H:i:s' }}"
+                                    data-log-action="{% if log.action == 0 %}create{% elif log.action == 1 %}update{% elif log.action == 2 %}delete{% else %}other{% endif %}"
+                                    data-log-changes="{{ log.changes_dict|tojson|force_escape }}"
+                                    @click="(btn => openChanges(btn.dataset.logTitle, btn.dataset.logModel, btn.dataset.logRecord, btn.dataset.logActor, btn.dataset.logTime, btn.dataset.logAction, JSON.parse(btn.dataset.logChanges||'[]')))($event.currentTarget)"
+                                    class="group/btn flex items-center gap-2 px-3 py-1.5 rounded-lg
+                                           bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40
+                                           text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40
+                                           text-xs font-semibold transition-all">
+                                <i class="fas fa-table-cells text-xs"></i>
+                                {{ log.changes_dict|length }} field{{ log.changes_dict|length|pluralize }}
+                                <i class="fas fa-arrow-right text-xs opacity-50 group-hover/btn:opacity-100 group-hover/btn:translate-x-0.5 transition-all"></i>
+                            </button>
+                            {% else %}
+                            <span class="text-gray-300 dark:text-gray-600 text-xs">—</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- IP -->
+                        <td class="px-4 py-3 hidden lg:table-cell">
+                            <span class="font-mono text-xs text-gray-400 dark:text-gray-500">{{ log.remote_addr|default:"—" }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-16 text-center">
+                            <div class="flex flex-col items-center gap-3">
+                                <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                    <i class="fas fa-history text-gray-400 dark:text-gray-500 text-xl"></i>
+                                </div>
+                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">No activity records found.</p>
+                                <p class="text-xs text-gray-400 dark:text-gray-500">Records appear here once users make changes to tracked models.</p>
+                                <a href="?tab=activity" class="text-xs text-amber-600 hover:text-amber-700 underline">Clear filters</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if activity_page %}
+                <tfoot>
+                    <tr class="bg-gray-50 dark:bg-gray-700/60 border-t-2 border-gray-300 dark:border-gray-600">
+                        <td colspan="5" class="px-4 py-3 text-xs font-bold text-gray-700 dark:text-gray-200 text-right hidden lg:table-cell">
+                            Page Total
+                        </td>
+                        <td colspan="4" class="px-4 py-3 text-xs font-bold text-gray-700 dark:text-gray-200 text-right lg:hidden">
+                            Page Total
+                        </td>
+                        <td class="px-4 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap">
+                            {{ activity_page|length }} record{{ activity_page|length|pluralize }}
+                        </td>
+                        <td class="hidden lg:table-cell"></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if activity_page.has_other_pages %}
+        <div class="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                Page <span class="font-semibold text-gray-700 dark:text-gray-300">{{ activity_page.number }}</span>
+                of <span class="font-semibold text-gray-700 dark:text-gray-300">{{ activity_page.paginator.num_pages }}</span>
+            </p>
+            <div class="flex items-center gap-1">
+                {% if activity_page.has_previous %}
+                <a href="?tab=activity&page={{ activity_page.previous_page_number }}&date_from={{ date_from }}&date_to={{ date_to }}&model={{ model_filter }}&action={{ action_filter }}&user={{ user_filter }}"
+                   class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+                    <i class="fas fa-chevron-left text-xs"></i>Prev
+                </a>
+                {% endif %}
+                {% if activity_page.has_next %}
+                <a href="?tab=activity&page={{ activity_page.next_page_number }}&date_from={{ date_from }}&date_to={{ date_to }}&model={{ model_filter }}&action={{ action_filter }}&user={{ user_filter }}"
+                   class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+                    Next<i class="fas fa-chevron-right text-xs"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% endif %}
+
+    <!-- ================================================================ -->
+    <!-- FIELDS CHANGED MODAL                                             -->
+    <!-- ================================================================ -->
+    <div x-show="modal"
+         x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4"
+         @keydown.escape.window="modal = false">
+
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="modal = false"></div>
+
+        <!-- Modal Panel -->
+        <div x-show="modal"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95 translate-y-4"
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+             x-transition:leave-end="opacity-0 scale-95 translate-y-4"
+             class="relative z-10 w-full max-w-2xl bg-white dark:bg-gray-900 rounded-xl shadow-2xl overflow-hidden">
+
+            <!-- Modal Header -->
+            <div class="flex items-start justify-between p-6 border-b border-gray-100 dark:border-gray-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                         :class="{
+                             'bg-emerald-100 dark:bg-emerald-900/30': modalAction === 'create',
+                             'bg-blue-100 dark:bg-blue-900/30':    modalAction === 'update',
+                             'bg-red-100 dark:bg-red-900/30':      modalAction === 'delete',
+                             'bg-gray-100 dark:bg-gray-800':       modalAction === 'other'
+                         }">
+                        <i class="fas text-sm"
+                           :class="{
+                               'fa-plus text-emerald-600 dark:text-emerald-400':  modalAction === 'create',
+                               'fa-pen text-blue-600 dark:text-blue-400':        modalAction === 'update',
+                               'fa-trash text-red-600 dark:text-red-400':        modalAction === 'delete',
+                               'fa-circle-info text-gray-500':                   modalAction === 'other'
+                           }"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-gray-900 dark:text-white" x-text="modalTitle"></h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            <span x-text="modalTime"></span>
+                            <span class="mx-1">·</span>
+                            <span x-text="modalActor"></span>
+                        </p>
+                    </div>
+                </div>
+                <button @click="modal = false"
+                        class="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    <i class="fas fa-times text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Record info strip -->
+            <div class="px-6 py-3 bg-gray-50 dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-700 flex items-center gap-4 text-xs">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-gray-400 dark:text-gray-500">Model:</span>
+                    <span class="font-semibold text-violet-700 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 px-2 py-0.5 rounded-md border border-violet-100 dark:border-violet-800/30" x-text="modalModel"></span>
+                </div>
+                <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="text-gray-400 dark:text-gray-500 flex-shrink-0">Record:</span>
+                    <span class="font-medium text-gray-700 dark:text-gray-300 truncate" x-text="modalRecord"></span>
+                </div>
+                <div class="flex items-center gap-1.5 ml-auto flex-shrink-0">
+                    <span class="text-gray-400 dark:text-gray-500">Changes:</span>
+                    <span class="font-bold text-gray-900 dark:text-white" x-text="modalChanges.length"></span>
+                </div>
+            </div>
+
+            <!-- Changes table -->
+            <div class="overflow-y-auto max-h-[55vh]">
+                <!-- Header row -->
+                <div class="grid grid-cols-[1fr_1fr_1fr] gap-0 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide bg-gray-50 dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-700">
+                    <div class="px-5 py-3">Field</div>
+                    <div class="px-5 py-3 border-l border-gray-100 dark:border-gray-700 bg-red-50/50 dark:bg-red-900/10">
+                        <i class="fas fa-minus-circle text-red-400 mr-1.5"></i>Before
+                    </div>
+                    <div class="px-5 py-3 border-l border-gray-100 dark:border-gray-700 bg-emerald-50/50 dark:bg-emerald-900/10">
+                        <i class="fas fa-plus-circle text-emerald-500 mr-1.5"></i>After
+                    </div>
+                </div>
+
+                <!-- Change rows -->
+                <template x-for="(change, idx) in modalChanges" :key="idx">
+                    <div class="grid grid-cols-[1fr_1fr_1fr] gap-0 border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50/60 dark:hover:bg-gray-800/40 transition-colors">
+                        <!-- Field name -->
+                        <div class="px-4 py-3 flex items-start">
+                            <span class="font-mono text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md" x-text="change.field"></span>
+                        </div>
+                        <!-- Old value -->
+                        <div class="px-4 py-3 border-l border-gray-100 dark:border-gray-700 bg-red-50/30 dark:bg-red-900/5">
+                            <template x-if="change.old !== null && change.old !== undefined && change.old !== ''">
+                                <span class="inline-block text-xs text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/30 px-2 py-1 rounded-md break-all line-through decoration-red-400" x-text="change.old"></span>
+                            </template>
+                            <template x-if="change.old === null || change.old === undefined || change.old === ''">
+                                <span class="text-xs text-gray-300 dark:text-gray-600 italic">empty</span>
+                            </template>
+                        </div>
+                        <!-- New value -->
+                        <div class="px-4 py-3 border-l border-gray-100 dark:border-gray-700 bg-emerald-50/30 dark:bg-emerald-900/5">
+                            <template x-if="change.new !== null && change.new !== undefined && change.new !== ''">
+                                <span class="inline-block text-xs text-emerald-800 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded-md break-all font-semibold" x-text="change.new"></span>
+                            </template>
+                            <template x-if="change.new === null || change.new === undefined || change.new === ''">
+                                <span class="text-xs text-gray-300 dark:text-gray-600 italic">empty</span>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800/40">
+                <p class="text-xs text-gray-400 dark:text-gray-500">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    All changes are automatically recorded and immutable.
+                </p>
+                <button @click="modal = false"
+                        class="px-4 py-2 bg-gray-900 dark:bg-gray-700 hover:bg-gray-800 dark:hover:bg-gray-600 text-white text-xs font-semibold rounded-xl transition-colors">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

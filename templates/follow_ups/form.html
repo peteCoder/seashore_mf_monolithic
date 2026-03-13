@@ -1,0 +1,105 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="{% url 'core:followup_list' %}" class="hover:text-primary-600">Follow-up Tasks</a>
+            <span>/</span>
+            {% if is_edit %}
+            <a href="{% url 'core:loan_detail' loan.id %}" class="hover:text-primary-600">{{ loan.loan_number }}</a>
+            <span>/</span>
+            <span>Edit</span>
+            {% else %}
+            <a href="{% url 'core:loan_detail' loan.id %}" class="hover:text-primary-600">{{ loan.loan_number }}</a>
+            <span>/</span>
+            <span>Add Follow-up</span>
+            {% endif %}
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-sm text-gray-500 mt-1">Loan: {{ loan.loan_number }} &mdash; {{ loan.client.get_full_name }}</p>
+    </div>
+
+    <!-- Form Card -->
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+
+            <!-- Type & Priority -->
+            <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="{{ form.follow_up_type.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Follow-up Type <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.follow_up_type }}
+                    {% if form.follow_up_type.errors %}
+                    <p class="mt-1 text-xs text-red-600">{{ form.follow_up_type.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.priority.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Priority <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.priority }}
+                    {% if form.priority.errors %}
+                    <p class="mt-1 text-xs text-red-600">{{ form.priority.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Assigned To & Due Date -->
+            <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="{{ form.assigned_to.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Assigned To <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.assigned_to }}
+                    {% if form.assigned_to.errors %}
+                    <p class="mt-1 text-xs text-red-600">{{ form.assigned_to.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.due_date.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Due Date <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.due_date }}
+                    {% if form.due_date.errors %}
+                    <p class="mt-1 text-xs text-red-600">{{ form.due_date.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="p-6">
+                <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Notes
+                </label>
+                {{ form.notes }}
+                {% if form.notes.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-between pt-4">
+            <a href="{% if is_edit %}{% url 'core:followup_list' %}{% else %}{% url 'core:loan_detail' loan.id %}{% endif %}"
+               class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                <i class="fas fa-arrow-left mr-1"></i>Cancel
+            </a>
+            <button type="submit"
+                    class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+                {% if is_edit %}
+                <i class="fas fa-save mr-2"></i>Save Changes
+                {% else %}
+                <i class="fas fa-plus mr-2"></i>Create Task
+                {% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

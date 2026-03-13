@@ -1,0 +1,240 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}Approve Savings Collection - Seashore Microfinance{% endblock %}
+{% block page_title %}Approve Savings Collection{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <!-- Breadcrumb -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:group_list' %}" class="hover:text-primary-600 dark:hover:text-primary-400">
+                <i class="fas fa-layer-group mr-1"></i>Groups
+            </a>
+            <span>/</span>
+            <a href="{% url 'core:group_detail' session.group.id %}" class="hover:text-primary-600 dark:hover:text-primary-400">{{ session.group.name }}</a>
+            <span>/</span>
+            <a href="{% url 'core:group_savings_session_detail' session.id %}" class="hover:text-primary-600 dark:hover:text-primary-400">Session</a>
+            <span>/</span>
+            <span class="text-gray-900 dark:text-white font-medium">Approve</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+            <i class="fas fa-clipboard-check text-green-600 dark:text-green-400 mr-2"></i>
+            Review Savings Collection
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Review and make a decision on this savings collection session</p>
+    </div>
+
+    <!-- Session Details Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <i class="fas fa-info-circle text-primary-600 dark:text-primary-400 mr-2"></i>Session Details
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Group</p>
+                <a href="{% url 'core:group_detail' session.group.id %}"
+                   class="text-base font-semibold text-primary-600 dark:text-primary-400 hover:underline">
+                    {{ session.group.name }}
+                </a>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ session.group.code }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Collection Date</p>
+                <p class="text-base font-semibold text-gray-900 dark:text-white">{{ session.collection_date|date:"F d, Y" }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                <span class="mt-1 px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                    <i class="fas fa-clock mr-1"></i>Pending Approval
+                </span>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Collected By</p>
+                <p class="text-base font-semibold text-gray-900 dark:text-white">{{ session.collected_by.get_full_name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Total Amount</p>
+                <p class="text-xl font-bold text-green-600 dark:text-green-400">&#8358;{{ session.total_amount|floatformat:2|intcomma }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Number of Deposits</p>
+                <p class="text-base font-semibold text-gray-900 dark:text-white">{{ items|length }}</p>
+            </div>
+        </div>
+
+        {% if session.notes %}
+        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Submission Notes</p>
+            <div class="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                <p class="text-sm text-gray-900 dark:text-white">{{ session.notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Collection Items Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                <i class="fas fa-list-ol text-primary-600 dark:text-primary-400 mr-2"></i>Savings Deposit Items
+            </h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">#</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Account</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Current Balance</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Deposit Amount</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for item in items %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ forloop.counter }}</td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ item.client.get_full_name }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="text-sm font-mono font-medium text-gray-900 dark:text-white">{{ item.savings_account.account_number }}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">&#8358;{{ item.savings_account.balance|floatformat:2|intcomma }}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <span class="text-sm font-bold text-green-600 dark:text-green-400">&#8358;{{ item.amount|floatformat:2|intcomma }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-inbox text-4xl mb-3 block"></i>
+                            <p>No collection items found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if items %}
+                <tfoot class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <td colspan="4" class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">
+                            Total:
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <span class="text-lg font-bold text-green-600 dark:text-green-400">&#8358;{{ session.total_amount|floatformat:2|intcomma }}</span>
+                        </td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <!-- Impact Notice -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-400 text-lg"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-semibold text-blue-800 dark:text-blue-300">Approval Impact</h3>
+                <div class="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                    <p>If you approve this savings collection session:</p>
+                    <ul class="list-disc list-inside ml-2 mt-1 space-y-1">
+                        <li>&#8358;{{ session.total_amount|floatformat:2|intcomma }} in total deposits will be applied across {{ items|length }} savings account(s)</li>
+                        <li>Each member's savings balance will be increased by their respective amount</li>
+                        <li>Transaction records will be created for each deposit</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Decision Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6">
+            <i class="fas fa-gavel text-primary-600 dark:text-primary-400 mr-2"></i>Make Your Decision
+        </h2>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- Decision Radio Buttons -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Decision <span class="text-red-500">*</span>
+                </label>
+                <div class="space-y-3">
+                    <label class="flex items-center p-4 border-2 border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors group">
+                        <input type="radio" name="decision" value="approve" class="h-4 w-4 text-green-600 focus:ring-green-500" required>
+                        <div class="ml-3">
+                            <span class="block text-sm font-semibold text-gray-900 dark:text-white">
+                                <i class="fas fa-check-circle text-green-600 dark:text-green-400 mr-2"></i>Approve Collection
+                            </span>
+                            <span class="block text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                Approve and apply all &#8358;{{ session.total_amount|floatformat:2|intcomma }} in savings deposits
+                            </span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center p-4 border-2 border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors group">
+                        <input type="radio" name="decision" value="reject" class="h-4 w-4 text-red-600 focus:ring-red-500" required>
+                        <div class="ml-3">
+                            <span class="block text-sm font-semibold text-gray-900 dark:text-white">
+                                <i class="fas fa-times-circle text-red-600 dark:text-red-400 mr-2"></i>Reject Collection
+                            </span>
+                            <span class="block text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                Reject this collection session. A reason must be provided.
+                            </span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Review Notes
+                </label>
+                <textarea name="notes" rows="4" placeholder="Enter your review notes here... (required for rejection)"
+                          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"></textarea>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Optional for approval, required for rejection (minimum 10 characters)
+                </p>
+            </div>
+
+            <!-- Warning -->
+            <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-6 rounded-r-lg">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-yellow-400 text-lg"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-semibold text-yellow-800 dark:text-yellow-300">Important</h3>
+                        <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                            Your decision will be final. If approved, the savings deposit transactions cannot be easily reversed.
+                            If rejected, the collection will need to be resubmitted by the field staff.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3 pt-4">
+                <a href="{% url 'core:group_savings_session_detail' session.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors shadow-sm">
+                    <i class="fas fa-check mr-2"></i>Submit Decision
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,234 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% load humanize %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Breadcrumb -->
+    <nav class="mb-6 text-sm">
+        <ol class="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
+            <li><a href="{% url 'core:coa_list' %}" class="hover:text-amber-600">Chart of Accounts</a></li>
+            <li><i class="fas fa-chevron-right text-xs"></i></li>
+            <li class="text-gray-900 dark:text-white font-medium">{{ account.gl_code }}</li>
+        </ol>
+    </nav>
+
+    <!-- Account Header -->
+    <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                    {{ account.gl_code }} - {{ account.account_name }}
+                </h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {{ account.description|default:"No description" }}
+                </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                {% if user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+                <a href="{% url 'core:coa_opening_balance' account_id=account.id %}"
+                   class="inline-flex items-center px-4 py-2 border border-amber-400 dark:border-amber-600 rounded-md shadow-sm text-sm font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors">
+                    <i class="fas fa-coins mr-2"></i>
+                    Opening Balance
+                </a>
+                <a href="{% url 'core:coa_edit' account_id=account.id %}"
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                    <i class="fas fa-edit mr-2"></i>
+                    Edit Account
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Account Type</p>
+                <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                    {{ account.account_type.get_name_display }}
+                </p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Normal Balance</p>
+                <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                    {{ account.account_type.normal_balance|title }}
+                </p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Branch</p>
+                <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                    {{ account.branch.name|default:"System-wide" }}
+                </p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Status</p>
+                <p class="mt-1">
+                    {% if account.is_active %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        Active
+                    </span>
+                    {% else %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                        Inactive
+                    </span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Negative balance warning -->
+    {% if balance < 0 %}
+    <div class="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex flex-wrap items-start gap-3">
+        <i class="fas fa-exclamation-triangle text-red-500 dark:text-red-400 mt-0.5 flex-shrink-0"></i>
+        <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-red-800 dark:text-red-200">Negative balance detected</p>
+            <p class="text-xs text-red-700 dark:text-red-300 mt-1">
+                This account has a balance of <strong>₦{{ balance|floatformat:2|intcomma }}</strong>.
+                For a <em>{{ account.account_type.get_name_display }}</em> account this is abnormal and usually means
+                an opening or funding journal entry was never posted.
+            </p>
+        </div>
+        {% if user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
+        <a href="{% url 'core:coa_opening_balance' account_id=account.id %}"
+           class="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded transition-colors">
+            <i class="fas fa-coins"></i> Fix with Opening Balance
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Balance Summary -->
+    <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Debits</p>
+                    <p class="mt-2 text-3xl font-bold text-green-600 dark:text-green-400">
+                        ₦{{ debit_total|floatformat:2|intcomma }}
+                    </p>
+                </div>
+                <i class="fas fa-arrow-up text-4xl text-green-300 dark:text-green-700"></i>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Credits</p>
+                    <p class="mt-2 text-3xl font-bold text-red-600 dark:text-red-400">
+                        ₦{{ credit_total|floatformat:2|intcomma }}
+                    </p>
+                </div>
+                <i class="fas fa-arrow-down text-4xl text-red-300 dark:text-red-700"></i>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Current Balance</p>
+                    <p class="mt-2 text-3xl font-bold {% if balance >= 0 %}text-blue-600 dark:text-blue-400{% else %}text-orange-600 dark:text-orange-400{% endif %}">
+                        ₦{{ balance|floatformat:2|intcomma }}
+                    </p>
+                </div>
+                <i class="fas fa-balance-scale text-4xl text-blue-300 dark:text-blue-700"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sub-Accounts -->
+    {% if sub_accounts %}
+    <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Sub-Accounts</h2>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for sub in sub_accounts %}
+                <a href="{% url 'core:coa_detail' account_id=sub.id %}"
+                   class="block p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-amber-500 dark:hover:border-amber-500 transition-colors">
+                    <p class="text-sm font-mono font-medium text-amber-600 dark:text-amber-400">{{ sub.gl_code }}</p>
+                    <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ sub.account_name }}</p>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Transactions -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Transactions</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Date
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Journal
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Description
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Debit
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Credit
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for line in journal_lines %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                            {{ line.journal_entry.transaction_date|date:"Y-m-d" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <a href="{% url 'core:journal_entry_detail' entry_id=line.journal_entry.id %}"
+                               class="text-sm text-amber-600 dark:text-amber-400 hover:underline">
+                                {{ line.journal_entry.journal_number }}
+                            </a>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                            {{ line.description|truncatewords:10 }}
+                            {% if line.client %}
+                            <span class="text-xs text-gray-500 dark:text-gray-400">
+                                ({{ line.client.get_full_name }})
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-green-600 dark:text-green-400">
+                            {% if line.debit_amount > 0 %}
+                            ₦{{ line.debit_amount|floatformat:2|intcomma }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-red-600 dark:text-red-400">
+                            {% if line.credit_amount > 0 %}
+                            ₦{{ line.credit_amount|floatformat:2|intcomma }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-inbox text-4xl mb-3"></i>
+                            <p>No transactions yet</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

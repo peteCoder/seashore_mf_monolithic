@@ -1,0 +1,101 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="{% url 'core:followup_list' %}" class="hover:text-primary-600">Follow-up Tasks</a>
+            <span>/</span>
+            <span>Complete</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+    </div>
+
+    <!-- Task Summary Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+            <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Task Details</h2>
+        </div>
+        <div class="p-6 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Type</span>
+                <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ task.get_follow_up_type_display }}</p>
+            </div>
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Loan</span>
+                <p class="mt-0.5">
+                    <a href="{% url 'core:loan_detail' task.loan.id %}" class="font-semibold text-primary-600 hover:text-primary-700">
+                        {{ task.loan.loan_number }}
+                    </a>
+                </p>
+            </div>
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Client</span>
+                <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ task.loan.client.get_full_name }}</p>
+            </div>
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Priority</span>
+                <p class="mt-0.5">
+                    {% if task.priority == 'high' %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">High</span>
+                    {% elif task.priority == 'medium' %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">Medium</span>
+                    {% else %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">Low</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Due Date</span>
+                <p class="font-semibold text-gray-900 dark:text-white mt-0.5">
+                    {% if task.due_date %}{{ task.due_date|date:"d M Y" }}{% else %}—{% endif %}
+                </p>
+            </div>
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Assigned To</span>
+                <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ task.assigned_to.get_full_name }}</p>
+            </div>
+            {% if task.notes %}
+            <div class="col-span-2 sm:col-span-3">
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Notes</span>
+                <p class="text-gray-700 dark:text-gray-300 mt-0.5">{{ task.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Complete Form -->
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <label for="{{ form.outcome.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {{ form.outcome.label }} <span class="text-red-500">*</span>
+            </label>
+            {{ form.outcome }}
+            {% if form.outcome.help_text %}
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ form.outcome.help_text }}</p>
+            {% endif %}
+            {% if form.outcome.errors %}
+            <p class="mt-1 text-xs text-red-600">{{ form.outcome.errors.0 }}</p>
+            {% endif %}
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-between pt-4">
+            <a href="{% url 'core:followup_list' %}"
+               class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                <i class="fas fa-arrow-left mr-1"></i>Cancel
+            </a>
+            <button type="submit"
+                    class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-check mr-2"></i>Mark as Completed
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

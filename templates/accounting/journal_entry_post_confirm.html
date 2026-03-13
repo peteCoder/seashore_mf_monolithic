@@ -1,0 +1,75 @@
+{% extends 'layouts/base.html' %}
+
+{% load humanize %}
+
+{% block content %}
+<div class="p-6 max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">Post Journal Entry</h1>
+
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 mb-6">
+        <div class="flex items-start">
+            <i class="fas fa-exclamation-triangle text-yellow-600 text-2xl mr-3"></i>
+            <div>
+                <h3 class="font-semibold text-yellow-800 dark:text-yellow-200">Confirm Posting</h3>
+                <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-2">
+                    Once posted, this journal entry will be locked and cannot be edited.
+                    Only reversal entries can undo posted journals.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+        <h3 class="font-semibold mb-4">Journal Entry Details</h3>
+        <dl class="space-y-3">
+            <div>
+                <dt class="text-sm text-gray-500">Journal Number</dt>
+                <dd class="text-sm font-mono font-semibold">{{ journal.journal_number }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm text-gray-500">Description</dt>
+                <dd class="text-sm">{{ journal.description }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm text-gray-500">Transaction Date</dt>
+                <dd class="text-sm">{{ journal.transaction_date|date:"Y-m-d" }}</dd>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <dt class="text-sm text-gray-500">Total Debits</dt>
+                    <dd class="text-sm font-semibold text-green-600">₦{{ total_debits|floatformat:2|intcomma }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500">Total Credits</dt>
+                    <dd class="text-sm font-semibold text-red-600">₦{{ total_credits|floatformat:2|intcomma }}</dd>
+                </div>
+            </div>
+        </dl>
+
+        <div class="mt-4 p-4 {% if total_debits == total_credits %}bg-green-50 dark:bg-green-900/20{% else %}bg-red-50 dark:bg-red-900/20{% endif %} rounded-lg">
+            <p class="text-sm font-semibold {% if total_debits == total_credits %}text-green-800 dark:text-green-200{% else %}text-red-800 dark:text-red-200{% endif %}">
+                {% if total_debits == total_credits %}
+                ✓ Journal is balanced and ready to post
+                {% else %}
+                ✗ Journal is NOT balanced - cannot post!
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <div class="flex justify-end space-x-3">
+        <a href="{% url 'core:journal_entry_detail' entry_id=journal.id %}"
+           class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+            Cancel
+        </a>
+        {% if total_debits == total_credits %}
+        <form method="post" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                <i class="fas fa-check mr-2"></i> Confirm & Post
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

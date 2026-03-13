@@ -1,0 +1,221 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}Loan Collection Session - Seashore Microfinance{% endblock %}
+{% block page_title %}Collection Session{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <!-- Breadcrumb -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:group_list' %}" class="hover:text-primary-600 dark:hover:text-primary-400">
+                <i class="fas fa-layer-group mr-1"></i>Groups
+            </a>
+            <span>/</span>
+            <a href="{% url 'core:group_detail' session.group.id %}" class="hover:text-primary-600 dark:hover:text-primary-400">{{ session.group.name }}</a>
+            <span>/</span>
+            <a href="{% url 'core:group_collection_list' %}" class="hover:text-primary-600 dark:hover:text-primary-400">Collections</a>
+            <span>/</span>
+            <span class="text-gray-900 dark:text-white font-medium">Session Detail</span>
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                    <i class="fas fa-receipt text-primary-600 dark:text-primary-400 mr-2"></i>
+                    Loan Collection Session
+                </h1>
+                <p class="text-gray-600 dark:text-gray-400 mt-1">
+                    {{ session.group.name }} - {{ session.collection_date|date:"F d, Y" }}
+                </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                {% if session.status == 'pending' and checker.is_manager or checker.is_admin_or_director %}
+                <a href="{% url 'core:group_collection_approve' session.id %}"
+                   class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors shadow-sm">
+                    <i class="fas fa-clipboard-check mr-2"></i>Review & Approve
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <i class="fas fa-info-circle text-primary-600 dark:text-primary-400 mr-2"></i>Session Information
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Group</p>
+                <a href="{% url 'core:group_detail' session.group.id %}"
+                   class="text-base font-semibold text-primary-600 dark:text-primary-400 hover:underline">
+                    {{ session.group.name }}
+                </a>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ session.group.code }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Collection Date</p>
+                <p class="text-base font-semibold text-gray-900 dark:text-white">{{ session.collection_date|date:"F d, Y" }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                <span class="mt-1 px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full
+                    {% if session.status == 'approved' %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300
+                    {% elif session.status == 'pending' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300
+                    {% elif session.status == 'rejected' %}bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300
+                    {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                    {% if session.status == 'approved' %}<i class="fas fa-check-circle mr-1"></i>Approved
+                    {% elif session.status == 'pending' %}<i class="fas fa-clock mr-1"></i>Pending Approval
+                    {% elif session.status == 'rejected' %}<i class="fas fa-times-circle mr-1"></i>Rejected
+                    {% else %}{{ session.get_status_display }}{% endif %}
+                </span>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Collected By</p>
+                <p class="text-base font-semibold text-gray-900 dark:text-white">{{ session.collected_by.get_full_name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Total Amount</p>
+                <p class="text-xl font-bold text-green-600 dark:text-green-400">&#8358;{{ session.total_amount|floatformat:2|intcomma }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Number of Payments</p>
+                <p class="text-base font-semibold text-gray-900 dark:text-white">{{ items|length }}</p>
+            </div>
+        </div>
+
+        {% if session.notes %}
+        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Notes</p>
+            <div class="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                <p class="text-sm text-gray-900 dark:text-white">{{ session.notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Approval Info -->
+    {% if session.status == 'approved' and session.approved_by %}
+    <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 mb-6 rounded-r-lg">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-check-circle text-green-500 text-lg"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-semibold text-green-800 dark:text-green-300">Approved</h3>
+                <p class="text-sm text-green-700 dark:text-green-300 mt-1">
+                    Approved by <span class="font-bold">{{ session.approved_by.get_full_name }}</span>
+                    on {{ session.approved_at|date:"F d, Y g:i A" }}
+                </p>
+                {% if session.approval_notes %}
+                <p class="text-sm text-green-700 dark:text-green-300 mt-1">
+                    <span class="font-medium">Notes:</span> {{ session.approval_notes }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if session.status == 'rejected' %}
+    <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-times-circle text-red-500 text-lg"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-semibold text-red-800 dark:text-red-300">Rejected</h3>
+                {% if session.approved_by %}
+                <p class="text-sm text-red-700 dark:text-red-300 mt-1">
+                    Rejected by <span class="font-bold">{{ session.approved_by.get_full_name }}</span>
+                    on {{ session.approved_at|date:"F d, Y g:i A" }}
+                </p>
+                {% endif %}
+                {% if session.rejection_reason %}
+                <p class="text-sm text-red-700 dark:text-red-300 mt-2">
+                    <span class="font-medium">Reason:</span> {{ session.rejection_reason }}
+                </p>
+                {% endif %}
+                {% if session.approval_notes %}
+                <p class="text-sm text-red-700 dark:text-red-300 mt-1">
+                    <span class="font-medium">Notes:</span> {{ session.approval_notes }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Collection Items Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                <i class="fas fa-list-ol text-primary-600 dark:text-primary-400 mr-2"></i>Collection Items
+            </h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">#</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Loan Number</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for item in items %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ forloop.counter }}</td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ item.loan.client.get_full_name }}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ item.loan.client.client_id }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="text-sm font-mono font-medium text-gray-900 dark:text-white">{{ item.loan.loan_number }}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <span class="text-sm font-bold text-green-600 dark:text-green-400">&#8358;{{ item.amount|floatformat:2|intcomma }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-inbox text-4xl mb-3 block"></i>
+                            <p>No collection items found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if items %}
+                <tfoot class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <td colspan="3" class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">
+                            Total:
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <span class="text-lg font-bold text-green-600 dark:text-green-400">&#8358;{{ session.total_amount|floatformat:2|intcomma }}</span>
+                        </td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center justify-between">
+        <a href="{% url 'core:group_collection_list' %}"
+           class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Collections
+        </a>
+        {% if session.status == 'pending' and checker.is_manager or checker.is_admin_or_director %}
+        <a href="{% url 'core:group_collection_approve' session.id %}"
+           class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors shadow-sm">
+            <i class="fas fa-clipboard-check mr-2"></i>Review & Approve
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

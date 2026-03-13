@@ -1,0 +1,231 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+                {% if transaction.client %}
+                <a href="{% url 'core:client_detail' transaction.client.id %}" class="hover:text-primary-600">
+                    {{ transaction.client.get_full_name }}
+                </a>
+                <span>/</span>
+                {% endif %}
+                <span>Transaction Details</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        </div>
+        <div>
+            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium
+                         {% if transaction.status == 'completed' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
+                         {% elif transaction.status == 'pending' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
+                         {% elif transaction.status == 'approved' %}bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300
+                         {% elif transaction.status == 'rejected' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
+                         {% elif transaction.status == 'failed' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
+                         {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                {{ transaction.get_status_display }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Transaction Summary Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Transaction Amount</p>
+                <p class="text-3xl font-bold text-gray-900 dark:text-white">₦{{ transaction.amount|floatformat:2|intcomma }}</p>
+            </div>
+            <div class="h-16 w-16 rounded-full flex items-center justify-center
+                        {% if transaction.is_income %}bg-green-100 dark:bg-green-900
+                        {% else %}bg-red-100 dark:bg-red-900{% endif %}">
+                <i class="fas {% if transaction.is_income %}fa-arrow-down{% else %}fa-arrow-up{% endif %} text-2xl
+                          {% if transaction.is_income %}text-green-600 dark:text-green-400
+                          {% else %}text-red-600 dark:text-red-400{% endif %}"></i>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Transaction Reference</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white font-mono">{{ transaction.transaction_ref }}</p>
+            </div>
+
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Transaction Type</p>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-300">
+                    {{ transaction.get_transaction_type_display }}
+                </span>
+            </div>
+
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Transaction Date</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ transaction.transaction_date|date:"F d, Y g:i A" }}</p>
+            </div>
+
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ transaction.branch.name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Related Information -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Related Information</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% if transaction.client %}
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Client</p>
+                <a href="{% url 'core:client_detail' transaction.client.id %}"
+                   class="text-base font-medium text-primary-600 dark:text-primary-400 hover:underline">
+                    {{ transaction.client.get_full_name }}
+                </a>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ transaction.client.client_id }}</p>
+            </div>
+            {% endif %}
+
+            {% if transaction.savings_account %}
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Savings Account</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ transaction.savings_account.account_number }}</p>
+            </div>
+            {% endif %}
+
+            {% if transaction.loan %}
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Loan</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ transaction.loan.loan_id }}</p>
+            </div>
+            {% endif %}
+
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Processed By</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ transaction.processed_by.get_full_name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Details -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Transaction Details</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% if transaction.principal_amount %}
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Principal Amount</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ transaction.principal_amount|floatformat:2|intcomma }}</p>
+            </div>
+            {% endif %}
+
+            {% if transaction.interest_amount %}
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Interest Amount</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ transaction.interest_amount|floatformat:2|intcomma }}</p>
+            </div>
+            {% endif %}
+
+            {% if transaction.balance_before is not None %}
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Balance Before</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ transaction.balance_before|floatformat:2|intcomma }}</p>
+            </div>
+            {% endif %}
+
+            {% if transaction.balance_after is not None %}
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Balance After</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ transaction.balance_after|floatformat:2|intcomma }}</p>
+            </div>
+            {% endif %}
+
+            {% if transaction.payment_details %}
+            <div class="md:col-span-2">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Payment Details</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ transaction.payment_details }}</p>
+            </div>
+            {% endif %}
+
+            {% if transaction.description %}
+            <div class="md:col-span-2">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Description</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ transaction.description }}</p>
+            </div>
+            {% endif %}
+
+            {% if transaction.notes %}
+            <div class="md:col-span-2">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Notes</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ transaction.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Approval Information -->
+    {% if transaction.approved_by or transaction.rejection_reason %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Approval Information</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {% if transaction.approved_by %}
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Approved By</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ transaction.approved_by.get_full_name }}</p>
+            </div>
+
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Approved At</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ transaction.approved_at|date:"F d, Y g:i A" }}</p>
+            </div>
+            {% endif %}
+
+            {% if transaction.rejection_reason %}
+            <div class="md:col-span-2">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Rejection Reason</p>
+                <div class="mt-1 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <p class="text-base text-red-800 dark:text-red-300">{{ transaction.rejection_reason }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Audit Information -->
+    <div class="bg-gray-50 dark:bg-gray-900 rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Audit Trail</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Created At</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ transaction.created_at|date:"F d, Y g:i A" }}</p>
+            </div>
+
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Last Updated</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ transaction.updated_at|date:"F d, Y g:i A" }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="flex justify-start">
+        {% if transaction.client %}
+        <a href="{% url 'core:client_detail' transaction.client.id %}"
+           class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Client
+        </a>
+        {% else %}
+        <a href="javascript:history.back()"
+           class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <i class="fas fa-arrow-left mr-2"></i>Back
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

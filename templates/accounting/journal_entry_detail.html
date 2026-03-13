@@ -1,0 +1,214 @@
+{% extends 'layouts/base.html' %}
+{% load static %}
+
+{% load humanize %}
+{% block content %}
+<div class="p-6">
+    <!-- Breadcrumb -->
+    <nav class="mb-6 text-sm">
+        <ol class="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
+            <li><a href="{% url 'core:journal_entry_list' %}" class="hover:text-amber-600">Journal Entries</a></li>
+            <li><i class="fas fa-chevron-right text-xs"></i></li>
+            <li class="text-gray-900 dark:text-white font-medium">{{ journal.journal_number }}</li>
+        </ol>
+    </nav>
+
+    <!-- Journal Header -->
+    <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                    Journal Entry: {{ journal.journal_number }}
+                </h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {{ journal.description }}
+                </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                {% if journal.status in 'draft,pending' and user.user_role in 'director,admin,hr' %}
+                <a href="{% url 'core:journal_entry_post' entry_id=journal.id %}"
+                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
+                    <i class="fas fa-check mr-2"></i>
+                    Post Journal
+                </a>
+                {% endif %}
+                {% if journal.status == 'posted' and user.user_role in 'director,admin,hr' %}
+                <a href="{% url 'core:journal_entry_reverse' entry_id=journal.id %}"
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    <i class="fas fa-undo mr-2"></i>
+                    Reverse
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Transaction Date</p>
+                <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                    {{ journal.transaction_date|date:"Y-m-d" }}
+                </p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Entry Type</p>
+                <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                    {{ journal.get_entry_type_display }}
+                </p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Branch</p>
+                <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                    {{ journal.branch.name }}
+                </p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Status</p>
+                <p class="mt-1">
+                    {% if journal.status == 'posted' %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        Posted
+                    </span>
+                    {% elif journal.status == 'draft' %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                        Draft
+                    </span>
+                    {% elif journal.status == 'pending' %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                        Pending Approval
+                    </span>
+                    {% elif journal.status == 'reversed' %}
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                        Reversed
+                    </span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Balance Validation -->
+    <div class="mb-6 {% if is_balanced %}bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800{% else %}bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800{% endif %} border rounded-lg p-4">
+        <div class="flex items-center">
+            <i class="fas {% if is_balanced %}fa-check-circle text-green-600 dark:text-green-400{% else %}fa-exclamation-triangle text-red-600 dark:text-red-400{% endif %} text-2xl mr-3"></i>
+            <div class="flex-1">
+                <p class="text-sm font-medium {% if is_balanced %}text-green-800 dark:text-green-200{% else %}text-red-800 dark:text-red-200{% endif %}">
+                    {% if is_balanced %}
+                    Journal is balanced - Total Debits equal Total Credits
+                    {% else %}
+                    WARNING: Journal is NOT balanced!
+                    {% endif %}
+                </p>
+                <p class="mt-1 text-xs {% if is_balanced %}text-green-600 dark:text-green-400{% else %}text-red-600 dark:text-red-400{% endif %}">
+                    Debits: ₦{{ total_debits|floatformat:2|intcomma }} | Credits: ₦{{ total_credits|floatformat:2|intcomma }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Journal Lines -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Journal Lines</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Account
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Description
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Debit
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                            Credit
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for line in journal.lines.all %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-mono font-medium text-amber-600 dark:text-amber-400">
+                                {{ line.account.gl_code }}
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                {{ line.account.account_name }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                            {{ line.description }}
+                            {% if line.client %}
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                Client: {{ line.client.get_full_name }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-green-600 dark:text-green-400">
+                            {% if line.debit_amount > 0 %}
+                            ₦{{ line.debit_amount|floatformat:2|intcomma }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-red-600 dark:text-red-400">
+                            {% if line.credit_amount > 0 %}
+                            ₦{{ line.credit_amount|floatformat:2|intcomma }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <!-- Totals Row -->
+                    <tr class="bg-gray-50 dark:bg-gray-700 font-bold">
+                        <td colspan="2" class="px-6 py-4 text-sm text-gray-900 dark:text-white text-right">
+                            TOTALS:
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-green-600 dark:text-green-400">
+                            ₦{{ total_debits|floatformat:2|intcomma }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-red-600 dark:text-red-400">
+                            ₦{{ total_credits|floatformat:2|intcomma }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Audit Trail -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Audit Trail</h2>
+        <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <dt class="text-xs text-gray-500 dark:text-gray-400 uppercase">Created By</dt>
+                <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ journal.created_by.get_full_name }}</dd>
+                <dd class="text-xs text-gray-500 dark:text-gray-400">{{ journal.created_at|date:"Y-m-d H:i" }}</dd>
+            </div>
+            {% if journal.posted_by %}
+            <div>
+                <dt class="text-xs text-gray-500 dark:text-gray-400 uppercase">Posted By</dt>
+                <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ journal.posted_by.get_full_name }}</dd>
+                <dd class="text-xs text-gray-500 dark:text-gray-400">{{ journal.posted_at|date:"Y-m-d H:i" }}</dd>
+            </div>
+            {% endif %}
+            {% if journal.reference_number %}
+            <div>
+                <dt class="text-xs text-gray-500 dark:text-gray-400 uppercase">Reference Number</dt>
+                <dd class="mt-1 text-sm text-gray-900 dark:text-white">{{ journal.reference_number }}</dd>
+            </div>
+            {% endif %}
+            {% if journal.reversal_reason %}
+            <div class="col-span-2">
+                <dt class="text-xs text-gray-500 dark:text-gray-400 uppercase">Reversal Reason</dt>
+                <dd class="mt-1 text-sm text-red-600 dark:text-red-400">{{ journal.reversal_reason }}</dd>
+            </div>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+{% endblock %}

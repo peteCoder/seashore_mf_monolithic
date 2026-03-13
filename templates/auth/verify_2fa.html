@@ -1,0 +1,168 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Two-Factor Verification — Seashore Microfinance{% endblock %}
+
+{% block guest_content %}
+<div class="min-h-screen flex">
+
+    <!-- Left Side - Dark Branding Panel -->
+    <div class="hidden lg:flex lg:w-2/5 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
+        <!-- Diagonal Pattern Background -->
+        <div class="absolute inset-0 opacity-10">
+            <div class="absolute inset-0" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,.05) 35px, rgba(255,255,255,.05) 70px);"></div>
+        </div>
+
+        <!-- Content -->
+        <div class="relative z-10 flex flex-col justify-between p-12 text-white">
+            <!-- Logo & Brand -->
+            <div class="space-y-6">
+                <div class="flex items-center space-x-4">
+                    <img src="https://res.cloudinary.com/degqttxsx/image/upload/v1772089780/seashore-logo_withoutbg_t8ambq.png" alt="Seashore Logo" class="w-14 h-14 object-contain flex-shrink-0">
+                    <div>
+                        <h1 class="text-2xl font-bold uppercase tracking-wide">Seashore</h1>
+                        <p class="text-sm text-gray-400 uppercase tracking-wider">Financial Company</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3 pt-8">
+                    <h2 class="text-4xl font-bold leading-tight">
+                        Two-Factor<br/>
+                        Verification
+                    </h2>
+                    <p class="text-gray-400 text-lg">
+                        One more step to keep your account secure.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Security features -->
+            <div class="space-y-4">
+                <div class="flex items-center space-x-3 text-gray-300">
+                    <i class="fas fa-shield-alt text-amber-500"></i>
+                    <span class="text-sm">Bank-grade security & encryption</span>
+                </div>
+                <div class="flex items-center space-x-3 text-gray-300">
+                    <i class="fas fa-lock text-amber-500"></i>
+                    <span class="text-sm">Time-based one-time password (TOTP)</span>
+                </div>
+                <div class="flex items-center space-x-3 text-gray-300">
+                    <i class="fas fa-mobile-alt text-amber-500"></i>
+                    <span class="text-sm">Works with Google Authenticator & Authy</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Side - Verification Form -->
+    <div class="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-800 relative min-h-screen">
+
+        <!-- Mobile Logo -->
+        <div class="lg:hidden absolute top-8 left-1/2 -translate-x-1/2 flex items-center space-x-3">
+            <img src="https://res.cloudinary.com/degqttxsx/image/upload/v1772089780/seashore-logo_withoutbg_t8ambq.png" alt="Seashore Logo" class="w-10 h-10 object-contain flex-shrink-0">
+            <div>
+                <h1 class="text-lg font-bold text-gray-900 dark:text-white">SEASHORE</h1>
+                <p class="text-xs text-gray-500 dark:text-gray-400">FINANCIAL COMPANY</p>
+            </div>
+        </div>
+
+        <!-- Card -->
+        <div class="w-full h-full lg:h-auto flex items-center justify-center px-6 py-8 lg:p-8">
+            <div class="w-full max-w-md lg:max-w-lg">
+                <div class="bg-white dark:bg-gray-900 rounded-none lg:rounded-3xl lg:shadow-2xl p-8 lg:p-10 min-h-screen lg:min-h-0 flex flex-col justify-center">
+
+                    <!-- Header -->
+                    <div class="mb-8 pt-16 lg:pt-0 text-center">
+                        <div class="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-shield-alt text-amber-500 text-2xl"></i>
+                        </div>
+                        <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                            Verify Your Identity
+                        </h2>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm">
+                            Signing in as <strong class="text-gray-700 dark:text-gray-200">{{ user_name }}</strong>
+                        </p>
+                    </div>
+
+                    <!-- Messages -->
+                    {% if messages %}
+                    {% for msg in messages %}
+                    <div class="mb-4 p-4 rounded-2xl text-sm flex items-start space-x-3
+                        {% if 'error' in msg.tags %}bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-300
+                        {% else %}bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300{% endif %}">
+                        <i class="fas fa-{% if 'error' in msg.tags %}exclamation-circle{% else %}info-circle{% endif %} mt-0.5 flex-shrink-0"></i>
+                        <span>{{ msg }}</span>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+
+                    <!-- Info -->
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
+                        Open your authenticator app and enter the
+                        <strong class="text-gray-700 dark:text-gray-200">6-digit code</strong>
+                        shown for Seashore Microfinance.
+                    </p>
+
+                    <!-- Form -->
+                    <form method="post" autocomplete="off" class="space-y-6">
+                        {% csrf_token %}
+
+                        <div class="relative">
+                            <input
+                                type="text"
+                                name="code"
+                                id="id_code"
+                                inputmode="numeric"
+                                pattern="[0-9 ]{6,7}"
+                                maxlength="7"
+                                required
+                                autofocus
+                                placeholder=" "
+                                class="peer w-full px-6 py-5 bg-gray-100 dark:bg-gray-800 border-0 rounded-2xl
+                                       text-gray-900 dark:text-white text-center text-3xl font-bold tracking-[0.5em]
+                                       placeholder-transparent
+                                       focus:ring-2 focus:ring-amber-500 focus:bg-white dark:focus:bg-gray-700
+                                       transition-all outline-none"
+                            >
+                            <label for="id_code"
+                                   class="absolute left-1/2 -translate-x-1/2 top-4 text-gray-500 dark:text-gray-400
+                                          transition-all duration-200 pointer-events-none whitespace-nowrap
+                                          peer-placeholder-shown:top-4 peer-placeholder-shown:text-base
+                                          peer-focus:top-1 peer-focus:text-xs peer-focus:text-amber-600 dark:peer-focus:text-amber-500
+                                          peer-[:not(:placeholder-shown)]:top-1 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-amber-600 dark:peer-[:not(:placeholder-shown)]:text-amber-500">
+                                Authentication Code
+                            </label>
+                        </div>
+
+                        <p class="text-center text-xs text-gray-400 dark:text-gray-500 -mt-3">
+                            <i class="fas fa-sync-alt mr-1"></i>Code refreshes every 30 seconds
+                        </p>
+
+                        <button type="submit"
+                                class="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-2xl
+                                       transition-all duration-200 text-base shadow-lg shadow-amber-500/25
+                                       focus:ring-4 focus:ring-amber-300 dark:focus:ring-amber-800">
+                            <i class="fas fa-check-circle mr-2"></i>Verify &amp; Sign In
+                        </button>
+                    </form>
+
+                    <!-- Back to login -->
+                    <div class="mt-8 text-center">
+                        <a href="{% url 'core:login' %}"
+                           class="text-sm text-gray-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
+                            <i class="fas fa-arrow-left mr-1"></i>Back to Login
+                        </a>
+                    </div>
+
+                    <!-- Help note -->
+                    <p class="mt-6 text-center text-xs text-gray-400 dark:text-gray-500">
+                        Lost access to your authenticator?
+                        Contact your system administrator to reset 2FA.
+                    </p>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

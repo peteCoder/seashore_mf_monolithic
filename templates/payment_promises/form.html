@@ -1,0 +1,92 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="{% url 'core:payment_promise_list' %}" class="hover:text-primary-600">Payment Promises</a>
+            <span>/</span>
+            {% if is_edit %}
+            <span>Edit</span>
+            {% else %}
+            <a href="{% url 'core:loan_detail' loan.id %}" class="hover:text-primary-600">{{ loan.loan_number }}</a>
+            <span>/</span>
+            <span>Record Promise</span>
+            {% endif %}
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-sm text-gray-500 mt-1">Loan: {{ loan.loan_number }} &mdash; {{ loan.client.get_full_name }}</p>
+    </div>
+
+    <!-- Form Card -->
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+
+            <!-- Amount & Date -->
+            <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="{{ form.promised_amount.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Promised Amount (₦) <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.promised_amount }}
+                    {% if form.promised_amount.errors %}
+                    <p class="mt-1 text-xs text-red-600">{{ form.promised_amount.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.promise_date.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Promise Date <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.promise_date }}
+                    {% if form.promise_date.errors %}
+                    <p class="mt-1 text-xs text-red-600">{{ form.promise_date.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="p-6">
+                <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Notes
+                </label>
+                {{ form.notes }}
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Record any context about the promise (e.g., client called, agreed to pay on salary day).</p>
+                {% if form.notes.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Loan Info -->
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/30 rounded-b-xl">
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    <span class="font-medium">Loan:</span> {{ loan.loan_number }} &mdash;
+                    <span class="font-medium">Outstanding:</span> ₦{{ loan.outstanding_balance|floatformat:2|intcomma }} &mdash;
+                    <span class="font-medium">Status:</span> {{ loan.get_status_display }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-between pt-4">
+            <a href="{% if is_edit %}{% url 'core:payment_promise_list' %}{% else %}{% url 'core:loan_detail' loan.id %}{% endif %}"
+               class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                <i class="fas fa-arrow-left mr-1"></i>Cancel
+            </a>
+            <button type="submit"
+                    class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+                {% if is_edit %}
+                <i class="fas fa-save mr-2"></i>Save Changes
+                {% else %}
+                <i class="fas fa-handshake mr-2"></i>Record Promise
+                {% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

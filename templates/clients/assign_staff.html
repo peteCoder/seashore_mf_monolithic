@@ -1,0 +1,108 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:client_list' %}" class="hover:text-primary-600">Clients</a>
+            <span>/</span>
+            <a href="{% url 'core:client_detail' client.id %}" class="hover:text-primary-600">{{ client.get_full_name }}</a>
+            <span>/</span>
+            <span>Assign Staff</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+    </div>
+
+    <!-- Client Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center mb-4">
+            <div class="h-12 w-12 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center mr-4">
+                <i class="fas fa-user text-2xl text-primary-600 dark:text-primary-400"></i>
+            </div>
+            <div>
+                <a href="{% url 'core:client_detail' client.id %}"
+                   class="text-xl font-bold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400">
+                    {{ client.get_full_name }}
+                </a>
+                <p class="text-gray-600 dark:text-gray-400">{{ client.client_id }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ client.branch.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Current Staff</p>
+                {% if client.assigned_staff %}
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ client.assigned_staff.get_full_name }}</p>
+                {% else %}
+                <p class="text-base font-medium text-gray-500 dark:text-gray-400 italic">Not assigned</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Notice -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Staff Assignment</h3>
+                <div class="text-sm text-blue-700 dark:text-blue-300">
+                    <p>Assign a staff member to manage this client's account.</p>
+                    <p class="mt-1">Only staff members from <strong>{{ client.branch.name }}</strong> branch can be assigned.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignment Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.staff.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.staff }}
+                {% if form.staff.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.staff.errors.0 }}</p>
+                {% endif %}
+                {% if form.staff.help_text %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.staff.help_text }}</p>
+                {% endif %}
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.notes.label }}
+                </label>
+                {{ form.notes }}
+                {% if form.notes.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3 pt-4">
+                <a href="{% url 'core:client_detail' client.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-user-check mr-2"></i>Assign Staff
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

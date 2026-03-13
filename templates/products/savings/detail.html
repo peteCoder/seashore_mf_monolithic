@@ -1,0 +1,308 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div>
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:savings_product_list' %}" class="hover:text-primary-600">Savings Products</a>
+            <span>/</span>
+            <span>{{ product.name }}</span>
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="flex items-center space-x-4">
+                <div class="h-16 w-16 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-piggy-bank text-3xl text-primary-600 dark:text-primary-400"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ product.name }}</h1>
+                    <p class="text-gray-600 dark:text-gray-400">{{ product.code }}</p>
+                </div>
+                {% if product.is_active %}
+                <span class="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                    <i class="fas fa-check-circle mr-1"></i>Active
+                </span>
+                {% else %}
+                <span class="px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                    <i class="fas fa-times-circle mr-1"></i>Inactive
+                </span>
+                {% endif %}
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <a href="{% url 'core:savings_product_update' product.id %}"
+                   class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+                    <i class="fas fa-edit mr-2"></i>Edit
+                </a>
+                {% if product.is_active %}
+                <a href="{% url 'core:savings_product_deactivate' product.id %}"
+                   class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium">
+                    <i class="fas fa-pause-circle mr-2"></i>Deactivate
+                </a>
+                {% else %}
+                <a href="{% url 'core:savings_product_activate' product.id %}"
+                   class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium">
+                    <i class="fas fa-play-circle mr-2"></i>Activate
+                </a>
+                {% endif %}
+                <a href="{% url 'core:savings_product_delete' product.id %}"
+                   class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">
+                    <i class="fas fa-trash mr-2"></i>Delete
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Basic Information -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-info-circle mr-2 text-primary-600"></i>
+                    Basic Information
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Product Code</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ product.code }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Product Type</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ product.get_product_type_display }}</p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Description</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ product.description|default:"N/A" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">GL Code</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ product.gl_code|default:"N/A" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Status</p>
+                        <p class="font-medium text-gray-900 dark:text-white">
+                            {% if product.is_active %}
+                            <span class="text-green-600 dark:text-green-400">Active</span>
+                            {% else %}
+                            <span class="text-gray-600 dark:text-gray-400">Inactive</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interest Configuration -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-percentage mr-2 text-primary-600"></i>
+                    Interest Configuration
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Annual Rate</p>
+                        <p class="text-2xl font-bold text-primary-600 dark:text-primary-400">{{ product.interest_rate_annual }}%</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Calculation Method</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ product.get_interest_calculation_method_display }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Payment Frequency</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ product.get_interest_payment_frequency_display }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Balance Requirements -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-wallet mr-2 text-primary-600"></i>
+                    Balance Requirements
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Min Opening Balance</p>
+                        <p class="font-medium text-gray-900 dark:text-white">&#8358;{{ product.minimum_opening_balance|floatformat:0|intcomma }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Minimum Balance</p>
+                        <p class="font-medium text-gray-900 dark:text-white">&#8358;{{ product.minimum_balance|floatformat:0|intcomma }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Maximum Balance</p>
+                        <p class="font-medium text-gray-900 dark:text-white">
+                            {% if product.maximum_balance %}
+                            &#8358;{{ product.maximum_balance|floatformat:0|intcomma }}
+                            {% else %}
+                            Unlimited
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction Limits -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-exchange-alt mr-2 text-primary-600"></i>
+                    Transaction Limits
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Min Deposit</p>
+                        <p class="font-medium text-gray-900 dark:text-white">&#8358;{{ product.min_deposit_amount|floatformat:0|intcomma }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Min Withdrawal</p>
+                        <p class="font-medium text-gray-900 dark:text-white">&#8358;{{ product.min_withdrawal_amount|floatformat:0|intcomma }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Max Withdrawal</p>
+                        <p class="font-medium text-gray-900 dark:text-white">
+                            {% if product.max_withdrawal_amount %}
+                            &#8358;{{ product.max_withdrawal_amount|floatformat:0|intcomma }}
+                            {% else %}
+                            Unlimited
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Daily Limit</p>
+                        <p class="font-medium text-gray-900 dark:text-white">
+                            {% if product.daily_withdrawal_limit %}
+                            &#8358;{{ product.daily_withdrawal_limit|floatformat:0|intcomma }}
+                            {% else %}
+                            Unlimited
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fixed Deposit Settings (if applicable) -->
+            {% if product.is_fixed_deposit %}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-lock mr-2 text-primary-600"></i>
+                    Fixed Deposit Settings
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Fixed Term</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ product.fixed_term_months }} months</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Early Withdrawal</p>
+                        <p class="font-medium text-gray-900 dark:text-white">
+                            {% if product.allows_withdrawal_before_maturity %}
+                            <span class="text-green-600 dark:text-green-400">Allowed</span>
+                            {% else %}
+                            <span class="text-red-600 dark:text-red-400">Not Allowed</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Recent Accounts -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-users mr-2 text-primary-600"></i>
+                    Recent Accounts ({{ product.account_count }})
+                </h2>
+                {% if recent_accounts %}
+                <div class="space-y-3">
+                    {% for account in recent_accounts %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <div class="h-10 w-10 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
+                                <i class="fas fa-user text-primary-600 dark:text-primary-400"></i>
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-900 dark:text-white">{{ account.client.full_name }}</p>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">{{ account.account_number }}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-medium text-gray-900 dark:text-white">&#8358;{{ account.balance|floatformat:0|intcomma }}</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">{{ account.branch.name }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-600 dark:text-gray-400 text-center py-4">No accounts created yet</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Statistics -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Statistics</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-users text-2xl text-blue-600 dark:text-blue-400"></i>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Total Accounts</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ product.account_count }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
+                <div class="space-y-2">
+                    <a href="{% url 'core:savings_product_update' product.id %}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-edit text-blue-600"></i>
+                        <span>Edit Product</span>
+                    </a>
+                    {% if product.is_active %}
+                    <a href="{% url 'core:savings_product_deactivate' product.id %}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-pause-circle text-yellow-600"></i>
+                        <span>Deactivate Product</span>
+                    </a>
+                    {% else %}
+                    <a href="{% url 'core:savings_product_activate' product.id %}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-play-circle text-green-600"></i>
+                        <span>Activate Product</span>
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'core:savings_product_delete' product.id %}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-red-600 dark:text-red-400">
+                        <i class="fas fa-trash"></i>
+                        <span>Delete Product</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Audit Information -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Audit Information</h3>
+                <div class="space-y-3">
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Created</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ product.created_at|date:"M d, Y H:i" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Last Updated</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ product.updated_at|date:"M d, Y H:i" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

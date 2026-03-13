@@ -1,0 +1,92 @@
+{% extends 'layouts/base.html' %}
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+    <!-- Breadcrumb & Title -->
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="{% url 'core:loan_detail' loan.id %}" class="hover:text-primary-600">{{ loan.loan_number }}</a>
+            <span>/</span>
+            <a href="{% url 'core:loan_collaterals' loan.id %}" class="hover:text-primary-600">Collaterals</a>
+            <span>/</span>
+            <span>{% if is_edit %}Edit{% else %}Add{% endif %}</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+    </div>
+
+    <!-- Form Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <form method="post" class="space-y-5">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-400">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <!-- Type + Value -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Collateral Type *</label>
+                    {{ form.collateral_type }}
+                    {% if form.collateral_type.errors %}<p class="mt-1 text-xs text-red-600">{{ form.collateral_type.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estimated Value (₦) *</label>
+                    {{ form.value }}
+                    {% if form.value.errors %}<p class="mt-1 text-xs text-red-600">{{ form.value.errors.0 }}</p>{% endif %}
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description *</label>
+                {{ form.description }}
+                {% if form.description.errors %}<p class="mt-1 text-xs text-red-600">{{ form.description.errors.0 }}</p>{% endif %}
+            </div>
+
+            <!-- Owner -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner Name</label>
+                    {{ form.owner_name }}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner Phone</label>
+                    {{ form.owner_phone }}
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Owner Address</label>
+                {{ form.owner_address }}
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Collateral Location</label>
+                {{ form.location }}
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                {{ form.notes }}
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center space-x-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <button type="submit"
+                        class="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors">
+                    {% if is_edit %}Save Changes{% else %}Add Collateral{% endif %}
+                </button>
+                <a href="{% url 'core:loan_collaterals' loan.id %}"
+                   class="px-6 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

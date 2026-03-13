@@ -1,0 +1,120 @@
+## Render deployment configuration
+## Docs: https://render.com/docs/blueprint-spec
+##
+## All three services build from the same Dockerfile.
+## render.yaml overrides the CMD per service via startCommand.
+##
+## Set sync:false vars in the Render dashboard → Environment before first deploy:
+##   SECRET_KEY, DATABASE_URL, REDIS_URL, CLOUDINARY_*, EMAIL_*, AT_API_KEY
+
+services:
+
+  # ── Web (Gunicorn via Docker) ──────────────────────────────────────────────
+  - type: web
+    name: seashore-web
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: oregon
+    plan: free
+    # Runs migrate + collectstatic before the server starts
+    startCommand: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn seashore.wsgi:application --workers 2 --bind 0.0.0.0:$PORT --timeout 120"
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: "seashore-monolithic.onrender.com"
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: EMAIL_HOST
+        value: "smtp.gmail.com"
+      - key: EMAIL_PORT
+        value: "465"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: ADMIN_NOTIFICATION_EMAIL
+        sync: false
+      - key: AT_USERNAME
+        value: "sandbox"
+      - key: AT_API_KEY
+        sync: false
+      - key: AT_SENDER_ID
+        sync: false
+
+  # ── Celery Worker (Docker) ─────────────────────────────────────────────────
+  - type: worker
+    name: seashore-celery-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: oregon
+    plan: free
+    startCommand: celery -A seashore worker -l info --concurrency 2
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: EMAIL_HOST
+        value: "smtp.gmail.com"
+      - key: EMAIL_PORT
+        value: "465"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: ADMIN_NOTIFICATION_EMAIL
+        sync: false
+      - key: AT_USERNAME
+        value: "sandbox"
+      - key: AT_API_KEY
+        sync: false
+      - key: AT_SENDER_ID
+        sync: false
+
+  # ── Celery Beat / Scheduler (Docker) ──────────────────────────────────────
+  # WARNING: Only ever run ONE instance of beat — multiple instances will
+  # fire every periodic task multiple times.
+  - type: worker
+    name: seashore-celery-beat
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: oregon
+    plan: free
+    startCommand: celery -A seashore beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false

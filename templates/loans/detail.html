@@ -1,0 +1,765 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div x-data="{ activeTab: 'overview' }" class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+                <a href="{% url 'core:loan_list' %}" class="hover:text-primary-600">Loans</a>
+                <span>/</span>
+                <a href="{% url 'core:client_detail' loan.client.id %}" class="hover:text-primary-600">
+                    {{ loan.client.get_full_name }}
+                </a>
+                <span>/</span>
+                <span>Loan Details</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        </div>
+        <div>
+            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium
+                         {% if loan.status == 'pending_fees' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
+                         {% elif loan.status == 'pending_approval' %}bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300
+                         {% elif loan.status == 'approved' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
+                         {% elif loan.status == 'active' %}bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300
+                         {% elif loan.status == 'completed' %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300
+                         {% elif loan.status == 'overdue' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
+                         {% elif loan.status == 'rejected' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
+                         {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                {{ loan.get_status_display }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Guarantor Status Alert (if pending_fees and not complete) -->
+    {% if loan.status == 'pending_fees' and required_guarantors > 0 and not guarantors_complete %}
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-triangle text-yellow-500 mr-3 shrink-0"></i>
+                <div>
+                    <p class="text-sm font-medium text-yellow-800 dark:text-yellow-300">Guarantors Required</p>
+                    <p class="text-sm text-yellow-700 dark:text-yellow-400">
+                        {{ current_guarantor_count }} of {{ required_guarantors }} guarantor(s) added.
+                        Please add the remaining guarantor(s) before paying fees.
+                    </p>
+                </div>
+            </div>
+            <a href="{% url 'core:loan_guarantors' loan.id %}"
+               class="self-start sm:self-auto shrink-0 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors">
+                <i class="fas fa-users mr-2"></i>Manage Guarantors
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="flex flex-wrap items-center gap-3">
+        {% if loan.status == 'pending_fees' or loan.status == 'pending_approval' %}
+        <a href="{% url 'core:loan_guarantors' loan.id %}"
+           class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <i class="fas fa-users mr-2"></i>Guarantors ({{ current_guarantor_count }}/{{ required_guarantors }})
+        </a>
+        {% endif %}
+
+        {% if loan.status == 'pending_fees' and checker.can_create_loan and guarantors_complete %}
+        <a href="{% url 'core:loan_pay_fees' loan.id %}"
+           class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+            <i class="fas fa-money-bill mr-2"></i>Pay Application Fees
+        </a>
+        {% endif %}
+
+        {% if loan.status == 'pending_approval' and checker.can_approve_loans %}
+        <a href="{% url 'core:loan_approve' loan.id %}"
+           class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors">
+            <i class="fas fa-check mr-2"></i>Review Loan
+        </a>
+        {% endif %}
+
+        {% if loan.status == 'approved' and checker.can_disburse_loans %}
+        <a href="{% url 'core:loan_disburse' loan.id %}"
+           class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
+            <i class="fas fa-hand-holding-usd mr-2"></i>Disburse Loan
+        </a>
+        {% endif %}
+
+        {% if loan.status == 'active' or loan.status == 'overdue' %}
+        <a href="{% url 'core:loan_repayment_post_for_loan' loan.id %}"
+           class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors">
+            <i class="fas fa-money-check-alt mr-2"></i>Post Repayment
+        </a>
+        <a href="{% url 'core:loan_add_followup' loan.id %}"
+           class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <i class="fas fa-tasks mr-2"></i>Add Follow-up
+        </a>
+        <a href="{% url 'core:loan_add_promise' loan.id %}"
+           class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <i class="fas fa-handshake mr-2"></i>Record Promise
+        </a>
+        {% if loan.loan_product.requires_insurance and not active_insurance_claim and checker.is_manager or checker.is_admin_or_director %}
+        <a href="{% url 'core:loan_file_insurance_claim' loan.id %}"
+           class="px-4 py-2 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+            <i class="fas fa-shield-alt mr-2"></i>File Insurance Claim
+        </a>
+        {% endif %}
+        {% if active_insurance_claim %}
+        <a href="{% url 'core:insurance_claim_detail' active_insurance_claim.id %}"
+           class="px-4 py-2 border border-amber-300 dark:border-amber-700 rounded-lg text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors">
+            <i class="fas fa-shield-alt mr-2"></i>View Active Claim
+        </a>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- Tabs -->
+    <div class="border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+        <nav class="-mb-px flex space-x-4 sm:space-x-8 min-w-max">
+            <button @click="activeTab = 'overview'"
+                    :class="activeTab === 'overview' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                Overview
+            </button>
+            <button @click="activeTab = 'schedule'"
+                    :class="activeTab === 'schedule' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                Repayment Schedule
+            </button>
+            <button @click="activeTab = 'postings'"
+                    :class="activeTab === 'postings' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                Repayment Postings ({{ repayment_postings|length }})
+            </button>
+            <button @click="activeTab = 'transactions'"
+                    :class="activeTab === 'transactions' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                Transactions ({{ transactions|length }})
+            </button>
+            <button @click="activeTab = 'guarantors'"
+                    :class="activeTab === 'guarantors' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                Guarantors ({{ current_guarantor_count }}/{{ required_guarantors }})
+            </button>
+            <button @click="activeTab = 'collections'"
+                    :class="activeTab === 'collections' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                Collections ({{ followup_tasks|length }})
+            </button>
+            {% if loan.loan_product.requires_insurance %}
+            <button @click="activeTab = 'insurance'"
+                    :class="activeTab === 'insurance' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
+                    class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+                Insurance ({{ insurance_claims|length }})
+            </button>
+            {% endif %}
+        </nav>
+    </div>
+
+    <!-- Tab Content: Overview -->
+    <div x-show="activeTab === 'overview'" x-cloak class="space-y-6">
+        <!-- Loan Summary Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Principal Amount</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">₦{{ loan.principal_amount|floatformat:2|intcomma }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Total Interest</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">₦{{ loan.total_interest|floatformat:2|intcomma }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Total Repayment</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">₦{{ loan.total_repayment|floatformat:2|intcomma }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Outstanding Balance</p>
+                    <p class="text-2xl font-bold text-red-600 dark:text-red-400">₦{{ loan.outstanding_balance|floatformat:2|intcomma }}</p>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div class="flex items-center space-x-3 mb-2">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">Repayment Progress</span>
+                    {% if loan.total_repayment > 0 %}
+                        {% widthratio loan.amount_paid loan.total_repayment 100 as progress_percent %}
+                    {% else %}
+                        {% with progress_percent=0 %}{% endwith %}
+                    {% endif %}
+                    <span class="text-sm font-medium text-gray-900 dark:text-white">{% if loan.total_repayment > 0 %}{{ progress_percent }}{% else %}0{% endif %}%</span>
+                </div>
+                <div class="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div class="h-full bg-primary-600 dark:bg-primary-500 rounded-full transition-all" style="width: {% if loan.total_repayment > 0 %}{{ progress_percent }}{% else %}0{% endif %}%"></div>
+                </div>
+                <div class="flex items-center justify-between mt-2">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">Paid: ₦{{ loan.amount_paid|floatformat:2|intcomma }}</span>
+                    <span class="text-sm text-gray-600 dark:text-gray-400">Remaining: ₦{{ loan.outstanding_balance|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loan Details -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Loan Details</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Loan ID</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white font-mono">{{ loan.loan_number }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Client</p>
+                    <a href="{% url 'core:client_detail' loan.client.id %}"
+                       class="text-base font-medium text-primary-600 dark:text-primary-400 hover:underline">
+                        {{ loan.client.get_full_name }}
+                    </a>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Loan Product</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.loan_product.name }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Interest Rate</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.monthly_interest_rate_pct|floatformat:2 }}% per month</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Duration</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.duration_months }} months</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Repayment Frequency</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.get_repayment_frequency_display }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">{{ loan.get_repayment_frequency_display }} Installment</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ loan.installment_amount|floatformat:2|intcomma }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.branch.name }}</p>
+                </div>
+                {% if loan.purpose %}
+                <div class="md:col-span-2">
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Purpose</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.purpose }}</p>
+                </div>
+                {% endif %}
+                {% if loan.purpose_details %}
+                <div class="md:col-span-2">
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Purpose Details</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.purpose_details }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Fees Information -->
+        {% if loan.fees_paid and loan.total_upfront_fees > 0 %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Fees Paid</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Total Upfront Fees</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">₦{{ loan.total_upfront_fees|floatformat:2|intcomma }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Payment Status</p>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                        <i class="fas fa-check-circle mr-1"></i>Paid
+                    </span>
+                </div>
+            </div>
+            {% if loan.fees_paid_date %}
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-4">Fees paid on {{ loan.fees_paid_date|date:"F d, Y g:i A" }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Approval/Disbursement Information -->
+        {% if loan.approved_by or loan.disbursed_by %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Approval & Disbursement</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {% if loan.approved_by %}
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Approved By</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.approved_by.get_full_name }}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ loan.approved_at|date:"F d, Y g:i A" }}</p>
+                </div>
+                {% endif %}
+                {% if loan.disbursed_by %}
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Disbursed By</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.disbursed_by.get_full_name }}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ loan.disbursed_at|date:"F d, Y g:i A" }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Rejection Information -->
+        {% if loan.status == 'rejected' and loan.rejection_reason %}
+        <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-circle text-red-400"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800 dark:text-red-300">Loan Rejected</h3>
+                    <p class="mt-2 text-sm text-red-700 dark:text-red-400">{{ loan.rejection_reason }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Tab Content: Repayment Schedule -->
+    <div x-show="activeTab === 'schedule'" x-cloak>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Installment</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Due Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Principal</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Interest</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Total</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for installment in repayment_schedule %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ installment.installment_number }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ installment.due_date|date:"M d, Y" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">₦{{ installment.principal_amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">₦{{ installment.interest_amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">₦{{ installment.total_amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                         {% if installment.status == 'paid' %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                                         {% elif installment.status == 'overdue' %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300
+                                         {% else %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300{% endif %}">
+                                {{ installment.status|title }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                            No repayment schedule available
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab Content: Repayment Postings -->
+    <div x-show="activeTab === 'postings'" x-cloak>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Posting Ref</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Payment Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Submitted By</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for posting in repayment_postings %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">{{ posting.posting_ref }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">₦{{ posting.amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ posting.payment_date|date:"M d, Y" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ posting.submitted_by.get_full_name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                         {% if posting.status == 'approved' %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                                         {% elif posting.status == 'rejected' %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300
+                                         {% else %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300{% endif %}">
+                                {{ posting.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            {% if posting.status == 'pending' and checker.can_approve_loans %}
+                            <a href="{% url 'core:loan_repayment_approve' posting.id %}"
+                               class="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300">
+                                Review
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                            No repayment postings yet
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab Content: Transactions -->
+    <div x-show="activeTab === 'transactions'" x-cloak>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Reference</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for transaction in transactions %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">{{ transaction.transaction_ref }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ transaction.get_transaction_type_display }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">₦{{ transaction.amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ transaction.transaction_date|date:"M d, Y" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                         {% if transaction.status == 'completed' %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                                         {% elif transaction.status == 'pending' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300
+                                         {% else %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300{% endif %}">
+                                {{ transaction.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="{% url 'core:transaction_detail' transaction.id %}"
+                               class="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                            No transactions yet
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab Content: Guarantors -->
+    <div x-show="activeTab === 'guarantors'" x-cloak>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <!-- Header -->
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        <i class="fas fa-users text-primary-600 dark:text-primary-400 mr-2"></i>Loan Guarantors
+                    </h2>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                        {{ current_guarantor_count }} of {{ required_guarantors }} required guarantor(s)
+                    </p>
+                </div>
+                {% if loan.status == 'pending_fees' or loan.status == 'pending_approval' %}
+                <a href="{% url 'core:loan_guarantors' loan.id %}"
+                   class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors">
+                    <i class="fas fa-cog mr-2"></i>Manage
+                </a>
+                {% endif %}
+            </div>
+
+            {% if guarantors %}
+            <div class="divide-y divide-gray-200 dark:divide-gray-700">
+                {% for guarantor in guarantors %}
+                <div class="p-6">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-start space-x-4">
+                            <div class="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+                                <i class="fas fa-user text-primary-600 dark:text-primary-400"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ guarantor.name }}</h3>
+                                <div class="flex items-center space-x-2 mt-1">
+                                    <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full
+                                        {% if guarantor.guarantor_type == 'internal' %}bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200
+                                        {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                                        {{ guarantor.get_guarantor_type_display }}
+                                    </span>
+                                    <span class="text-sm text-gray-500 dark:text-gray-400">{{ guarantor.relationship }}</span>
+                                </div>
+                                <div class="mt-2 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                        <span class="text-gray-500 dark:text-gray-400">Phone:</span>
+                                        <span class="text-gray-900 dark:text-white ml-1">{{ guarantor.phone }}</span>
+                                    </div>
+                                    {% if guarantor.email %}
+                                    <div>
+                                        <span class="text-gray-500 dark:text-gray-400">Email:</span>
+                                        <span class="text-gray-900 dark:text-white ml-1">{{ guarantor.email }}</span>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <span class="text-gray-500 dark:text-gray-400">Amount:</span>
+                                        <span class="font-semibold text-green-600 dark:text-green-400 ml-1">₦{{ guarantor.guarantee_amount|floatformat:2|intcomma }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="p-12 text-center">
+                <div class="h-16 w-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-users text-3xl text-gray-400 dark:text-gray-500"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Guarantors</h3>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">
+                    {% if required_guarantors > 0 %}
+                    This loan requires {{ required_guarantors }} guarantor(s).
+                    {% else %}
+                    No guarantors are required for this loan product.
+                    {% endif %}
+                </p>
+                {% if loan.status == 'pending_fees' or loan.status == 'pending_approval' %}
+                    {% if required_guarantors > 0 %}
+                    <a href="{% url 'core:loan_add_guarantor' loan.id %}"
+                       class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors">
+                        <i class="fas fa-plus mr-2"></i>Add Guarantor
+                    </a>
+                    {% endif %}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tab Content: Collections -->
+    <div x-show="activeTab === 'collections'" x-cloak class="space-y-6">
+
+        <!-- Follow-up Tasks -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    <i class="fas fa-tasks text-primary-600 dark:text-primary-400 mr-2"></i>Follow-up Tasks
+                </h2>
+                {% if loan.status == 'active' or loan.status == 'overdue' %}
+                <a href="{% url 'core:loan_add_followup' loan.id %}"
+                   class="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+                    <i class="fas fa-plus mr-1"></i>Add Task
+                </a>
+                {% endif %}
+            </div>
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Assigned To</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Due Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Priority</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Notes</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for task in followup_tasks %}
+                    <tr class="{% if task.status == 'pending' and task.due_date < today %}bg-red-50 dark:bg-red-900/10{% endif %}">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                            <i class="fas {% if task.follow_up_type == 'phone_call' %}fa-phone{% elif task.follow_up_type == 'visit' %}fa-map-marker-alt{% elif task.follow_up_type == 'sms' %}fa-sms{% elif task.follow_up_type == 'email' %}fa-envelope{% elif task.follow_up_type == 'whatsapp' %}fa-whatsapp{% else %}fa-calendar{% endif %} mr-2 text-gray-400"></i>
+                            {{ task.get_follow_up_type_display }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ task.assigned_to.get_full_name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm {% if task.status == 'pending' and task.due_date < today %}text-red-600 dark:text-red-400 font-medium{% else %}text-gray-900 dark:text-white{% endif %}">
+                            {{ task.due_date|date:"M d, Y" }}
+                            {% if task.status == 'pending' and task.due_date < today %}<span class="ml-1 text-xs">(overdue)</span>{% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                {% if task.priority == 'urgent' %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300
+                                {% elif task.priority == 'high' %}bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300
+                                {% elif task.priority == 'medium' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300
+                                {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                                {{ task.get_priority_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                {% if task.status == 'completed' %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                                {% elif task.status == 'cancelled' %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300
+                                {% else %}bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300{% endif %}">
+                                {{ task.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate">
+                            {% if task.status == 'completed' and task.outcome %}{{ task.outcome }}{% else %}{{ task.notes|truncatechars:60 }}{% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
+                            {% if task.status == 'pending' %}
+                            <a href="{% url 'core:followup_complete' task.id %}" class="text-green-600 dark:text-green-400 hover:underline">Complete</a>
+                            <a href="{% url 'core:followup_update' task.id %}" class="text-primary-600 dark:text-primary-400 hover:underline">Edit</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                            No follow-up tasks for this loan.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Payment Promises -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    <i class="fas fa-handshake text-primary-600 dark:text-primary-400 mr-2"></i>Payment Promises
+                </h2>
+                {% if loan.status == 'active' or loan.status == 'overdue' %}
+                <a href="{% url 'core:loan_add_promise' loan.id %}"
+                   class="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+                    <i class="fas fa-plus mr-1"></i>Record Promise
+                </a>
+                {% endif %}
+            </div>
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Promise Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Promised</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actual Paid</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Recorded By</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for promise in payment_promises %}
+                    <tr class="{% if promise.status == 'pending' and promise.promise_date < today %}bg-red-50 dark:bg-red-900/10{% endif %}">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm {% if promise.status == 'pending' and promise.promise_date < today %}text-red-600 dark:text-red-400 font-medium{% else %}text-gray-900 dark:text-white{% endif %}">
+                            {{ promise.promise_date|date:"M d, Y" }}
+                            {% if promise.status == 'pending' and promise.promise_date < today %}<span class="ml-1 text-xs">(overdue)</span>{% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">₦{{ promise.promised_amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                            {% if promise.actual_amount_paid %}₦{{ promise.actual_amount_paid|floatformat:2|intcomma }}{% else %}&mdash;{% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                {% if promise.status == 'kept' %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                                {% elif promise.status == 'broken' %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300
+                                {% elif promise.status == 'partial' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300
+                                {% else %}bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300{% endif %}">
+                                {{ promise.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ promise.recorded_by.get_full_name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
+                            {% if promise.status == 'pending' %}
+                            <a href="{% url 'core:promise_update_status' promise.id %}" class="text-green-600 dark:text-green-400 hover:underline">Update</a>
+                            <a href="{% url 'core:promise_update' promise.id %}" class="text-primary-600 dark:text-primary-400 hover:underline">Edit</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                            No payment promises recorded for this loan.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab Content: Insurance Claims -->
+    <div x-show="activeTab === 'insurance'" x-cloak>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    <i class="fas fa-shield-alt text-primary-600 dark:text-primary-400 mr-2"></i>Insurance Claims
+                </h2>
+                {% if not active_insurance_claim and loan.status == 'active' or not active_insurance_claim and loan.status == 'overdue' %}
+                <a href="{% url 'core:loan_file_insurance_claim' loan.id %}"
+                   class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
+                    <i class="fas fa-plus mr-1"></i>File Claim
+                </a>
+                {% endif %}
+            </div>
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Claim Ref</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Event Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Claim Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Payout</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for claim in insurance_claims %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">{{ claim.claim_ref }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ claim.get_claim_type_display }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ claim.event_date|date:"d M Y" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">₦{{ claim.claim_amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {% if claim.payout_amount %}₦{{ claim.payout_amount|floatformat:2|intcomma }}{% else %}&mdash;{% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                {% if claim.status == 'paid' %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                                {% elif claim.status == 'approved' %}bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300
+                                {% elif claim.status == 'under_review' %}bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300
+                                {% elif claim.status == 'rejected' %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300
+                                {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                                {{ claim.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
+                            <a href="{% url 'core:insurance_claim_detail' claim.id %}" class="text-primary-600 dark:text-primary-400 hover:underline">View</a>
+                            {% if claim.status in 'submitted,under_review' %}
+                            <a href="{% url 'core:insurance_claim_review' claim.id %}" class="text-amber-600 dark:text-amber-400 hover:underline">Review</a>
+                            {% endif %}
+                            {% if claim.status == 'approved' and checker.is_admin_or_director %}
+                            <a href="{% url 'core:insurance_claim_record_payout' claim.id %}" class="text-green-600 dark:text-green-400 hover:underline">Payout</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                            No insurance claims for this loan.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="flex justify-start">
+        <a href="{% url 'core:loan_list' %}"
+           class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Loans
+        </a>
+    </div>
+</div>
+{% endblock %}

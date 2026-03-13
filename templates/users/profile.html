@@ -1,0 +1,132 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-1">View and manage your personal information</p>
+        </div>
+        <div>
+            <a href="{% url 'core:user_profile_edit' %}"
+               class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors">
+                <i class="fas fa-edit mr-2"></i>Edit Profile
+            </a>
+        </div>
+    </div>
+
+    <!-- Profile Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div class="flex items-start space-x-6">
+            <!-- Profile Picture -->
+            <div class="flex-shrink-0">
+                {% if profile_user.profile_picture %}
+                <img class="h-32 w-32 rounded-full object-cover border-4 border-primary-100 dark:border-primary-900"
+                     src="{{ profile_user.profile_picture.url }}"
+                     alt="{{ profile_user.get_full_name }}">
+                {% else %}
+                <div class="h-32 w-32 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center border-4 border-primary-200 dark:border-primary-800">
+                    <span class="text-primary-600 dark:text-primary-400 font-bold text-4xl">
+                        {{ profile_user.first_name.0 }}{{ profile_user.last_name.0 }}
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- User Details -->
+            <div class="flex-1">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-1">{{ profile_user.get_full_name }}</h2>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">{{ profile_user.get_user_role_display }} at {{ profile_user.branch.name }}</p>
+
+                <div class="flex items-center space-x-4">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                                 {% if profile_user.user_role == 'admin' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
+                                 {% elif profile_user.user_role == 'director' %}bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300
+                                 {% elif profile_user.user_role == 'hr' %}bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300
+                                 {% elif profile_user.user_role == 'manager' %}bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300
+                                 {% else %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300{% endif %}">
+                        <i class="fas fa-user-shield mr-1"></i>{{ profile_user.get_user_role_display }}
+                    </span>
+
+                    {% if profile_user.is_active %}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                        <i class="fas fa-check-circle mr-1"></i>Active
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats (if staff) -->
+    {% if profile_user.user_role == 'staff' and assigned_clients_count > 0 %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Stats</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                <p class="text-sm text-blue-600 dark:text-blue-400 mb-1">Assigned Clients</p>
+                <p class="text-2xl font-bold text-blue-700 dark:text-blue-300">{{ assigned_clients_count }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Information Sections -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-6">Personal Information</h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Contact Information -->
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Email Address</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ profile_user.email }}</p>
+            </div>
+
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Phone Number</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ profile_user.phone }}</p>
+            </div>
+
+            <!-- Work Information -->
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ profile_user.branch.name }}</p>
+            </div>
+
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Date Joined</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ profile_user.date_joined|date:"F d, Y" }}</p>
+            </div>
+
+            <!-- Address Information -->
+            {% if profile_user.address %}
+            <div class="md:col-span-2">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Address</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">
+                    {{ profile_user.address }}
+                    {% if profile_user.city %}, {{ profile_user.city }}{% endif %}
+                    {% if profile_user.state %}, {{ profile_user.state }}{% endif %}
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Info Notice -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-blue-700 dark:text-blue-300">
+                    To update sensitive information like your email, name, or role, please contact your system administrator.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

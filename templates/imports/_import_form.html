@@ -1,0 +1,43 @@
+{% comment %}Reusable import form partial — {% include %} this inside a {% block content %}{% endcomment %}
+<div class="max-w-2xl mx-auto p-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Upload a CSV file to bulk-create records. Download the template for the correct column format.
+        </p>
+    </div>
+
+    <!-- Template Download -->
+    <div class="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-start space-x-3">
+        <i class="fas fa-file-csv text-blue-500 text-xl mt-0.5"></i>
+        <div class="flex-1">
+            <p class="text-sm font-medium text-blue-800 dark:text-blue-300">CSV Template — Required columns</p>
+            <p class="text-xs font-mono text-blue-600 dark:text-blue-400 mt-1">{{ headers|join:", " }}</p>
+            <a href="?template=1" class="mt-2 inline-block text-xs font-semibold text-blue-700 dark:text-blue-300 underline hover:no-underline">
+                <i class="fas fa-download mr-1"></i>Download empty template
+            </a>
+        </div>
+    </div>
+
+    <!-- Upload Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    CSV File <span class="text-red-500">*</span>
+                </label>
+                <input type="file" name="csv_file" accept=".csv" required
+                       class="block w-full text-sm text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 focus:outline-none p-2">
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Accepted: .csv (UTF-8). Max recommended: 1,000 rows.</p>
+            </div>
+            <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 mb-4 text-xs text-amber-700 dark:text-amber-300">
+                <i class="fas fa-info-circle mr-1"></i>
+                Rows that fail are skipped — they do not stop the rest. A full results summary is shown after upload.
+            </div>
+            <button type="submit" class="w-full py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition-colors">
+                <i class="fas fa-upload mr-2"></i>Upload &amp; Import
+            </button>
+        </form>
+    </div>
+</div>

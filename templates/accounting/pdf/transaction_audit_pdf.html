@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Transaction Audit Log</title>
+</head>
+<body>
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="report-title">TRANSACTION AUDIT LOG</div>
+        <div class="report-subtitle">
+            {% if report_data.date_from and report_data.date_to %}
+            Period: {{ report_data.date_from }} to {{ report_data.date_to }}
+            {% else %}
+            All Transactions
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Audit Summary -->
+    <div class="info-grid">
+        <div class="info-item">
+            <div class="info-label">Total Transactions</div>
+            <div class="info-value">{{ report_data.total_transactions }}</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">Missing Journal Entries</div>
+            <div class="info-value" style="{% if report_data.missing_journal_count > 0 %}color: #DC2626;{% else %}color: #059669;{% endif %}">
+                {{ report_data.missing_journal_count }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert if missing journal entries -->
+    {% if report_data.missing_journal_count > 0 %}
+    <div class="alert-box">
+        <strong>⚠️ AUDIT ALERT:</strong> {{ report_data.missing_journal_count }} transaction(s) are missing journal entries.
+        This indicates a potential accounting integrity issue that requires immediate attention.
+    </div>
+    {% else %}
+    <div class="summary-box">
+        <strong>✓ AUDIT PASSED:</strong> All transactions have corresponding journal entries.
+    </div>
+    {% endif %}
+
+    <!-- Transactions Table -->
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Reference</th>
+                <th>Type</th>
+                <th>Client</th>
+                <th class="text-right">Amount (₦)</th>
+                <th class="text-center">Journal Entry</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report_data.audit_data %}
+            <tr {% if not item.has_journal %}style="background-color: #FEE2E2;"{% endif %}>
+                <td>{{ item.transaction.transaction_date|date:"M d, Y" }}</td>
+                <td>{{ item.transaction.transaction_ref }}</td>
+                <td>{{ item.transaction.get_transaction_type_display }}</td>
+                <td>
+                    {% if item.transaction.client %}
+                        {{ item.transaction.client.get_full_name }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td class="text-right">{{ item.transaction.amount|floatformat:2 }}</td>
+                <td class="text-center">
+                    {% if item.has_journal %}
+                        <span style="color: #059669;">✓ Yes</span>
+                        {% for je in item.journal_entries %}
+                            <br><small>{{ je.journal_number }}</small>
+                        {% endfor %}
+                    {% else %}
+                        <span style="color: #DC2626; font-weight: bold;">✗ MISSING</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center; color: #6B7280; padding: 1.5rem;">No transactions found</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Legend -->
+    <div style="margin-top: 1.5rem; padding: 1rem; background-color: #F3F4F6; font-size: 9pt;">
+        <strong>Legend:</strong>
+        <span style="margin-left: 1rem;"><span style="color: #059669;">✓</span> Has journal entry</span>
+        <span style="margin-left: 1rem;"><span style="color: #DC2626;">✗</span> Missing journal entry (highlighted in red)</span>
+    </div>
+
+    <!-- Recommendations -->
+    {% if report_data.missing_journal_count > 0 %}
+    <div style="margin-top: 1.5rem; padding: 1rem; border: 1px solid #D97706; background-color: #FFFBEB;">
+        <h4 style="margin: 0 0 0.5rem 0; color: #D97706;">Recommended Actions:</h4>
+        <ol style="margin: 0; padding-left: 1.5rem; font-size: 10pt;">
+            <li>Review each transaction missing a journal entry</li>
+            <li>Create manual journal entries for historical transactions if needed</li>
+            <li>Investigate why automatic journal creation failed</li>
+            <li>Ensure all future transactions are processed through proper channels</li>
+        </ol>
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #E5E7EB; text-align: center; font-size: 9pt; color: #6B7280;">
+        <p>Generated on {{ "now"|date:"F d, Y H:i" }}</p>
+        <p>Seashore Microfinance - Transaction Audit Log</p>
+        <p style="margin-top: 0.5rem; font-style: italic;">This report is for internal audit purposes only.</p>
+    </div>
+</body>
+</html>

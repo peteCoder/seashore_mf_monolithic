@@ -1,0 +1,239 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Client Groups - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div x-data="{ showFilters: false }">
+    <!-- Header with Create Button -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Client Groups</h1>
+            <p class="text-gray-600 dark:text-gray-400">{{ total_count }} total groups</p>
+        </div>
+
+        {% if checker.is_staff or checker.is_manager or checker.is_admin_or_director %}
+        <a href="{% url 'core:group_create' %}"
+           class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors flex items-center space-x-2">
+            <i class="fas fa-plus"></i>
+            <span>Create New Group</span>
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <form method="get" action="{% url 'core:group_list' %}">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                <!-- Search -->
+                <div>
+                    {{ search_form.search }}
+                </div>
+
+                <!-- Branch Filter -->
+                <div>
+                    {{ search_form.branch }}
+                </div>
+
+                <!-- Group Type Filter -->
+                <div>
+                    {{ search_form.group_type }}
+                </div>
+
+                <!-- Status Filter -->
+                <div>
+                    {{ search_form.status }}
+                </div>
+
+                <!-- Loan Officer Filter -->
+                <div>
+                    {{ search_form.loan_officer }}
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end space-x-2">
+                <a href="{% url 'core:group_list' %}"
+                   class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    Clear
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Groups Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+        {% if groups %}
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Group
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Type
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Branch
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Members
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Officer
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Status
+                    </th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Actions
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {% for group in groups %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-users text-primary-600 dark:text-primary-400"></i>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ group.name }}
+                                </div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400">
+                                    {{ group.code }}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs font-medium rounded-full
+                                     {% if group.group_type == 'lending' %}bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300
+                                     {% elif group.group_type == 'savings' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
+                                     {% elif group.group_type == 'mixed' %}bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300
+                                     {% elif group.group_type == 'cooperative' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
+                                     {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                            {{ group.get_group_type_display }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {{ group.branch.name }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900 dark:text-white">
+                            <i class="fas fa-user-check mr-1 text-green-600"></i>
+                            {{ group.active_members }} active
+                        </div>
+                        {% if group.pending_requests_count > 0 %}
+                        <div class="text-xs text-orange-600 dark:text-orange-400">
+                            <i class="fas fa-clock mr-1"></i>
+                            {{ group.pending_requests_count }} pending
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {{ group.loan_officer.get_full_name|default:"Not assigned" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if group.status == 'active' %}
+                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                            <i class="fas fa-check-circle mr-1"></i>Active
+                        </span>
+                        {% elif group.status == 'pending' %}
+                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
+                            <i class="fas fa-clock mr-1"></i>Pending
+                        </span>
+                        {% elif group.status == 'inactive' %}
+                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                            <i class="fas fa-pause-circle mr-1"></i>Inactive
+                        </span>
+                        {% else %}
+                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+                            <i class="fas fa-times-circle mr-1"></i>Closed
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex items-center justify-end space-x-2">
+                            <a href="{% url 'core:group_detail' group.id %}"
+                               class="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300"
+                               title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if checker.is_admin_or_director or checker.is_manager and group.branch == checker.user.branch or checker.is_staff and group.loan_officer == checker.user %}
+                            <a href="{% url 'core:group_update' group.id %}"
+                               class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                               title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% endif %}
+                            {% if group.status == 'pending' %}
+                            {% if checker.is_manager or checker.is_admin_or_director %}
+                            <a href="{% url 'core:group_approve' group.id %}"
+                               class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                               title="Approve">
+                                <i class="fas fa-check-circle"></i>
+                            </a>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Pagination -->
+        {% if groups.has_other_pages %}
+        <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
+            <div class="flex items-center justify-between">
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                    Page {{ groups.number }} of {{ groups.paginator.num_pages }}
+                </div>
+                <div class="flex space-x-2">
+                    {% if groups.has_previous %}
+                    <a href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
+                       class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        First
+                    </a>
+                    <a href="?page={{ groups.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
+                       class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        Previous
+                    </a>
+                    {% endif %}
+
+                    {% if groups.has_next %}
+                    <a href="?page={{ groups.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
+                       class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        Next
+                    </a>
+                    <a href="?page={{ groups.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
+                       class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        Last
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-12">
+            <i class="fas fa-users text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+            <p class="text-gray-500 dark:text-gray-400 mb-4">No client groups found</p>
+            {% if checker.is_staff or checker.is_manager or checker.is_admin_or_director %}
+            <a href="{% url 'core:group_create' %}"
+               class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg">
+                <i class="fas fa-plus mr-2"></i>
+                Create First Group
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

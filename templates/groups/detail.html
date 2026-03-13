@@ -1,0 +1,398 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div>
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:group_list' %}" class="hover:text-primary-600">Groups</a>
+            <span>/</span>
+            <span>{{ group.name }}</span>
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="flex items-center space-x-4">
+                <div class="h-16 w-16 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-users text-3xl text-primary-600 dark:text-primary-400"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ group.name }}</h1>
+                    <p class="text-gray-600 dark:text-gray-400">{{ group.code }}</p>
+                </div>
+                {% if group.status == 'active' %}
+                <span class="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                    <i class="fas fa-check-circle mr-1"></i>Active
+                </span>
+                {% elif group.status == 'pending' %}
+                <span class="px-3 py-1 text-sm font-medium rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
+                    <i class="fas fa-clock mr-1"></i>Pending Approval
+                </span>
+                {% elif group.status == 'inactive' %}
+                <span class="px-3 py-1 text-sm font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                    <i class="fas fa-pause-circle mr-1"></i>Inactive
+                </span>
+                {% else %}
+                <span class="px-3 py-1 text-sm font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+                    <i class="fas fa-times-circle mr-1"></i>Closed
+                </span>
+                {% endif %}
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                {% if checker.is_admin_or_director or checker.is_manager and group.branch == checker.user.branch or checker.is_staff and group.loan_officer == checker.user %}
+                <a href="{% url 'core:group_update' group.id %}"
+                   class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+                    <i class="fas fa-edit mr-2"></i>Edit
+                </a>
+                {% endif %}
+                {% if group.status == 'pending' and checker.can_manage_groups %}
+                <a href="{% url 'core:group_approve' group.id %}"
+                   class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium">
+                    <i class="fas fa-check-circle mr-2"></i>Approve
+                </a>
+                {% endif %}
+                {% if checker.is_admin_or_director or checker.is_manager and group.branch == checker.user.branch or checker.is_staff and group.loan_officer == checker.user %}
+                <a href="{% url 'core:group_add_member' group.id %}"
+                   class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium">
+                    <i class="fas fa-user-plus mr-2"></i>Add Member
+                </a>
+                <a href="{% url 'core:group_add_members_bulk' group.id %}"
+                   class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium">
+                    <i class="fas fa-users-plus mr-2"></i>Bulk Add
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Content -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Group Information -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-info-circle mr-2 text-primary-600"></i>
+                    Group Information
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Group Code</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ group.code }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Group Type</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ group.get_group_type_display }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ group.branch.name }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Loan Officer</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ group.loan_officer.get_full_name|default:"Not assigned" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Registration Date</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ group.registration_date|date:"M d, Y" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Meeting Schedule</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ group.get_meeting_schedule_text }}</p>
+                    </div>
+                    {% if group.meeting_location %}
+                    <div class="md:col-span-2">
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Meeting Location</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ group.meeting_location }}</p>
+                    </div>
+                    {% endif %}
+                    {% if group.description %}
+                    <div class="md:col-span-2">
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Description</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ group.description }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Pending Member Requests -->
+            {% if pending_requests %}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                        <i class="fas fa-clock mr-2 text-yellow-600"></i>
+                        Pending Member Requests ({{ pending_requests.count }})
+                    </h2>
+                    {% if checker.is_manager or checker.is_admin_or_director %}
+                    <a href="{% url 'core:group_approve_members_bulk' group.id %}"
+                       class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg">
+                        <i class="fas fa-check-double mr-1"></i>Bulk Approve
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="space-y-3">
+                    {% for request in pending_requests %}
+                    <div class="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                        <div class="flex items-center space-x-3">
+                            <div class="h-10 w-10 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center">
+                                <i class="fas fa-user text-yellow-600 dark:text-yellow-400"></i>
+                            </div>
+                            <div>
+                                <a href="{% url 'core:client_detail' request.client.id %}"
+                                   class="font-medium text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400">
+                                    {{ request.client.full_name }}
+                                </a>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">
+                                    Role: {{ request.get_requested_role_display }} • Requested by {{ request.requested_by.get_full_name }} on {{ request.requested_at|date:"M d, Y" }}
+                                </p>
+                            </div>
+                        </div>
+                        {% if checker.is_manager or checker.is_admin_or_director %}
+                        <a href="{% url 'core:group_approve_member' request.id %}"
+                           class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg">
+                            <i class="fas fa-check mr-1"></i>Review
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Active Members -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-user-check mr-2 text-primary-600"></i>
+                    Active Members ({{ active_members.count }})
+                </h2>
+                {% if active_members %}
+                <div class="space-y-3">
+                    {% for member in active_members %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                        <div class="flex items-center space-x-3">
+                            <div class="h-10 w-10 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center">
+                                {% if member.group_role == 'leader' %}
+                                <i class="fas fa-crown text-yellow-600 dark:text-yellow-400"></i>
+                                {% elif member.group_role == 'secretary' %}
+                                <i class="fas fa-file-alt text-blue-600 dark:text-blue-400"></i>
+                                {% else %}
+                                <i class="fas fa-user text-primary-600 dark:text-primary-400"></i>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <a href="{% url 'core:client_detail' member.id %}"
+                                   class="font-medium text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400">
+                                    {{ member.full_name }}
+                                </a>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">
+                                    {{ member.get_group_role_display }}
+                                    {% if member.group_role == 'leader' %}
+                                    <span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
+                                        Group Leader
+                                    </span>
+                                    {% elif member.group_role == 'secretary' %}
+                                    <span class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                                        Secretary
+                                    </span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        {% if checker.is_admin_or_director or checker.is_manager and group.branch == checker.user.branch or checker.is_staff and group.loan_officer == checker.user %}
+                        <div class="flex items-center space-x-2">
+                            <a href="{% url 'core:group_update_member_role' group.id member.id %}"
+                               class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                               title="Update Role">
+                                <i class="fas fa-user-tag"></i>
+                            </a>
+                            <a href="{% url 'core:group_remove_member' group.id member.id %}"
+                               class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                               title="Remove">
+                                <i class="fas fa-user-times"></i>
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-600 dark:text-gray-400 text-center py-4">No active members yet</p>
+                {% endif %}
+            </div>
+
+            <!-- Recent Activity -->
+            {% if recent_requests %}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                    <i class="fas fa-history mr-2 text-primary-600"></i>
+                    Recent Activity
+                </h2>
+                <div class="space-y-3">
+                    {% for request in recent_requests %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <div class="h-8 w-8 rounded-full flex items-center justify-center
+                                        {% if request.status == 'approved' %}bg-green-100 dark:bg-green-900
+                                        {% else %}bg-red-100 dark:bg-red-900{% endif %}">
+                                {% if request.status == 'approved' %}
+                                <i class="fas fa-check text-green-600 dark:text-green-400 text-sm"></i>
+                                {% else %}
+                                <i class="fas fa-times text-red-600 dark:text-red-400 text-sm"></i>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ request.client.full_name }}
+                                    {% if request.status == 'approved' %}
+                                    <span class="text-green-600 dark:text-green-400">approved</span>
+                                    {% else %}
+                                    <span class="text-red-600 dark:text-red-400">rejected</span>
+                                    {% endif %}
+                                </p>
+                                <p class="text-xs text-gray-600 dark:text-gray-400">
+                                    {{ request.reviewed_at|date:"M d, Y" }} by {{ request.reviewed_by.get_full_name }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Statistics -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Statistics</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-users text-2xl text-blue-600 dark:text-blue-400"></i>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Total Members</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ group.total_members }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-user-check text-2xl text-green-600 dark:text-green-400"></i>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Active Members</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ group.active_members }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% if group.pending_requests_count > 0 %}
+                    <div class="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-clock text-2xl text-yellow-600 dark:text-yellow-400"></i>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Pending Requests</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ group.pending_requests_count }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-piggy-bank text-2xl text-purple-600 dark:text-purple-400"></i>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Total Savings</p>
+                                <p class="text-xl font-bold text-gray-900 dark:text-white">&#8358;{{ group.total_savings|floatformat:0|intcomma }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-hand-holding-usd text-2xl text-red-600 dark:text-red-400"></i>
+                            <div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400">Outstanding Loans</p>
+                                <p class="text-xl font-bold text-gray-900 dark:text-white">&#8358;{{ group.total_loans_outstanding|floatformat:0|intcomma }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
+                <div class="space-y-2">
+                    {% if checker.is_admin_or_director or checker.is_manager and group.branch == checker.user.branch or checker.is_staff and group.loan_officer == checker.user %}
+                    <a href="{% url 'core:group_update' group.id %}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-edit text-blue-600"></i>
+                        <span>Edit Group</span>
+                    </a>
+                    <a href="{% url 'core:group_add_member' group.id %}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-user-plus text-primary-600"></i>
+                        <span>Add Member</span>
+                    </a>
+                    <a href="{% url 'core:group_add_members_bulk' group.id %}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-users-plus text-purple-600"></i>
+                        <span>Bulk Add Members</span>
+                    </a>
+                    {% endif %}
+                    {% if group.status == 'pending' and checker.can_manage_groups %}
+                    <a href="{% url 'core:group_approve' group.id %}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-green-600 dark:text-green-400">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Approve Group</span>
+                    </a>
+                    {% endif %}
+                    {% if pending_requests and checker.can_manage_groups %}
+                    <a href="{% url 'core:group_approve_members_bulk' group.id %}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-green-600 dark:text-green-400">
+                        <i class="fas fa-check-double"></i>
+                        <span>Approve Pending Members</span>
+                    </a>
+                    {% endif %}
+                    {% if group.status == 'active' %}
+                    <hr class="border-gray-200 dark:border-gray-700 my-2">
+                    <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase px-3">Collections</p>
+                    <a href="{% url 'core:group_collection_detail' group.id %}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-money-bill-wave text-green-600"></i>
+                        <span>Collect Loan Repayments</span>
+                    </a>
+                    <a href="{% url 'core:group_savings_collection' group.id %}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-piggy-bank text-purple-600"></i>
+                        <span>Collect Savings</span>
+                    </a>
+                    <a href="{% url 'core:group_combined_collection' group.id %}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-700">
+                        <i class="fas fa-layer-group text-primary-600"></i>
+                        <span class="font-medium">Collect All Payments</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Audit Information -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Audit Information</h3>
+                <div class="space-y-3">
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Created By</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ group.created_by.get_full_name|default:"System" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Created</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ group.created_at|date:"M d, Y H:i" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Last Updated</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ group.updated_at|date:"M d, Y H:i" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

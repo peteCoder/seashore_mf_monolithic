@@ -1,0 +1,236 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:savings_product_list' %}" class="hover:text-primary-600">Savings Products</a>
+            <span>/</span>
+            <span>{{ is_create|yesno:"Create,Edit" }}</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+    </div>
+
+    <!-- Form -->
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+
+        <!-- Basic Information -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-info-circle mr-2 text-primary-600"></i>
+                Basic Information
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Product Code <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.code }}
+                    {% if form.code.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.code.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Product Name <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Description
+                    </label>
+                    {{ form.description }}
+                    {% if form.description.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.description.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Product Type <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.product_type }}
+                    {% if form.product_type.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.product_type.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        GL Code
+                    </label>
+                    {{ form.gl_code }}
+                    {% if form.gl_code.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.gl_code.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Interest Configuration -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-percentage mr-2 text-primary-600"></i>
+                Interest Configuration
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Annual Interest Rate (%) <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.interest_rate_annual }}
+                    {% if form.interest_rate_annual.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.interest_rate_annual.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Calculation Method <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.interest_calculation_method }}
+                    {% if form.interest_calculation_method.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.interest_calculation_method.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Payment Frequency <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.interest_payment_frequency }}
+                    {% if form.interest_payment_frequency.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.interest_payment_frequency.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Balance Requirements -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-wallet mr-2 text-primary-600"></i>
+                Balance Requirements
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Minimum Opening Balance
+                    </label>
+                    {{ form.minimum_opening_balance }}
+                    {% if form.minimum_opening_balance.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.minimum_opening_balance.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Minimum Balance
+                    </label>
+                    {{ form.minimum_balance }}
+                    {% if form.minimum_balance.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.minimum_balance.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Maximum Balance (0 = unlimited)
+                    </label>
+                    {{ form.maximum_balance }}
+                    {% if form.maximum_balance.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.maximum_balance.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Transaction Limits -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-exchange-alt mr-2 text-primary-600"></i>
+                Transaction Limits
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Minimum Deposit Amount
+                    </label>
+                    {{ form.min_deposit_amount }}
+                    {% if form.min_deposit_amount.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.min_deposit_amount.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Minimum Withdrawal Amount
+                    </label>
+                    {{ form.min_withdrawal_amount }}
+                    {% if form.min_withdrawal_amount.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.min_withdrawal_amount.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Maximum Withdrawal Amount (0 = unlimited)
+                    </label>
+                    {{ form.max_withdrawal_amount }}
+                    {% if form.max_withdrawal_amount.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.max_withdrawal_amount.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Daily Withdrawal Limit (0 = unlimited)
+                    </label>
+                    {{ form.daily_withdrawal_limit }}
+                    {% if form.daily_withdrawal_limit.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.daily_withdrawal_limit.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Fixed Deposit Settings (if applicable) -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-lock mr-2 text-primary-600"></i>
+                Fixed Deposit Settings
+            </h2>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">These settings only apply to fixed deposit products</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Fixed Term (Months)
+                    </label>
+                    {{ form.fixed_term_months }}
+                    {% if form.fixed_term_months.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.fixed_term_months.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div class="flex items-center">
+                    <label class="flex items-center cursor-pointer">
+                        {{ form.allows_withdrawal_before_maturity }}
+                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Allow early withdrawal</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="flex items-center justify-end space-x-4 pt-6">
+            <a href="{% url 'core:savings_product_list' %}"
+               class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium">
+                Cancel
+            </a>
+            <button type="submit"
+                    class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold">
+                <i class="fas fa-save mr-2"></i>
+                {{ is_create|yesno:"Create Product,Save Changes" }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

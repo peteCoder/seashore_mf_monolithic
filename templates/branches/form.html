@@ -1,0 +1,179 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}
+{% if is_create %}Create New Branch{% else %}Edit Branch{% endif %} - Seashore Microfinance
+{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            {% if is_create %}Create New Branch{% else %}Edit Branch: {{ branch.name }}{% endif %}
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400">
+            {% if is_create %}Add a new branch location{% else %}Update branch information{% endif %}
+        </p>
+    </div>
+
+    <!-- Form -->
+    <form method="post">
+        {% csrf_token %}
+
+        <!-- Non-field errors -->
+        {% if form.non_field_errors %}
+        <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-6">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-circle text-red-400"></i>
+                </div>
+                <div class="ml-3">
+                    {% for error in form.non_field_errors %}
+                    <p class="text-sm text-red-700 dark:text-red-300">{{ error }}</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Form Content -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+            <div class="space-y-6">
+                <!-- Branch Information Section -->
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Branch Information</h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Branch Name -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Branch Name <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.name.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Branch Code -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Branch Code <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.code }}
+                            {% if form.code.errors %}
+                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.code.errors.0 }}</p>
+                            {% endif %}
+                            {% if form.code.help_text %}
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.code.help_text }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Location Section -->
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Location</h2>
+
+                    <div class="space-y-4">
+                        <!-- Address -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Address <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.address }}
+                            {% if form.address.errors %}
+                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.address.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- City -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    City
+                                </label>
+                                {{ form.city }}
+                                {% if form.city.errors %}
+                                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.city.errors.0 }}</p>
+                                {% endif %}
+                            </div>
+
+                            <!-- State -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    State <span class="text-red-500">*</span>
+                                </label>
+                                {{ form.state }}
+                                {% if form.state.errors %}
+                                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.state.errors.0 }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Section -->
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Contact Information</h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Phone -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Phone Number <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.phone }}
+                            {% if form.phone.errors %}
+                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.phone.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Email -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Email Address <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                            <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.email.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Management Section -->
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Management</h2>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Branch Manager
+                        </label>
+                        {{ form.manager }}
+                        {% if form.manager.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.manager.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Assign a manager to this branch (optional)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-end space-x-3">
+                <a href="{% if is_create %}{% url 'core:branch_list' %}{% else %}{% url 'core:branch_detail' branch.id %}{% endif %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-save mr-2"></i>
+                    {% if is_create %}Create Branch{% else %}Update Branch{% endif %}
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

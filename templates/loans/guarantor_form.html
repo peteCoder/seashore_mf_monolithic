@@ -1,0 +1,406 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:loan_list' %}" class="hover:text-primary-600">Loans</a>
+            <span>/</span>
+            <a href="{% url 'core:loan_detail' loan.id %}" class="hover:text-primary-600">{{ loan.loan_number }}</a>
+            <span>/</span>
+            <a href="{% url 'core:loan_guarantors' loan.id %}" class="hover:text-primary-600">Guarantors</a>
+            <span>/</span>
+            <span>{% if is_edit %}Edit{% else %}Add{% endif %}</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        {% if not is_edit %}
+        <p class="text-gray-600 dark:text-gray-400 mt-1">
+            Adding guarantor {{ guarantor_number }} of {{ required_count }}
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Loan Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Client</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.client.get_full_name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Principal Amount</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ loan.principal_amount|floatformat:2|intcomma }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Guarantors Progress</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">
+                    {{ current_count }} / {{ required_count }} added
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <!-- Guarantor Type Selection -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Guarantor Type <span class="text-red-500">*</span>
+                </label>
+                {{ form.guarantor_type }}
+                {% if form.guarantor_type.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.guarantor_type.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Internal: An existing client in the system. External: Someone not registered as a client.
+                </p>
+            </div>
+
+            <!-- Internal Guarantor Section -->
+            <div id="internal-section" class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h3 class="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-4">
+                    <i class="fas fa-user-check mr-2"></i>Select Existing Client
+                </h3>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Linked Client
+                    </label>
+                    {{ form.linked_client }}
+                    {% if form.linked_client.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.linked_client.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Select an existing client to use as guarantor. Their details will be auto-populated.
+                    </p>
+                </div>
+            </div>
+
+            <!-- External Guarantor Section (Personal Details) -->
+            <div id="external-section" class="space-y-6">
+                <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        <i class="fas fa-user text-primary-600 dark:text-primary-400 mr-2"></i>Personal Information
+                    </h3>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Name -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Full Name <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.name.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Phone -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Phone Number <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.phone.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Email -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Email Address
+                        </label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.email.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Relationship -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Relationship to Borrower <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.relationship }}
+                        {% if form.relationship.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.relationship.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Address -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Address <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.address }}
+                    {% if form.address.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.address.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Employment Section -->
+            <div class="mt-8 space-y-6">
+                <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        <i class="fas fa-briefcase text-primary-600 dark:text-primary-400 mr-2"></i>Employment Information
+                    </h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Optional but recommended</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Occupation -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Occupation
+                        </label>
+                        {{ form.occupation }}
+                        {% if form.occupation.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.occupation.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Employer -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Employer
+                        </label>
+                        {{ form.employer }}
+                        {% if form.employer.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.employer.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Monthly Income -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Monthly Income
+                        </label>
+                        {{ form.monthly_income }}
+                        {% if form.monthly_income.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.monthly_income.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Identification Section -->
+            <div class="mt-8 space-y-6">
+                <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        <i class="fas fa-id-card text-primary-600 dark:text-primary-400 mr-2"></i>Identification
+                    </h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Signature is required. ID images are optional.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- ID Type -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            ID Type
+                        </label>
+                        {{ form.id_type }}
+                        {% if form.id_type.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.id_type.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- ID Number -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            ID Number
+                        </label>
+                        {{ form.id_number }}
+                        {% if form.id_number.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.id_number.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Image uploads -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+
+                    <!-- ID Card Front -->
+                    <div x-data="{ preview: '{% if is_edit and guarantor.id_card_front %}{{ guarantor.id_card_front.url }}{% endif %}' }">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            ID Card (Front)
+                        </label>
+                        <input type="file"
+                               name="id_card_front"
+                               accept="image/*"
+                               @change="if ($event.target.files[0]) { preview = URL.createObjectURL($event.target.files[0]) }"
+                               class="block w-full text-sm text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 focus:outline-none">
+                        <div x-show="preview" class="mt-2">
+                            <img :src="preview" class="h-32 w-full object-cover rounded-lg border border-gray-300 dark:border-gray-600">
+                        </div>
+                    </div>
+
+                    <!-- ID Card Back -->
+                    <div x-data="{ preview: '{% if is_edit and guarantor.id_card_back %}{{ guarantor.id_card_back.url }}{% endif %}' }">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            ID Card (Back)
+                        </label>
+                        <input type="file"
+                               name="id_card_back"
+                               accept="image/*"
+                               @change="if ($event.target.files[0]) { preview = URL.createObjectURL($event.target.files[0]) }"
+                               class="block w-full text-sm text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 focus:outline-none">
+                        <div x-show="preview" class="mt-2">
+                            <img :src="preview" class="h-32 w-full object-cover rounded-lg border border-gray-300 dark:border-gray-600">
+                        </div>
+                    </div>
+
+                    <!-- Signature -->
+                    <div x-data="{ preview: '{% if is_edit and guarantor.signature %}{{ guarantor.signature.url }}{% endif %}' }">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Signature Image <span class="text-red-500">*</span>
+                        </label>
+                        <input type="file"
+                               name="signature"
+                               accept="image/*"
+                               @change="if ($event.target.files[0]) { preview = URL.createObjectURL($event.target.files[0]) }"
+                               class="block w-full text-sm text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 focus:outline-none">
+                        <div x-show="preview" class="mt-2">
+                            <img :src="preview" class="h-24 w-full object-contain rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900">
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Guarantee Details Section -->
+            <div class="mt-8 space-y-6">
+                <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        <i class="fas fa-shield-alt text-primary-600 dark:text-primary-400 mr-2"></i>Guarantee Details
+                    </h3>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Guarantee Amount -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Guarantee Amount <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.guarantee_amount }}
+                        {% if form.guarantee_amount.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.guarantee_amount.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Auto-filled: ₦{{ loan.principal_amount|floatformat:2|intcomma }} &divide; {{ required_count }} guarantor{{ required_count|pluralize }}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Additional Notes
+                    </label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.notes.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3 pt-6 mt-6 border-t border-gray-200 dark:border-gray-700">
+                <a href="{% url 'core:loan_guarantors' loan.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-save mr-2"></i>{% if is_edit %}Update{% else %}Add{% endif %} Guarantor
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleGuarantorType(value) {
+    const internalSection = document.getElementById('internal-section');
+    const externalSection = document.getElementById('external-section');
+
+    if (value === 'internal') {
+        internalSection.style.display = 'block';
+        // Make external fields not required visually
+        externalSection.querySelectorAll('input, textarea').forEach(el => {
+            el.classList.add('bg-gray-100', 'dark:bg-gray-600');
+        });
+    } else {
+        internalSection.style.display = 'none';
+        // Restore external fields
+        externalSection.querySelectorAll('input, textarea').forEach(el => {
+            el.classList.remove('bg-gray-100', 'dark:bg-gray-600');
+        });
+    }
+}
+
+// Populate guarantor fields from a selected internal client
+function populateFromClient(clientId) {
+    if (!clientId) return;
+    fetch('/clients/ajax/details/?client_id=' + encodeURIComponent(clientId))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var set = function(id, val) {
+                var el = document.getElementById(id);
+                if (el) el.value = val || '';
+            };
+            set('id_name',          data.name);
+            set('id_phone',         data.phone);
+            set('id_email',         data.email);
+            set('id_address',       data.address);
+            set('id_occupation',    data.occupation);
+            set('id_employer',      data.employer);
+            set('id_monthly_income',data.monthly_income);
+            set('id_id_type',       data.id_type);
+            set('id_id_number',     data.id_number);
+        })
+        .catch(function() {});
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const guarantorType = document.getElementById('id_guarantor_type');
+    if (guarantorType) {
+        toggleGuarantorType(guarantorType.value);
+        guarantorType.addEventListener('change', function() {
+            toggleGuarantorType(this.value);
+        });
+    }
+
+    // Auto-populate fields when a linked client is chosen
+    const linkedClient = document.getElementById('id_linked_client');
+    if (linkedClient) {
+        linkedClient.addEventListener('change', function() {
+            populateFromClient(this.value);
+        });
+        // If editing and a client is already selected, populate on load
+        if (linkedClient.value) {
+            populateFromClient(linkedClient.value);
+        }
+    }
+
+    {% if not is_edit %}
+    // Set default guarantee amount from server-computed value
+    var amountField = document.querySelector('[name="guarantee_amount"]');
+    if (amountField) {
+        amountField.value = '{{ default_guarantee_amount }}';
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>General Ledger Report</title>
+</head>
+<body>
+    <div class="header-section">
+        <div class="report-title">GENERAL LEDGER</div>
+        <div class="report-subtitle">
+            Seashore Microfinance<br>
+            Account: {{ report_data.account.gl_code }} - {{ report_data.account.account_name }}<br>
+            Period: {{ report_data.date_from|date:"F d, Y" }} to {{ report_data.date_to|date:"F d, Y" }}
+            {% if report_data.branch %}
+            <br>Branch: {{ report_data.branch.name }}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-item">
+            <div class="info-label">Account Type</div>
+            <div class="info-value">{{ report_data.account.account_type.get_name_display }}</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">Normal Balance</div>
+            <div class="info-value">{{ report_data.account.account_type.normal_balance|title }}</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">Opening Balance</div>
+            <div class="info-value">₦{{ report_data.opening_balance|floatformat:2 }}</div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">Closing Balance</div>
+            <div class="info-value">₦{{ report_data.closing_balance|floatformat:2 }}</div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 10%;">Date</th>
+                <th style="width: 15%;">Journal #</th>
+                <th style="width: 35%;">Description</th>
+                <th style="width: 13%;" class="text-right">Debit</th>
+                <th style="width: 13%;" class="text-right">Credit</th>
+                <th style="width: 14%;" class="text-right">Balance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for txn in report_data.transactions %}
+            <tr>
+                <td>{{ txn.line.journal_entry.transaction_date|date:"Y-m-d" }}</td>
+                <td class="font-bold">{{ txn.line.journal_entry.journal_number }}</td>
+                <td>{{ txn.line.description|truncatewords:10 }}</td>
+                <td class="text-right {% if txn.line.debit_amount > 0 %}text-green-600{% endif %}">
+                    {% if txn.line.debit_amount > 0 %}₦{{ txn.line.debit_amount|floatformat:2 }}{% else %}-{% endif %}
+                </td>
+                <td class="text-right {% if txn.line.credit_amount > 0 %}text-red-600{% endif %}">
+                    {% if txn.line.credit_amount > 0 %}₦{{ txn.line.credit_amount|floatformat:2 }}{% else %}-{% endif %}
+                </td>
+                <td class="text-right font-bold">₦{{ txn.running_balance|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="text-center" style="padding: 2rem; color: #6B7280;">
+                    No transactions for the selected period
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="bg-gray-100 font-bold">
+                <td colspan="5" class="text-right">Closing Balance:</td>
+                <td class="text-right">₦{{ report_data.closing_balance|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div style="margin-top: 2rem; font-size: 9pt; color: #6B7280;">
+        <p><strong>Report Generated:</strong> {{ "now"|date:"F d, Y H:i" }}</p>
+        <p><strong>Total Transactions:</strong> {{ report_data.transactions|length }}</p>
+        <p><strong>Opening Balance:</strong> ₦{{ report_data.opening_balance|floatformat:2 }}</p>
+        <p><strong>Closing Balance:</strong> ₦{{ report_data.closing_balance|floatformat:2 }}</p>
+    </div>
+</body>
+</html>

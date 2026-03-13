@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Balance Sheet</title>
+</head>
+<body>
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="report-title">BALANCE SHEET</div>
+        <div class="report-subtitle">
+            As of {{ report_data.as_of_date|date:"F d, Y" }}
+            {% if report_data.branch %}
+            <br>Branch: {{ report_data.branch.name }}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Balance Status Alert -->
+    {% if report_data.is_balanced %}
+    <div class="summary-box">
+        <strong>✓ BALANCED:</strong> Assets = Liabilities + Equity
+    </div>
+    {% else %}
+    <div class="alert-box">
+        <strong>✗ NOT BALANCED:</strong> Assets ≠ Liabilities + Equity
+    </div>
+    {% endif %}
+
+    <!-- ASSETS Section -->
+    <h2 style="margin-top: 2rem; color: #059669; border-bottom: 2px solid #059669; padding-bottom: 0.5rem;">ASSETS</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>GL Code</th>
+                <th>Account Name</th>
+                <th class="text-right">Balance (₦)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report_data.assets %}
+            <tr>
+                <td>{{ item.account.gl_code }}</td>
+                <td>{{ item.account.account_name }}</td>
+                <td class="text-right">{{ item.balance|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" style="text-align: center; color: #6B7280; padding: 1.5rem;">No asset accounts</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="bg-gray-100 font-bold">
+                <td colspan="2">TOTAL ASSETS</td>
+                <td class="text-right text-green-600">{{ report_data.total_assets|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- LIABILITIES Section -->
+    <h2 style="margin-top: 2rem; color: #DC2626; border-bottom: 2px solid #DC2626; padding-bottom: 0.5rem;">LIABILITIES</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>GL Code</th>
+                <th>Account Name</th>
+                <th class="text-right">Balance (₦)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report_data.liabilities %}
+            <tr>
+                <td>{{ item.account.gl_code }}</td>
+                <td>{{ item.account.account_name }}</td>
+                <td class="text-right">{{ item.balance|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" style="text-align: center; color: #6B7280; padding: 1.5rem;">No liability accounts</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="bg-gray-100 font-bold">
+                <td colspan="2">TOTAL LIABILITIES</td>
+                <td class="text-right text-red-600">{{ report_data.total_liabilities|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- EQUITY Section -->
+    <h2 style="margin-top: 2rem; color: #2563EB; border-bottom: 2px solid #2563EB; padding-bottom: 0.5rem;">EQUITY</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>GL Code</th>
+                <th>Account Name</th>
+                <th class="text-right">Balance (₦)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report_data.equity %}
+            <tr>
+                <td>{{ item.account.gl_code }}</td>
+                <td>{{ item.account.account_name }}</td>
+                <td class="text-right">{{ item.balance|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" style="text-align: center; color: #6B7280; padding: 1.5rem;">No equity accounts</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="bg-gray-100 font-bold">
+                <td colspan="2">TOTAL EQUITY</td>
+                <td class="text-right text-blue-600">{{ report_data.total_equity|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- Accounting Equation -->
+    <div style="margin-top: 2rem; padding: 1.5rem; border: 2px solid #D97706; background-color: #FEF3C7;">
+        <div style="display: flex; justify-content: space-between; font-size: 12pt; font-weight: bold;">
+            <span>Total Liabilities + Equity:</span>
+            <span>₦{{ report_data.total_liabilities_equity|floatformat:2 }}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 14pt; font-weight: bold; margin-top: 0.5rem; color: #D97706;">
+            <span>Assets = Liabilities + Equity:</span>
+            <span>₦{{ report_data.total_assets|floatformat:2 }}</span>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #E5E7EB; text-align: center; font-size: 9pt; color: #6B7280;">
+        <p>Generated on {{ "now"|date:"F d, Y H:i" }}</p>
+        <p>Seashore Microfinance - Balance Sheet</p>
+    </div>
+</body>
+</html>

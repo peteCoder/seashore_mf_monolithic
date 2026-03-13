@@ -1,0 +1,170 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+            <p class="text-gray-600 dark:text-gray-400">Collect repayments from client groups</p>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Total Groups</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ summary.total_groups }}</p>
+                </div>
+                <div class="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                    <i class="fas fa-users text-blue-600 dark:text-blue-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Total Members</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ summary.total_members }}</p>
+                </div>
+                <div class="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                    <i class="fas fa-user-friends text-green-600 dark:text-green-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Total Outstanding</p>
+                    <p class="text-2xl font-bold text-red-600 dark:text-red-400">₦{{ summary.total_outstanding|floatformat:2|intcomma }}</p>
+                </div>
+                <div class="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
+                    <i class="fas fa-money-bill-wave text-red-600 dark:text-red-400"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <form method="get" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
+                <input type="text" name="search" value="{{ search }}" placeholder="Group name or code"
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Meeting Day</label>
+                <select name="meeting_day"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500">
+                    <option value="">All Days</option>
+                    <option value="monday" {% if meeting_day == 'monday' %}selected{% endif %}>Monday</option>
+                    <option value="tuesday" {% if meeting_day == 'tuesday' %}selected{% endif %}>Tuesday</option>
+                    <option value="wednesday" {% if meeting_day == 'wednesday' %}selected{% endif %}>Wednesday</option>
+                    <option value="thursday" {% if meeting_day == 'thursday' %}selected{% endif %}>Thursday</option>
+                    <option value="friday" {% if meeting_day == 'friday' %}selected{% endif %}>Friday</option>
+                    <option value="saturday" {% if meeting_day == 'saturday' %}selected{% endif %}>Saturday</option>
+                    <option value="sunday" {% if meeting_day == 'sunday' %}selected{% endif %}>Sunday</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button type="submit"
+                        class="w-full px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md font-semibold transition-colors">
+                    <i class="fas fa-search mr-2"></i>Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Groups Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Group</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Branch</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Meeting</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Loan Officer</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Members</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Outstanding</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {% for group in groups %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ group.name }}</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">{{ group.code }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {{ group.branch.name }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900 dark:text-white">{{ group.get_meeting_day_display }}</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">{{ group.meeting_frequency|title }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {{ group.loan_officer.get_full_name|default:"-" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ group.active_members }}</span>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">/ {{ group.total_members }}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600 dark:text-red-400">
+                        ₦{{ group.total_loans_outstanding|floatformat:2|intcomma }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                        <a href="{% url 'core:group_collection_detail' group.id %}"
+                           class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md font-medium transition-colors">
+                            <i class="fas fa-hand-holding-usd mr-2"></i>Collect
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-users text-4xl mb-2"></i>
+                        <p>No groups found</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Pagination -->
+        {% if groups.has_other_pages %}
+        <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-700 dark:text-gray-300">
+                        Page {{ groups.number }} of {{ groups.paginator.num_pages }}
+                    </p>
+                </div>
+                <div class="flex space-x-2">
+                    {% if groups.has_previous %}
+                    <a href="?page={{ groups.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if meeting_day %}&meeting_day={{ meeting_day }}{% endif %}"
+                       class="px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-colors">
+                        Previous
+                    </a>
+                    {% endif %}
+                    {% if groups.has_next %}
+                    <a href="?page={{ groups.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if meeting_day %}&meeting_day={{ meeting_day }}{% endif %}"
+                       class="px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-colors">
+                        Next
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

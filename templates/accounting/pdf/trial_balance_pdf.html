@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Trial Balance Report</title>
+</head>
+<body>
+    <div class="header-section">
+        <div class="report-title">TRIAL BALANCE</div>
+        <div class="report-subtitle">
+            Seashore Microfinance<br>
+            Period: {{ report_data.date_from|date:"F d, Y" }} to {{ report_data.date_to|date:"F d, Y" }}
+            {% if report_data.branch %}
+            <br>Branch: {{ report_data.branch.name }}
+            {% endif %}
+        </div>
+    </div>
+
+    {% if report_data.is_balanced %}
+    <div class="summary-box">
+        <strong>✓ BALANCED:</strong> Total Debits equal Total Credits
+        <br><strong>Balance Status:</strong> All accounts are in balance
+    </div>
+    {% else %}
+    <div class="alert-box">
+        <strong>✗ NOT BALANCED:</strong> Total Debits do NOT equal Total Credits
+        <br><strong>Action Required:</strong> Please review journal entries for errors
+    </div>
+    {% endif %}
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 12%;">GL Code</th>
+                <th style="width: 40%;">Account Name</th>
+                <th style="width: 20%;">Account Type</th>
+                <th style="width: 14%;" class="text-right">Debit</th>
+                <th style="width: 14%;" class="text-right">Credit</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report_data.trial_balance %}
+            <tr>
+                <td class="font-bold">{{ item.account.gl_code }}</td>
+                <td>{{ item.account.account_name }}</td>
+                <td>{{ item.account.account_type.get_name_display }}</td>
+                <td class="text-right {% if item.debit > 0 %}text-green-600{% endif %}">
+                    {% if item.debit > 0 %}₦{{ item.debit|floatformat:2 }}{% else %}-{% endif %}
+                </td>
+                <td class="text-right {% if item.credit > 0 %}text-red-600{% endif %}">
+                    {% if item.credit > 0 %}₦{{ item.credit|floatformat:2 }}{% else %}-{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="bg-gray-100 font-bold">
+                <td colspan="3" class="text-right">TOTAL:</td>
+                <td class="text-right text-green-600">₦{{ report_data.total_debits|floatformat:2 }}</td>
+                <td class="text-right text-red-600">₦{{ report_data.total_credits|floatformat:2 }}</td>
+            </tr>
+            <tr class="bg-gray-100 font-bold">
+                <td colspan="3" class="text-right">DIFFERENCE:</td>
+                <td colspan="2" class="text-right {% if report_data.difference != 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                    ₦{{ report_data.difference|floatformat:2 }}
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div style="margin-top: 2rem; font-size: 9pt; color: #6B7280;">
+        <p><strong>Report Generated:</strong> {{ "now"|date:"F d, Y H:i" }}</p>
+        <p><strong>Total Accounts:</strong> {{ report_data.trial_balance|length }}</p>
+        {% if not report_data.show_zero_balances %}
+        <p><em>Note: Accounts with zero balance are hidden</em></p>
+        {% endif %}
+    </div>
+</body>
+</html>

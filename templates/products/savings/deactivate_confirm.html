@@ -1,0 +1,90 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Deactivate Savings Product - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Deactivate Savings Product</h1>
+        <p class="text-gray-600 dark:text-gray-400">Prevent new accounts from using this product</p>
+    </div>
+
+    <!-- Product Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center mb-4">
+            <div class="h-12 w-12 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center mr-4">
+                <i class="fas fa-piggy-bank text-2xl text-primary-600 dark:text-primary-400"></i>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ product.name }}</h2>
+                <p class="text-gray-600 dark:text-gray-400">{{ product.code }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Product Type</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ product.get_product_type_display }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Interest Rate</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ product.interest_rate_annual }}% p.a.</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Total Accounts</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ product.savings_accounts.count }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning Notice -->
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">What happens when you deactivate?</h3>
+                <div class="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                    <ul class="list-disc ml-5 mt-1">
+                        <li>This product will no longer be available for creating new savings accounts</li>
+                        <li>Existing accounts using this product will continue to function normally</li>
+                        <li>All existing account configurations and interest rates remain unchanged</li>
+                        <li>You can reactivate this product at any time</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deactivation Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="mb-6">
+                <p class="text-gray-700 dark:text-gray-300 mb-4">
+                    Are you sure you want to deactivate <strong class="text-yellow-600 dark:text-yellow-400">{{ product.name }}</strong>?
+                </p>
+
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                    Once deactivated, this product will no longer be available for new accounts, but existing accounts will continue to operate normally.
+                </p>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3">
+                <a href="{% url 'core:savings_product_detail' product.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-pause-circle mr-2"></i>Deactivate Product
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

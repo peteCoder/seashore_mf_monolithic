@@ -1,0 +1,92 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:group_list' %}" class="hover:text-primary-600">Groups</a>
+            <span>/</span>
+            <a href="{% url 'core:group_detail' group.id %}" class="hover:text-primary-600">{{ group.name }}</a>
+            <span>/</span>
+            <span>Add Member</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+    </div>
+
+    <!-- Info Notice -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Membership Request</h3>
+                <div class="text-sm text-blue-700 dark:text-blue-300">
+                    <p>The member will be added with <strong>Pending status</strong> and require approval from a Manager, Director, or Admin before they officially join the group.</p>
+                    <p class="mt-1">Only clients who are not currently members of any group can be added.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Select Client <span class="text-red-500">*</span>
+                </label>
+                {{ form.client }}
+                {% if form.client.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.client.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ form.client.help_text }}</p>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Group Role <span class="text-red-500">*</span>
+                </label>
+                {{ form.group_role }}
+                {% if form.group_role.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.group_role.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ form.group_role.help_text }}</p>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3 pt-4">
+                <a href="{% url 'core:group_detail' group.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-user-plus mr-2"></i>Add Member
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Help Section -->
+    <div class="mt-6 bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+        <h3 class="text-sm font-medium text-gray-900 dark:text-white mb-2">
+            <i class="fas fa-question-circle mr-1 text-gray-500"></i>
+            Need to add multiple members?
+        </h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Use the bulk add feature to add several members at once.
+        </p>
+        <a href="{% url 'core:group_add_members_bulk' group.id %}"
+           class="inline-flex items-center text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
+            <i class="fas fa-users-plus mr-2"></i>
+            Go to Bulk Add Members
+        </a>
+    </div>
+</div>
+{% endblock %}

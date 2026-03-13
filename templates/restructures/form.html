@@ -1,0 +1,148 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="{% url 'core:loan_list' %}" class="hover:text-primary-600">Loans</a>
+            <span>/</span>
+            <a href="{% url 'core:loan_detail' loan.id %}" class="hover:text-primary-600">{{ loan.loan_number }}</a>
+            <span>/</span>
+            <span>Restructure Request</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-sm text-gray-500 mt-1">Client: {{ loan.client.get_full_name }}</p>
+    </div>
+
+    <!-- Existing Pending Request Warning -->
+    {% if existing %}
+    <div class="flex items-start space-x-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg">
+        <i class="fas fa-exclamation-triangle text-amber-600 dark:text-amber-400 mt-0.5"></i>
+        <div class="text-sm text-amber-700 dark:text-amber-300">
+            <p class="font-semibold">Pending Request Exists</p>
+            <p>A restructure request ({{ existing.get_restructure_type_display }}) was already submitted on {{ existing.created_at|date:"d M Y" }} and is awaiting review. You can still submit a new one, but note that only one can be active.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Loan Info -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Current Loan Terms</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Loan Number</span>
+                <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ loan.loan_number }}</p>
+            </div>
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Status</span>
+                <p class="font-semibold mt-0.5
+                    {% if loan.status == 'overdue' %}text-red-600
+                    {% elif loan.status == 'active' %}text-green-600
+                    {% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                    {{ loan.get_status_display }}
+                </p>
+            </div>
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Outstanding</span>
+                <p class="font-bold text-gray-900 dark:text-white mt-0.5">₦{{ loan.outstanding_balance|floatformat:2|intcomma }}</p>
+            </div>
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Installment</span>
+                <p class="font-semibold text-gray-900 dark:text-white mt-0.5">₦{{ loan.installment_amount|floatformat:2|intcomma }}</p>
+            </div>
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Duration</span>
+                <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ loan.duration_months }} months</p>
+            </div>
+            {% if loan.next_repayment_date %}
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Next Payment</span>
+                <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ loan.next_repayment_date|date:"d M Y" }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Form Card -->
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+
+            <!-- Restructure Type -->
+            <div class="p-6">
+                <label for="{{ form.restructure_type.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Restructure Type <span class="text-red-500">*</span>
+                </label>
+                {{ form.restructure_type }}
+                {% if form.restructure_type.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.restructure_type.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Proposed Duration & Installment -->
+            <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="{{ form.proposed_duration.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Proposed Duration (months)
+                    </label>
+                    {{ form.proposed_duration }}
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Required for "Extend Duration" and "Payment Holiday" types.</p>
+                    {% if form.proposed_duration.errors %}
+                    <p class="mt-1 text-xs text-red-600">{{ form.proposed_duration.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.proposed_installment.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Proposed Installment (₦)
+                    </label>
+                    {{ form.proposed_installment }}
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Required for "Reduce Installment" type.</p>
+                    {% if form.proposed_installment.errors %}
+                    <p class="mt-1 text-xs text-red-600">{{ form.proposed_installment.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Reason -->
+            <div class="p-6">
+                <label for="{{ form.reason.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Reason / Justification <span class="text-red-500">*</span>
+                </label>
+                {{ form.reason }}
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Explain why the loan needs to be restructured.</p>
+                {% if form.reason.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.reason.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Non-field errors -->
+            {% if form.non_field_errors %}
+            <div class="px-6 py-4 bg-red-50 dark:bg-red-900/20">
+                <ul class="text-sm text-red-600 list-disc list-inside space-y-1">
+                    {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-between pt-4">
+            <a href="{% url 'core:loan_detail' loan.id %}"
+               class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                <i class="fas fa-arrow-left mr-1"></i>Cancel
+            </a>
+            <button type="submit"
+                    class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-paper-plane mr-2"></i>Submit Request
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

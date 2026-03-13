@@ -1,0 +1,110 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Delete Client - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Delete Client</h1>
+        <p class="text-gray-600 dark:text-gray-400">Permanently delete this client record</p>
+    </div>
+
+    <!-- Client Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center space-x-4 mb-4">
+            <div class="w-16 h-16 rounded-full overflow-hidden">
+                {% if client.profile_picture %}
+                <img src="{{ client.profile_picture.url }}" class="w-full h-full object-cover" alt="{{ client.get_full_name }}">
+                {% else %}
+                <div class="w-full h-full bg-primary-600 flex items-center justify-center text-white text-xl font-bold">
+                    {{ client.first_name.0 }}{{ client.last_name.0 }}
+                </div>
+                {% endif %}
+            </div>
+
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ client.get_full_name }}</h2>
+                <p class="text-gray-600 dark:text-gray-400">{{ client.client_id }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ client.email }} • {{ client.phone }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ client.branch.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Status</p>
+                <span class="px-2 py-1 text-xs font-semibold rounded-full
+                             {% if client.is_active %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                             {% else %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300{% endif %}">
+                    {% if client.is_active %}Active{% else %}Inactive{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Danger Warning -->
+    <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-red-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-red-800 dark:text-red-300 mb-1">Warning: This action is permanent</h3>
+                <div class="text-sm text-red-700 dark:text-red-300 space-y-1">
+                    <p><strong>This is a soft delete operation.</strong> The client record will be marked as deleted but retained in the database for audit purposes.</p>
+                    <p class="mt-2"><strong>Before deletion, ensure:</strong></p>
+                    <ul class="list-disc ml-5 mt-1">
+                        <li>No active loans exist</li>
+                        <li>No savings balance remains</li>
+                        <li>All financial obligations are settled</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deletion Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="mb-6">
+                <p class="text-gray-700 dark:text-gray-300 mb-4">
+                    Are you absolutely sure you want to delete <strong class="text-red-600 dark:text-red-400">{{ client.get_full_name }}</strong>?
+                </p>
+
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                    This action will soft delete the client record. The client will no longer appear in lists or searches, but the data will be retained for audit purposes.
+                </p>
+            </div>
+
+            <!-- Confirmation Checkbox -->
+            <div class="mb-6">
+                <label class="flex items-start">
+                    <input type="checkbox" required
+                           class="mt-1 w-4 h-4 text-red-600 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-red-500 dark:focus:ring-red-500">
+                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                        I understand that this action will delete the client record and confirm that all financial obligations have been settled.
+                    </span>
+                </label>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3">
+                <a href="{% url 'core:client_detail' client.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-trash mr-2"></i>Delete Client
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

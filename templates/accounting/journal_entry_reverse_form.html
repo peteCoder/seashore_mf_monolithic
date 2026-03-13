@@ -1,0 +1,91 @@
+{% extends 'layouts/base.html' %}
+
+{% load humanize %}
+
+{% block content %}
+<div class="p-6 max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Reverse Journal Entry</h1>
+
+    <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 mb-6">
+        <div class="flex items-start gap-3">
+            <i class="fas fa-undo text-red-600 dark:text-red-400 text-2xl flex-shrink-0 mt-0.5"></i>
+            <div>
+                <h3 class="font-semibold text-red-800 dark:text-red-200">Confirm Reversal</h3>
+                <p class="text-sm text-red-700 dark:text-red-300 mt-2">
+                    This will create an offsetting journal entry with opposite debit/credit amounts.
+                    The original entry will be marked as reversed. This action cannot be undone.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Original entry summary -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+        <h3 class="font-semibold mb-4 text-gray-900 dark:text-white">Original Journal Entry</h3>
+        <dl class="space-y-3">
+            <div>
+                <dt class="text-sm text-gray-500 dark:text-gray-400">Journal Number</dt>
+                <dd class="text-sm font-mono font-semibold text-gray-900 dark:text-white">{{ journal.journal_number }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm text-gray-500 dark:text-gray-400">Description</dt>
+                <dd class="text-sm text-gray-900 dark:text-white">{{ journal.description }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm text-gray-500 dark:text-gray-400">Amount</dt>
+                <dd class="text-sm font-semibold text-gray-900 dark:text-white">₦{{ journal.get_total_debits|floatformat:2|intcomma }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm text-gray-500 dark:text-gray-400">Posted On</dt>
+                <dd class="text-sm text-gray-900 dark:text-white">{{ journal.posting_date|date:"Y-m-d" }} by {{ journal.posted_by.get_full_name }}</dd>
+            </div>
+        </dl>
+    </div>
+
+    <!-- Reversal form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+        <form method="post">
+            {% csrf_token %}
+            <div class="space-y-5">
+
+                {% if form.errors %}
+                <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                    <ul class="text-sm text-red-700 dark:text-red-300 list-disc list-inside space-y-1">
+                        {% for field in form %}{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}{% endfor %}
+                        {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Reversal Reason <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.reversal_reason }}
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Provide a clear explanation for this reversal (minimum 10 characters)</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Reversal Date
+                    </label>
+                    {{ form.reversal_date }}
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Leave blank to use today's date</p>
+                </div>
+
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <a href="{% url 'core:journal_entry_detail' entry_id=journal.id %}"
+                   class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-semibold transition-colors flex items-center gap-2">
+                    <i class="fas fa-undo"></i> Confirm Reversal
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

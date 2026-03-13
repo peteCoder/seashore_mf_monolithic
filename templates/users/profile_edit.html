@@ -1,0 +1,122 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:user_profile' %}" class="hover:text-primary-600">My Profile</a>
+            <span>/</span>
+            <span>Edit</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Update your personal information</p>
+    </div>
+
+    <!-- Info Notice -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-blue-700 dark:text-blue-300">
+                    You can update your contact information and profile picture. For changes to your name, email, role, or branch, please contact your system administrator.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <!-- Current Profile Picture -->
+            {% if profile_user.profile_picture %}
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Current Profile Picture
+                </label>
+                <img class="h-24 w-24 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                     src="{{ profile_user.profile_picture.url }}"
+                     alt="{{ profile_user.get_full_name }}">
+            </div>
+            {% endif %}
+
+            <!-- Profile Picture Upload -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.profile_picture.label }}
+                </label>
+                {{ form.profile_picture }}
+                {% if form.profile_picture.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.profile_picture.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Upload a new profile picture (JPG, PNG, or GIF)
+                </p>
+            </div>
+
+            <!-- Phone Number -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.phone.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.phone }}
+                {% if form.phone.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.phone.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Address -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.address.label }}
+                </label>
+                {{ form.address }}
+                {% if form.address.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.address.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Read-only Information -->
+            <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 mb-6">
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Information managed by administrator:</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Name</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ profile_user.get_full_name }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Email</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ profile_user.email }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Role</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ profile_user.get_user_role_display }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Branch</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ profile_user.branch.name }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3 pt-4">
+                <a href="{% url 'core:user_profile' %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-save mr-2"></i>Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

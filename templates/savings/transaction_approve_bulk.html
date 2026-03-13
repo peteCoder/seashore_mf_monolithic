@@ -1,0 +1,201 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:savings_transaction_list' %}" class="hover:text-primary-600">Transaction Postings</a>
+            <span>/</span>
+            <span>Bulk Approve</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Review and approve multiple transaction postings</p>
+    </div>
+
+    <!-- Summary Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Selection Summary</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Total Selected</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ postings|length }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Deposits</p>
+                <p class="text-2xl font-bold text-green-600 dark:text-green-400">{{ deposit_count }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Withdrawals</p>
+                <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">{{ withdrawal_count }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
+                <p class="text-2xl font-bold text-primary-600 dark:text-primary-400">₦{{ total_amount|floatformat:2|intcomma }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Selected Postings Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden mb-6">
+        <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                <i class="fas fa-list text-primary-600 dark:text-primary-400 mr-2"></i>Selected Postings
+            </h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Posting Ref</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Account</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Client</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Submitted By</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for posting in postings %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">{{ posting.posting_ref }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if posting.posting_type == 'deposit' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                                <i class="fas fa-arrow-down mr-1"></i>Deposit
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300">
+                                <i class="fas fa-arrow-up mr-1"></i>Withdrawal
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-white">{{ posting.savings_account.account_number }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ posting.client.get_full_name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">₦{{ posting.amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                            {% if posting.posting_type == 'deposit' %}
+                            {{ posting.payment_date|date:"M d, Y" }}
+                            {% else %}
+                            {{ posting.withdrawal_date|date:"M d, Y" }}
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ posting.submitted_by.get_full_name }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                            No postings selected
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Approval Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6">Bulk Approval</h2>
+
+        <form method="post">
+            {% csrf_token %}
+
+            {% for posting in postings %}
+            <input type="hidden" name="posting_ids" value="{{ posting.id }}">
+            {% endfor %}
+
+            <!-- Action Selection -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Action <span class="text-red-500">*</span>
+                </label>
+                <div class="space-y-3">
+                    <label class="flex items-center p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <input type="radio" name="action" value="approve" class="h-4 w-4 text-primary-600 focus:ring-primary-500" required>
+                        <div class="ml-3">
+                            <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                                <i class="fas fa-check-circle text-green-600 dark:text-green-400 mr-2"></i>Approve All
+                            </span>
+                            <span class="block text-sm text-gray-500 dark:text-gray-400 mt-1">Approve all selected postings and apply them to accounts</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <input type="radio" name="action" value="reject" class="h-4 w-4 text-primary-600 focus:ring-primary-500" required>
+                        <div class="ml-3">
+                            <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                                <i class="fas fa-times-circle text-red-600 dark:text-red-400 mr-2"></i>Reject All
+                            </span>
+                            <span class="block text-sm text-gray-500 dark:text-gray-400 mt-1">Reject all selected postings with reason</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Bulk Notes -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Notes
+                </label>
+                <textarea name="notes" rows="3"
+                          class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-primary-500 dark:focus:border-primary-500 focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-900/30 transition-all"
+                          placeholder="Optional notes about this bulk decision (required for rejection, minimum 10 characters)"></textarea>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    These notes will be applied to all selected postings
+                </p>
+            </div>
+
+            <!-- Information Notice -->
+            <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-info-circle text-blue-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Processing Details</h3>
+                        <p class="text-sm text-blue-700 dark:text-blue-300">
+                            Each posting will be processed individually. If any posting fails validation or encounters an error,
+                            it will be skipped and you'll see a detailed report after processing. Successfully approved postings
+                            cannot be reversed.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warning -->
+            <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">Important</h3>
+                        <p class="text-sm text-yellow-700 dark:text-yellow-300">
+                            This action affects {{ postings|length }} posting(s) totaling ₦{{ total_amount|floatformat:2|intcomma }}.
+                            Approved transactions will immediately update account balances and cannot be reversed.
+                            Please review carefully before proceeding.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3 pt-4">
+                <a href="{% url 'core:savings_transaction_list' %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-check mr-2"></i>Process {{ postings|length }} Posting(s)
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

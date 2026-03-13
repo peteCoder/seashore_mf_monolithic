@@ -1,0 +1,214 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Approve Client - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto"
+     x-data="{ showModal: false, selectedAction: '' }">
+
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Approve Client Application</h1>
+        <p class="text-gray-600 dark:text-gray-400">Review and approve or reject this client application</p>
+    </div>
+
+    <!-- Client Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center space-x-4 mb-4">
+            <div class="w-16 h-16 rounded-full overflow-hidden shrink-0">
+                {% if client.profile_picture %}
+                <img src="{{ client.profile_picture.url }}" class="w-full h-full object-cover" alt="{{ client.get_full_name }}">
+                {% else %}
+                <div class="w-full h-full bg-primary-600 flex items-center justify-center text-white text-xl font-bold">
+                    {{ client.first_name.0 }}{{ client.last_name.0 }}
+                </div>
+                {% endif %}
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ client.get_full_name }}</h2>
+                <p class="text-gray-600 dark:text-gray-400">{{ client.client_id }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ client.email }} • {{ client.phone }}</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ client.branch.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Date of Birth</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ client.date_of_birth|date:"Y-m-d" }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval Form -->
+    <!-- NOTE: the modal lives INSIDE this <form> so its checkboxes are part of the submission -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post" x-ref="approvalForm">
+            {% csrf_token %}
+
+            <!-- Action Selection -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Action <span class="text-red-500">*</span>
+                </label>
+                <div class="space-y-3">
+                    <label class="flex items-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
+                           :class="selectedAction === 'approve' ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : ''">
+                        <input type="radio" name="action" value="approve"
+                               @change="selectedAction = 'approve'"
+                               class="mr-3 text-green-600 focus:ring-green-500">
+                        <div>
+                            <div class="font-medium text-gray-900 dark:text-white">Approve</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">Approve this client application</div>
+                        </div>
+                    </label>
+                    <label class="flex items-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
+                           :class="selectedAction === 'reject' ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : ''">
+                        <input type="radio" name="action" value="reject"
+                               @change="selectedAction = 'reject'"
+                               class="mr-3 text-red-600 focus:ring-red-500">
+                        <div>
+                            <div class="font-medium text-gray-900 dark:text-white">Reject</div>
+                            <div class="text-sm text-gray-500 dark:text-gray-400">Reject this client application</div>
+                        </div>
+                    </label>
+                </div>
+                {% if form.action.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.action.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Notes</label>
+                {{ form.notes }}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Required for rejection</p>
+                {% if form.notes.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3">
+                <a href="{% url 'core:client_detail' client.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="button"
+                        @click="selectedAction === 'approve' ? showModal = true : $refs.approvalForm.submit()"
+                        class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                    Submit Decision
+                </button>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════
+                 SAVINGS ACCOUNT MODAL
+                 Lives inside <form> so checked products are submitted.
+                 ═══════════════════════════════════════════════════════════ -->
+            <div x-show="showModal"
+                 x-cloak
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0"
+                 x-transition:enter-end="opacity-100"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+
+                <div @click.stop
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 scale-95"
+                     x-transition:enter-end="opacity-100 scale-100"
+                     class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+
+                    <!-- Modal Header -->
+                    <div class="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+                        <div>
+                            <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+                                <i class="fas fa-piggy-bank text-primary-600 dark:text-primary-400 mr-2"></i>
+                                Create Savings Accounts
+                            </h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                                Select which savings products to open for <strong>{{ client.get_full_name }}</strong>.
+                                You can skip this step if needed.
+                            </p>
+                        </div>
+                        <button type="button" @click="showModal = false"
+                                class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 ml-3 shrink-0">
+                            <i class="fas fa-times text-lg"></i>
+                        </button>
+                    </div>
+
+                    <!-- Product List -->
+                    <div class="overflow-y-auto flex-1 p-5">
+                        {% if savings_products %}
+                        <div class="space-y-3">
+                            {% for product in savings_products %}
+                            <label class="flex items-start gap-3 p-4 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:has-[:checked]:bg-primary-900/20">
+                                <input type="checkbox"
+                                       name="savings_product_ids"
+                                       value="{{ product.id }}"
+                                       class="mt-0.5 rounded text-primary-600 focus:ring-primary-500 shrink-0">
+                                <div class="min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ product.name }}</span>
+                                        <span class="px-2 py-0.5 text-xs rounded-full
+                                            {% if product.product_type == 'fixed' %}bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300
+                                            {% elif product.product_type == 'target' %}bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300
+                                            {% elif product.product_type == 'children' %}bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300
+                                            {% else %}bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300{% endif %}">
+                                            {{ product.get_product_type_display }}
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                        {{ product.interest_rate_annual }}% p.a.
+                                        {% if product.minimum_opening_balance %}
+                                        &nbsp;·&nbsp; Min opening: ₦{{ product.minimum_opening_balance|floatformat:0 }}
+                                        {% endif %}
+                                        {% if product.fixed_term_months %}
+                                        &nbsp;·&nbsp; {{ product.fixed_term_months }}-month term
+                                        {% endif %}
+                                    </p>
+                                    {% if product.description %}
+                                    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">{{ product.description }}</p>
+                                    {% endif %}
+                                </div>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-piggy-bank text-3xl mb-3 opacity-40"></i>
+                            <p class="text-sm">No active savings products available.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="flex items-center justify-between gap-3 p-5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-b-xl">
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Accounts will be created with <strong>pending</strong> status and require separate approval.
+                        </p>
+                        <div class="flex gap-3 shrink-0">
+                            <button type="button" @click="showModal = false"
+                                    class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                Cancel
+                            </button>
+                            <button type="submit"
+                                    class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors">
+                                <i class="fas fa-check mr-1.5"></i>Confirm Approval
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <!-- END MODAL -->
+
+        </form>
+    </div>
+</div>
+{% endblock %}

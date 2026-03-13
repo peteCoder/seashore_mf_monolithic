@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Profit & Loss Statement</title>
+</head>
+<body>
+    <div class="header-section">
+        <div class="report-title">PROFIT & LOSS STATEMENT</div>
+        <div class="report-subtitle">
+            Seashore Microfinance<br>
+            Period: {{ report_data.date_from|date:"F d, Y" }} to {{ report_data.date_to|date:"F d, Y" }}
+            {% if report_data.branch %}
+            <br>Branch: {{ report_data.branch.name }}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="summary-box">
+        <strong>Net {% if report_data.net_profit >= 0 %}Profit{% else %}Loss{% endif %}:</strong>
+        <span style="font-size: 16pt; {% if report_data.net_profit >= 0 %}color: #059669;{% else %}color: #DC2626;{% endif %}">
+            ₦{{ report_data.net_profit|floatformat:2 }}
+        </span>
+    </div>
+
+    <!-- INCOME SECTION -->
+    <h2 style="margin-top: 1.5rem; color: #059669; border-bottom: 2px solid #059669; padding-bottom: 0.5rem;">INCOME</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 15%;">GL Code</th>
+                <th style="width: 60%;">Account Name</th>
+                <th style="width: 25%;" class="text-right">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report_data.income_items %}
+            <tr>
+                <td class="font-bold">{{ item.account.gl_code }}</td>
+                <td>{{ item.account.account_name }}</td>
+                <td class="text-right text-green-600">₦{{ item.amount|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="bg-gray-100 font-bold">
+                <td colspan="2" class="text-right">Total Income:</td>
+                <td class="text-right text-green-600">₦{{ report_data.total_income|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- EXPENSES SECTION -->
+    <h2 style="margin-top: 1.5rem; color: #DC2626; border-bottom: 2px solid #DC2626; padding-bottom: 0.5rem;">EXPENSES</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 15%;">GL Code</th>
+                <th style="width: 60%;">Account Name</th>
+                <th style="width: 25%;" class="text-right">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report_data.expense_items %}
+            <tr>
+                <td class="font-bold">{{ item.account.gl_code }}</td>
+                <td>{{ item.account.account_name }}</td>
+                <td class="text-right text-red-600">₦{{ item.amount|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="bg-gray-100 font-bold">
+                <td colspan="2" class="text-right">Total Expenses:</td>
+                <td class="text-right text-red-600">₦{{ report_data.total_expenses|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- NET PROFIT/LOSS -->
+    <table style="margin-top: 1.5rem;">
+        <tfoot>
+            <tr style="background-color: #FEF3C7; border: 2px solid #D97706;">
+                <td colspan="2" class="text-right font-bold" style="font-size: 12pt; padding: 1rem;">
+                    NET {% if report_data.net_profit >= 0 %}PROFIT{% else %}LOSS{% endif %}:
+                </td>
+                <td class="text-right font-bold" style="font-size: 14pt; padding: 1rem; {% if report_data.net_profit >= 0 %}color: #059669;{% else %}color: #DC2626;{% endif %}">
+                    ₦{{ report_data.net_profit|floatformat:2 }}
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div style="margin-top: 2rem; font-size: 9pt; color: #6B7280;">
+        <p><strong>Report Generated:</strong> {{ "now"|date:"F d, Y H:i" }}</p>
+        <p><strong>Income Accounts:</strong> {{ report_data.income_items|length }}</p>
+        <p><strong>Expense Accounts:</strong> {{ report_data.expense_items|length }}</p>
+    </div>
+</body>
+</html>

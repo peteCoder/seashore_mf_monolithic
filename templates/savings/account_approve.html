@@ -1,0 +1,179 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:savings_account_list' %}" class="hover:text-primary-600">Savings Accounts</a>
+            <span>/</span>
+            <a href="{% url 'core:savings_account_detail' account.id %}" class="hover:text-primary-600">{{ account.account_number }}</a>
+            <span>/</span>
+            <span>Review Account</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Review and make a decision on this savings account application</p>
+    </div>
+
+    <!-- Account Summary Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Account Application Summary</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Account Number</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white font-mono">{{ account.account_number }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Client</p>
+                <a href="{% url 'core:client_detail' account.client.id %}"
+                   class="text-base font-medium text-primary-600 dark:text-primary-400 hover:underline">
+                    {{ account.client.get_full_name }}
+                </a>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Savings Product</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.savings_product.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.branch.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Interest Rate</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.savings_product.interest_rate }}% per annum</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Minimum Balance</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ account.savings_product.minimum_balance|floatformat:2|intcomma }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Application Date</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.created_at|date:"F d, Y" }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Current Balance</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">₦{{ account.current_balance|floatformat:2|intcomma }}</p>
+            </div>
+            {% if account.notes %}
+            <div class="md:col-span-2">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Notes</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Client Information -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Client Information</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Client ID</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.client.client_id }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Phone</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.client.phone_number }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.client.branch.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Client Status</p>
+                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                             {% if account.client.is_active %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                             {% else %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300{% endif %}">
+                    {% if account.client.is_active %}Active{% else %}Inactive{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6">Make Your Decision</h2>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- Decision Radio Buttons -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Decision <span class="text-red-500">*</span>
+                </label>
+                <div class="space-y-3">
+                    <label class="flex items-center p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <input type="radio" name="decision" value="approve" class="h-4 w-4 text-primary-600 focus:ring-primary-500" required>
+                        <div class="ml-3">
+                            <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                                <i class="fas fa-check-circle text-green-600 dark:text-green-400 mr-2"></i>Approve Account
+                            </span>
+                            <span class="block text-sm text-gray-500 dark:text-gray-400 mt-1">Approve and activate this savings account</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <input type="radio" name="decision" value="reject" class="h-4 w-4 text-primary-600 focus:ring-primary-500" required>
+                        <div class="ml-3">
+                            <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                                <i class="fas fa-times-circle text-red-600 dark:text-red-400 mr-2"></i>Reject Account
+                            </span>
+                            <span class="block text-sm text-gray-500 dark:text-gray-400 mt-1">Reject this account application with reason</span>
+                        </div>
+                    </label>
+                </div>
+                {% if form.decision.errors %}
+                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ form.decision.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.notes.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.notes }}
+                {% if form.notes.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.notes.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Provide notes explaining your decision (required for rejection, minimum 10 characters)
+                </p>
+            </div>
+
+            <!-- Warning for Rejection -->
+            <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">Important</h3>
+                        <p class="text-sm text-yellow-700 dark:text-yellow-300">
+                            Your decision will be final. If you reject this account, please provide a clear reason in the notes field above.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3 pt-4">
+                <a href="{% url 'core:savings_account_detail' account.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-check mr-2"></i>Submit Decision
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

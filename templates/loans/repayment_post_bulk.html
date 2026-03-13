@@ -1,0 +1,261 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto" x-data="bulkRepaymentApp()">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:loan_repayment_list' %}" class="hover:text-primary-600">Repayment Postings</a>
+            <span>/</span>
+            <span>Bulk Post Repayments</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Select loans and enter repayment amounts</p>
+    </div>
+
+    <form method="post" id="bulkRepaymentForm">
+        {% csrf_token %}
+
+        <!-- Payment Settings Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <i class="fas fa-cog text-primary-600 dark:text-primary-400 mr-2"></i>Payment Settings
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Payment Method -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Payment Method <span class="text-red-500">*</span>
+                    </label>
+                    <select x-model="paymentMethod" required
+                            class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500">
+                        <option value="cash">Cash</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="mobile_money">Mobile Money</option>
+                        <option value="cheque">Cheque</option>
+                    </select>
+                </div>
+
+                <!-- Payment Date -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Payment Date <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" x-model="paymentDate" required
+                           class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500">
+                </div>
+
+                <!-- Payment Reference -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Payment Reference (Optional)
+                    </label>
+                    <input type="text" x-model="paymentReference" placeholder="Transaction reference, receipt number"
+                           class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500">
+                </div>
+            </div>
+        </div>
+
+        <!-- Loans Table -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden mb-6">
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        <i class="fas fa-list text-primary-600 dark:text-primary-400 mr-2"></i>Active Loans
+                    </h2>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        <span x-text="selectedLoans.length"></span> loan(s) selected
+                    </p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button type="button" @click="selectAll()"
+                            class="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors">
+                        Select All
+                    </button>
+                    <button type="button" @click="deselectAll()"
+                            class="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors">
+                        Deselect All
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-900">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                                <input type="checkbox" @change="toggleAll($event)"
+                                       class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded">
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Loan ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Client</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Product</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Outstanding</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Installment</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Repayment Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {% for loan in loans %}
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            :class="{'bg-primary-50 dark:bg-primary-900/20': selectedLoans.includes('{{ loan.id }}')}">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <input type="checkbox"
+                                       value="{{ loan.id }}"
+                                       @change="toggleLoan('{{ loan.id }}')"
+                                       :checked="selectedLoans.includes('{{ loan.id }}')"
+                                       class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded">
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900 dark:text-white font-mono">{{ loan.loan_number }}</div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400">{{ loan.branch.name }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900 dark:text-white">{{ loan.client.get_full_name }}</div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400">{{ loan.client.client_id }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                {{ loan.loan_product.name }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-bold text-red-600 dark:text-red-400">₦{{ loan.outstanding_balance|floatformat:2|intcomma }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                ₦{{ loan.installment_amount|floatformat:2|intcomma }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <input type="number"
+                                       :name="'amount_' + '{{ loan.id }}'"
+                                       x-model="amounts['{{ loan.id }}']"
+                                       @focus="selectLoanIfNeeded('{{ loan.id }}')"
+                                       step="0.01"
+                                       min="0"
+                                       max="{{ loan.outstanding_balance }}"
+                                       placeholder="Enter amount"
+                                       class="w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 text-sm">
+                                <button type="button"
+                                        @click="setInstallmentAmount('{{ loan.id }}', {{ loan.installment_amount }})"
+                                        class="ml-2 text-xs text-primary-600 dark:text-primary-400 hover:underline">
+                                    Use Installment
+                                </button>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                                             {% if loan.status == 'active' %}bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300
+                                             {% elif loan.status == 'overdue' %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300
+                                             {% else %}bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300{% endif %}">
+                                    {{ loan.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                                <i class="fas fa-inbox text-4xl mb-2"></i>
+                                <p>No active or overdue loans found</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Summary & Submit -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Summary</h3>
+                    <div class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                        <p>Selected Loans: <span class="font-semibold text-gray-900 dark:text-white" x-text="selectedLoans.length"></span></p>
+                        <p>Total Amount: <span class="font-semibold text-green-600 dark:text-green-400">₦<span x-text="calculateTotal().toFixed(2)"></span></span></p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <a href="{% url 'core:loan_repayment_list' %}"
+                       class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        Cancel
+                    </a>
+                    <button type="submit"
+                            :disabled="selectedLoans.length === 0"
+                            :class="selectedLoans.length === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-primary-700'"
+                            class="px-6 py-3 bg-primary-600 text-white rounded-lg font-semibold transition-colors">
+                        <i class="fas fa-check mr-2"></i>Submit <span x-text="selectedLoans.length"></span> Repayment(s)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden fields for selected loans -->
+        <template x-for="loanId in selectedLoans" :key="loanId">
+            <input type="hidden" :name="'loan_' + loanId" :value="loanId">
+        </template>
+        <input type="hidden" name="payment_method" :value="paymentMethod">
+        <input type="hidden" name="payment_date" :value="paymentDate">
+        <input type="hidden" name="payment_reference" :value="paymentReference">
+    </form>
+</div>
+
+<script>
+function bulkRepaymentApp() {
+    return {
+        selectedLoans: [],
+        amounts: {},
+        paymentMethod: 'cash',
+        paymentDate: '{{ today }}',
+        paymentReference: '',
+
+        toggleLoan(loanId) {
+            const index = this.selectedLoans.indexOf(loanId);
+            if (index > -1) {
+                this.selectedLoans.splice(index, 1);
+            } else {
+                this.selectedLoans.push(loanId);
+            }
+        },
+
+        selectLoanIfNeeded(loanId) {
+            if (!this.selectedLoans.includes(loanId)) {
+                this.selectedLoans.push(loanId);
+            }
+        },
+
+        selectAll() {
+            const allLoans = [{% for loan in loans %}'{{ loan.id }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+            this.selectedLoans = [...allLoans];
+        },
+
+        deselectAll() {
+            this.selectedLoans = [];
+        },
+
+        toggleAll(event) {
+            if (event.target.checked) {
+                this.selectAll();
+            } else {
+                this.deselectAll();
+            }
+        },
+
+        setInstallmentAmount(loanId, amount) {
+            this.amounts[loanId] = amount;
+            this.selectLoanIfNeeded(loanId);
+        },
+
+        calculateTotal() {
+            let total = 0;
+            for (const loanId of this.selectedLoans) {
+                const amount = parseFloat(this.amounts[loanId] || 0);
+                total += amount;
+            }
+            return total;
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="{% url 'core:payment_promise_list' %}" class="hover:text-primary-600">Payment Promises</a>
+            <span>/</span>
+            <span>Update Status</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+    </div>
+
+    <!-- Promise Details -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+            <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Promise Details</h2>
+        </div>
+        <div class="p-6 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Loan</span>
+                <p class="mt-0.5">
+                    <a href="{% url 'core:loan_detail' loan.id %}" class="font-semibold text-primary-600 hover:text-primary-700">{{ loan.loan_number }}</a>
+                </p>
+            </div>
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Client</span>
+                <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ loan.client.get_full_name }}</p>
+            </div>
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Promise Date</span>
+                <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ promise.promise_date|date:"d M Y" }}</p>
+            </div>
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Promised Amount</span>
+                <p class="font-bold text-gray-900 dark:text-white mt-0.5">₦{{ promise.promised_amount|floatformat:2|intcomma }}</p>
+            </div>
+            {% if promise.notes %}
+            <div class="col-span-2">
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Notes</span>
+                <p class="text-gray-700 dark:text-gray-300 mt-0.5">{{ promise.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Update Form -->
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+
+            <!-- Status Selection -->
+            <div class="p-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Outcome <span class="text-red-500">*</span>
+                </label>
+                <div class="space-y-3">
+                    {% for value, label in form.status.field.choices %}
+                    <label class="flex items-center space-x-3 cursor-pointer">
+                        <input type="radio" name="{{ form.status.html_name }}" value="{{ value }}"
+                               {% if form.status.value == value %}checked{% endif %}
+                               class="w-4 h-4 text-primary-600 focus:ring-primary-500">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">
+                            {% if value == 'kept' %}<i class="fas fa-check-circle text-green-500 mr-1"></i>{% endif %}
+                            {% if value == 'partial' %}<i class="fas fa-adjust text-amber-500 mr-1"></i>{% endif %}
+                            {% if value == 'broken' %}<i class="fas fa-times-circle text-red-500 mr-1"></i>{% endif %}
+                            {{ label }}
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% if form.status.errors %}
+                <p class="mt-2 text-xs text-red-600">{{ form.status.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Actual Amount Paid -->
+            <div class="p-6">
+                <label for="{{ form.actual_amount_paid.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Actual Amount Paid (₦)
+                </label>
+                {{ form.actual_amount_paid }}
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Leave blank if nothing was paid (e.g., broken promise).</p>
+                {% if form.actual_amount_paid.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.actual_amount_paid.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Additional Notes -->
+            <div class="p-6">
+                <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Additional Notes
+                </label>
+                {{ form.notes }}
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Describe what happened — will be appended to existing notes.</p>
+                {% if form.notes.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-between pt-4">
+            <a href="{% url 'core:payment_promise_list' %}"
+               class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                <i class="fas fa-arrow-left mr-1"></i>Cancel
+            </a>
+            <button type="submit"
+                    class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-check mr-2"></i>Update Status
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

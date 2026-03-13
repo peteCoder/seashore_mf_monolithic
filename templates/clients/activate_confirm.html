@@ -1,0 +1,92 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Activate Client - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Activate Client</h1>
+        <p class="text-gray-600 dark:text-gray-400">Confirm client activation</p>
+    </div>
+
+    <!-- Client Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center space-x-4 mb-4">
+            <div class="w-16 h-16 rounded-full overflow-hidden">
+                {% if client.profile_picture %}
+                <img src="{{ client.profile_picture.url }}" class="w-full h-full object-cover" alt="{{ client.get_full_name }}">
+                {% else %}
+                <div class="w-full h-full bg-primary-600 flex items-center justify-center text-white text-xl font-bold">
+                    {{ client.first_name.0 }}{{ client.last_name.0 }}
+                </div>
+                {% endif %}
+            </div>
+
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ client.get_full_name }}</h2>
+                <p class="text-gray-600 dark:text-gray-400">{{ client.client_id }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ client.email }} • {{ client.phone }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ client.branch.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Approval Status</p>
+                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                    {{ client.get_approval_status_display }}
+                </span>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Registration Fee</p>
+                <span class="px-2 py-1 text-xs font-semibold rounded-full
+                             {% if client.registration_fee_paid %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                             {% else %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300{% endif %}">
+                    {% if client.registration_fee_paid %}Paid{% else %}Not Paid{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Warning -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-blue-700 dark:text-blue-300">
+                    Activating this client will allow them to access loan and savings products. Make sure all required documents and approvals are in place.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post">
+            {% csrf_token %}
+
+            <p class="text-gray-700 dark:text-gray-300 mb-6">
+                Are you sure you want to activate <strong>{{ client.get_full_name }}</strong>?
+            </p>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3">
+                <a href="{% url 'core:client_detail' client.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-power-off mr-2"></i>Activate Client
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

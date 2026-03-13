@@ -1,0 +1,136 @@
+{% extends "layouts/base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Match GL cash entries against bank statements</p>
+        </div>
+        <a href="{% url 'core:reconciliation_create' %}"
+           class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
+            <i class="fas fa-plus mr-2"></i>New Reconciliation
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+        <form method="get" class="flex flex-wrap gap-3 items-end">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Status</label>
+                <select name="status" class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    <option value="">All Statuses</option>
+                    <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+                    <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+                    <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                </select>
+            </div>
+            {% if branches %}
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Branch</label>
+                <select name="branch" class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    <option value="">All Branches</option>
+                    {% for branch in branches %}
+                    <option value="{{ branch.id }}" {% if branch_filter == branch.id|stringformat:"s" %}selected{% endif %}>{{ branch.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <button type="submit" class="px-4 py-2 text-sm bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-lg hover:bg-gray-700 dark:hover:bg-gray-300">
+                <i class="fas fa-filter mr-1"></i>Filter
+            </button>
+            {% if status_filter or branch_filter %}
+            <a href="{% url 'core:reconciliation_list' %}" class="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+                Clear
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+                <tr>
+                    <th class="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Reference</th>
+                    <th class="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Account</th>
+                    <th class="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Branch</th>
+                    <th class="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Period</th>
+                    <th class="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Status</th>
+                    <th class="text-left px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Created By</th>
+                    <th class="text-right px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                {% for recon in reconciliations %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                    <td class="px-4 py-3">
+                        <a href="{% url 'core:reconciliation_detail' recon.id %}" class="font-medium text-primary-600 dark:text-primary-400 hover:underline">
+                            {{ recon.recon_ref }}
+                        </a>
+                    </td>
+                    <td class="px-4 py-3 text-gray-700 dark:text-gray-300">
+                        {{ recon.gl_account.gl_code }} — {{ recon.gl_account.account_name }}
+                    </td>
+                    <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ recon.branch.name }}</td>
+                    <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
+                        {{ recon.period_start|date:"d M Y" }} — {{ recon.period_end|date:"d M Y" }}
+                    </td>
+                    <td class="px-4 py-3">
+                        {% if recon.status == 'completed' %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">Completed</span>
+                        {% elif recon.status == 'in_progress' %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">In Progress</span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">Draft</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">{{ recon.created_by.get_full_name }}</td>
+                    <td class="px-4 py-3 text-right">
+                        <a href="{% url 'core:reconciliation_detail' recon.id %}"
+                           class="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600">
+                            {% if recon.status == 'completed' %}View{% else %}Work{% endif %}
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="px-4 py-16 text-center">
+                        <div class="w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mx-auto mb-3">
+                            <i class="fas fa-balance-scale text-xl text-gray-400"></i>
+                        </div>
+                        <p class="text-gray-500 dark:text-gray-400 font-medium">No reconciliations found</p>
+                        <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Create your first reconciliation session to get started.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if reconciliations.has_other_pages %}
+    <div class="flex items-center justify-between text-sm">
+        <span class="text-gray-500 dark:text-gray-400">Page {{ reconciliations.number }} of {{ reconciliations.paginator.num_pages }}</span>
+        <div class="flex gap-2">
+            {% if reconciliations.has_previous %}
+            <a href="?page={{ reconciliations.previous_page_number }}&status={{ status_filter }}&branch={{ branch_filter }}"
+               class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                <i class="fas fa-chevron-left text-xs"></i>
+            </a>
+            {% endif %}
+            {% if reconciliations.has_next %}
+            <a href="?page={{ reconciliations.next_page_number }}&status={{ status_filter }}&branch={{ branch_filter }}"
+               class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                <i class="fas fa-chevron-right text-xs"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

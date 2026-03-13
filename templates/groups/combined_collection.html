@@ -1,0 +1,560 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}Collect All Payments - {{ group.name }} - Seashore Microfinance{% endblock %}
+{% block page_title %}Collect All Payments{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto" x-data="combinedCollectionApp()">
+    <!-- Breadcrumb -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:group_list' %}" class="hover:text-primary-600 dark:hover:text-primary-400">
+                <i class="fas fa-layer-group mr-1"></i>Groups
+            </a>
+            <span>/</span>
+            <a href="{% url 'core:group_detail' group.id %}" class="hover:text-primary-600 dark:hover:text-primary-400">{{ group.name }}</a>
+            <span>/</span>
+            <span class="text-gray-900 dark:text-white font-medium">Collect All Payments</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+            <i class="fas fa-layer-group text-primary-600 dark:text-primary-400 mr-2"></i>
+            Collect All Payments
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Collect loan repayments and savings deposits together in one session</p>
+    </div>
+
+    <!-- Group Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Group Name</p>
+                <p class="text-base font-semibold text-gray-900 dark:text-white">{{ group.name }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ group.code }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Meeting Day</p>
+                <p class="text-base font-semibold text-gray-900 dark:text-white">{{ group.get_meeting_day_display }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Total Loan Outstanding</p>
+                <p class="text-lg font-bold text-red-600 dark:text-red-400">&#8358;{{ total_outstanding|floatformat:2|intcomma }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Total Savings Balance</p>
+                <p class="text-lg font-bold text-blue-600 dark:text-blue-400">&#8358;{{ total_savings|floatformat:2|intcomma }}</p>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" action="{% url 'core:group_combined_collection_post' group.id %}" @submit="return validateForm()">
+        {% csrf_token %}
+
+        <!-- Total Cash Received -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <i class="fas fa-money-bill-wave text-green-600 dark:text-green-400 mr-2"></i>Total Cash Received
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Grand Total Amount Collected <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 font-medium">&#8358;</span>
+                        <input type="text"
+                               inputmode="decimal"
+                               name="total_amount"
+                               x-model="totalCollected"
+                               @input="totalCollected = $event.target.value"
+                               placeholder="e.g. 95,000"
+                               required
+                               class="w-full pl-8 pr-4 py-3 border rounded-lg shadow-sm text-lg font-semibold focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white transition-colors"
+                               :class="totalMismatch() ? 'border-red-500 dark:border-red-500 bg-red-50 dark:bg-red-900/10' : 'border-gray-300 dark:border-gray-600'">
+                    </div>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Enter the total cash physically received — must match the sum of all loan + savings amounts below
+                    </p>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-full p-4 rounded-lg border-2 transition-colors"
+                         :class="totalMismatch() ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20' : 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20'">
+                        <p class="text-sm font-medium" :class="totalMismatch() ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'">
+                            <i class="fas" :class="totalMismatch() ? 'fa-exclamation-triangle' : 'fa-check-circle'"></i>
+                            <span x-text="totalMismatch() ? 'Totals do not match — cannot submit!' : (grandTotal() > 0 ? 'Totals match ✓' : 'Enter amounts below')"></span>
+                        </p>
+                        <div class="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                            <p>Loans: <span class="font-bold text-red-600 dark:text-red-400">&#8358;<span x-text="formatNumber(loanTotal())"></span></span></p>
+                            <p>Savings: <span class="font-bold text-blue-600 dark:text-blue-400">&#8358;<span x-text="formatNumber(savingsTotal())"></span></span></p>
+                            <p class="border-t border-gray-200 dark:border-gray-600 pt-1 mt-1">
+                                Grand Total: <span class="font-bold">&#8358;<span x-text="formatNumber(grandTotal())"></span></span>
+                            </p>
+                            <p>Cash entered: <span class="font-bold">&#8358;<span x-text="formatNumber(parseCleaned(totalCollected))"></span></span></p>
+                            <template x-if="totalMismatch() && parseCleaned(totalCollected) > 0">
+                                <p class="font-semibold text-red-600 dark:text-red-400">
+                                    Difference: &#8358;<span x-text="formatNumber(Math.abs(getDifference()))"></span>
+                                    <span x-text="getDifference() > 0 ? '(over-allocated)' : '(under-allocated)'"></span>
+                                </p>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Collection Settings -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <i class="fas fa-cog text-primary-600 dark:text-primary-400 mr-2"></i>Collection Settings
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Payment Method <span class="text-red-500">*</span>
+                    </label>
+                    <select name="payment_method" required
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500">
+                        <option value="cash">Cash</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="mobile_money">Mobile Money</option>
+                        <option value="cheque">Cheque</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Collection Date <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" name="collection_date" required value="{{ today }}"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Reference (Optional)
+                    </label>
+                    <input type="text" name="payment_reference" placeholder="Transaction reference"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500">
+                </div>
+            </div>
+        </div>
+
+        <!-- Loan Repayments Section -->
+        {% if member_loan_data %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+            <div class="px-6 py-4 bg-red-50 dark:bg-red-900/20 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        <i class="fas fa-hand-holding-usd text-red-600 dark:text-red-400 mr-2"></i>Loan Repayments
+                    </h2>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        <span x-text="loanFilledCount()"></span> of {{ member_loan_data|length }} loan(s) with amounts entered &bull;
+                        Sub-total: &#8358;<span x-text="formatNumber(loanTotal())"></span>
+                    </p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button type="button" @click="fillAllInstallments()"
+                            class="px-3 py-2 text-sm bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 rounded-lg transition-colors font-medium">
+                        <i class="fas fa-magic mr-1"></i>Fill Installments
+                    </button>
+                    <button type="button" @click="clearLoanAmounts()"
+                            class="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors font-medium">
+                        <i class="fas fa-eraser mr-1"></i>Clear
+                    </button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-900/50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member / Loan Type</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Outstanding</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Installment</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount to Collect</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {% regroup member_loan_data by client as loan_client_groups %}
+                        {% for cg in loan_client_groups %}
+                        <tr class="bg-primary-50 dark:bg-primary-900/20 border-t-2 border-primary-200 dark:border-primary-700">
+                            <td colspan="5" class="px-6 py-2">
+                                <span class="font-semibold text-primary-800 dark:text-primary-300">
+                                    <i class="fas fa-user mr-1"></i>{{ cg.grouper.get_full_name }}
+                                </span>
+                                <span class="ml-2 text-xs text-primary-600 dark:text-primary-400 font-mono">{{ cg.grouper.client_id }}</span>
+                            </td>
+                        </tr>
+                        {% for data in cg.list %}
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                            :class="parseCleaned(loanAmounts['{{ data.loan.id }}']) > 0 ? 'bg-green-50/50 dark:bg-green-900/10' : ''">
+                            <td class="px-6 py-4 pl-10 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900 dark:text-white">{{ data.loan.loan_product.name }}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ data.loan.loan_number }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right">
+                                <span class="text-sm font-bold text-red-600 dark:text-red-400">&#8358;{{ data.loan.outstanding_balance|floatformat:2|intcomma }}</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right">
+                                <span class="text-sm font-medium text-gray-900 dark:text-white">&#8358;{{ data.loan.installment_amount|floatformat:2|intcomma }}</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center space-x-2">
+                                    <div class="relative">
+                                        <span class="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">&#8358;</span>
+                                        <input type="text"
+                                               inputmode="decimal"
+                                               name="loan_amount_{{ data.loan.id }}"
+                                               x-model="loanAmounts['{{ data.loan.id }}']"
+                                               @input="loanAmounts['{{ data.loan.id }}'] = $event.target.value"
+                                               placeholder="0.00"
+                                               class="w-36 pl-6 pr-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500 text-sm">
+                                    </div>
+                                    <button type="button"
+                                            @click="loanAmounts['{{ data.loan.id }}'] = '{{ data.loan.installment_amount }}'"
+                                            class="px-2 py-1 text-xs bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 rounded hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors"
+                                            title="Use installment amount">
+                                        <i class="fas fa-arrow-left"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                                    {% if data.loan.status == 'active' %}bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300
+                                    {% elif data.loan.status == 'overdue' %}bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300
+                                    {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                                    {{ data.loan.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="bg-gray-50 dark:bg-gray-900/50">
+                        <tr>
+                            <td colspan="3" class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">Loan Sub-total:</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="text-lg font-bold text-red-600 dark:text-red-400">&#8358;<span x-text="formatNumber(loanTotal())"></span></span>
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-6 text-center">
+            <i class="fas fa-hand-holding-usd text-4xl text-gray-300 dark:text-gray-600 mb-3 block"></i>
+            <p class="text-gray-500 dark:text-gray-400 font-medium">No members with active or overdue loans</p>
+        </div>
+        {% endif %}
+
+        <!-- Savings Deposits Section -->
+        {% if member_savings_data %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+            <div class="px-6 py-4 bg-blue-50 dark:bg-blue-900/20 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        <i class="fas fa-piggy-bank text-blue-600 dark:text-blue-400 mr-2"></i>Savings Deposits
+                    </h2>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        <span x-text="savingsFilledCount()"></span> of {{ member_savings_data|length }} account(s) with amounts entered &bull;
+                        Sub-total: &#8358;<span x-text="formatNumber(savingsTotal())"></span>
+                    </p>
+                </div>
+                <button type="button" @click="clearSavingsAmounts()"
+                        class="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors font-medium">
+                    <i class="fas fa-eraser mr-1"></i>Clear
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead class="bg-gray-50 dark:bg-gray-900/50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member / Account Type</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Current Balance</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount to Deposit</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {% regroup member_savings_data by client as savings_client_groups %}
+                        {% for cg in savings_client_groups %}
+                        <tr class="bg-blue-50 dark:bg-blue-900/20 border-t-2 border-blue-200 dark:border-blue-700">
+                            <td colspan="3" class="px-6 py-2">
+                                <span class="font-semibold text-blue-800 dark:text-blue-300">
+                                    <i class="fas fa-user mr-1"></i>{{ cg.grouper.get_full_name }}
+                                </span>
+                                <span class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-mono">{{ cg.grouper.client_id }}</span>
+                            </td>
+                        </tr>
+                        {% for data in cg.list %}
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                            :class="parseCleaned(savingsAmounts['{{ data.account.id }}']) > 0 ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''">
+                            <td class="px-6 py-4 pl-10 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900 dark:text-white">{{ data.account.savings_product.name }}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ data.account.account_number }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right">
+                                <span class="text-sm font-bold text-blue-600 dark:text-blue-400">&#8358;{{ data.account.balance|floatformat:2|intcomma }}</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="relative">
+                                    <span class="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-gray-500">&#8358;</span>
+                                    <input type="text"
+                                           inputmode="decimal"
+                                           name="savings_amount_{{ data.account.id }}"
+                                           x-model="savingsAmounts['{{ data.account.id }}']"
+                                           @input="savingsAmounts['{{ data.account.id }}'] = $event.target.value"
+                                           placeholder="0.00"
+                                           class="w-36 pl-6 pr-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500 text-sm">
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="bg-gray-50 dark:bg-gray-900/50">
+                        <tr>
+                            <td colspan="2" class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">Savings Sub-total:</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="text-lg font-bold text-blue-600 dark:text-blue-400">&#8358;<span x-text="formatNumber(savingsTotal())"></span></span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 mb-6 text-center">
+            <i class="fas fa-piggy-bank text-4xl text-gray-300 dark:text-gray-600 mb-3 block"></i>
+            <p class="text-gray-500 dark:text-gray-400 font-medium">No members with active savings accounts</p>
+        </div>
+        {% endif %}
+
+        <!-- Notes -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <i class="fas fa-sticky-note text-gray-400 mr-1"></i>Collection Notes (Optional)
+            </label>
+            <textarea name="notes" rows="3" placeholder="Any notes about this combined collection session..."
+                      class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500"></textarea>
+        </div>
+
+        <!-- Mismatch Warning -->
+        <template x-if="totalMismatch() && parseCleaned(totalCollected) > 0 && grandTotal() > 0">
+            <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg">
+                <div class="flex">
+                    <i class="fas fa-exclamation-triangle text-red-400 text-lg mr-3 mt-0.5"></i>
+                    <div>
+                        <h3 class="text-sm font-semibold text-red-800 dark:text-red-300">Amount Mismatch — Submission Blocked</h3>
+                        <p class="text-sm text-red-700 dark:text-red-300 mt-1">
+                            Cash entered (&#8358;<span x-text="formatNumber(parseCleaned(totalCollected))"></span>) does not match
+                            grand total of all amounts (&#8358;<span x-text="formatNumber(grandTotal())"></span>).
+                            Difference: &#8358;<span x-text="formatNumber(Math.abs(getDifference()))"></span>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Submit -->
+        {% if member_loan_data or member_savings_data %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Session Summary</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                        <span x-text="loanFilledCount()"></span> loan repayment(s) +
+                        <span x-text="savingsFilledCount()"></span> savings deposit(s) =
+                        <span class="font-bold text-green-600 dark:text-green-400">&#8358;<span x-text="formatNumber(grandTotal())"></span></span>
+                    </p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <a href="{% url 'core:group_detail' group.id %}"
+                       class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium">
+                        Cancel
+                    </a>
+                    <button type="submit"
+                            :disabled="grandTotal() <= 0 || totalMismatch() || parseCleaned(totalCollected) <= 0"
+                            :class="(grandTotal() <= 0 || totalMismatch() || parseCleaned(totalCollected) <= 0) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-primary-700'"
+                            class="px-6 py-3 bg-primary-600 text-white rounded-lg font-semibold transition-colors shadow-sm">
+                        <i class="fas fa-paper-plane mr-2"></i>Submit Collection
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </form>
+
+    <!-- Recent Combined Sessions -->
+    {% if recent_sessions %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mt-6">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                <i class="fas fa-history text-gray-400 mr-2"></i>Recent Combined Sessions
+            </h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Collected By</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Loans</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Savings</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for s in recent_sessions %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ s.collection_date|date:"M d, Y" }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{{ s.collected_by.get_full_name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600 dark:text-red-400 text-right">&#8358;{{ s.total_loan_amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 dark:text-blue-400 text-right">&#8358;{{ s.total_savings_amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white text-right">&#8358;{{ s.total_amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                                {% if s.status == 'approved' %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300
+                                {% elif s.status == 'pending' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300
+                                {% elif s.status == 'rejected' %}bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300
+                                {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                                {% if s.status == 'approved' %}<i class="fas fa-check-circle mr-1"></i>
+                                {% elif s.status == 'pending' %}<i class="fas fa-clock mr-1"></i>
+                                {% elif s.status == 'rejected' %}<i class="fas fa-times-circle mr-1"></i>{% endif %}
+                                {{ s.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                            <a href="{% url 'core:group_combined_session_detail' s.id %}"
+                               class="text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 font-medium">
+                                <i class="fas fa-eye mr-1"></i>View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function combinedCollectionApp() {
+    const installments = {
+        {% for data in member_loan_data %}
+        '{{ data.loan.id }}': {{ data.loan.installment_amount }},
+        {% endfor %}
+    };
+
+    return {
+        totalCollected: '',
+        loanAmounts: {
+            {% for data in member_loan_data %}
+            '{{ data.loan.id }}': '',
+            {% endfor %}
+        },
+        savingsAmounts: {
+            {% for data in member_savings_data %}
+            '{{ data.account.id }}': '',
+            {% endfor %}
+        },
+
+        parseCleaned(val) {
+            const n = parseFloat(String(val).replace(/,/g, ''));
+            return isNaN(n) ? 0 : n;
+        },
+
+        loanTotal() {
+            let total = 0;
+            for (const k in this.loanAmounts) {
+                const v = this.parseCleaned(this.loanAmounts[k]);
+                if (v > 0) total += v;
+            }
+            return Math.round(total * 100) / 100;
+        },
+
+        savingsTotal() {
+            let total = 0;
+            for (const k in this.savingsAmounts) {
+                const v = this.parseCleaned(this.savingsAmounts[k]);
+                if (v > 0) total += v;
+            }
+            return Math.round(total * 100) / 100;
+        },
+
+        grandTotal() {
+            return Math.round((this.loanTotal() + this.savingsTotal()) * 100) / 100;
+        },
+
+        totalMismatch() {
+            const collected = this.parseCleaned(this.totalCollected);
+            const grand = this.grandTotal();
+            if (collected === 0 && grand === 0) return false;
+            if (collected === 0 || grand === 0) return false;
+            return Math.abs(collected - grand) > 0.01;
+        },
+
+        getDifference() {
+            return this.grandTotal() - this.parseCleaned(this.totalCollected);
+        },
+
+        loanFilledCount() {
+            let c = 0;
+            for (const k in this.loanAmounts) {
+                if (this.parseCleaned(this.loanAmounts[k]) > 0) c++;
+            }
+            return c;
+        },
+
+        savingsFilledCount() {
+            let c = 0;
+            for (const k in this.savingsAmounts) {
+                if (this.parseCleaned(this.savingsAmounts[k]) > 0) c++;
+            }
+            return c;
+        },
+
+        fillAllInstallments() {
+            for (const loanId in installments) {
+                this.loanAmounts[loanId] = installments[loanId];
+            }
+        },
+
+        clearLoanAmounts() {
+            for (const k in this.loanAmounts) this.loanAmounts[k] = '';
+        },
+
+        clearSavingsAmounts() {
+            for (const k in this.savingsAmounts) this.savingsAmounts[k] = '';
+        },
+
+        formatNumber(num) {
+            return num.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+
+        validateForm() {
+            if (this.grandTotal() <= 0) {
+                alert('Please enter at least one amount (loan repayment or savings deposit).');
+                return false;
+            }
+            const collected = this.parseCleaned(this.totalCollected);
+            if (collected <= 0) {
+                alert('Please enter the Grand Total Amount Collected at the top before submitting.');
+                return false;
+            }
+            if (this.totalMismatch()) {
+                alert(
+                    'Submission blocked: Cash entered (₦' + this.formatNumber(collected) + ') ' +
+                    'does not match the grand total of all amounts (₦' + this.formatNumber(this.grandTotal()) + '). ' +
+                    'Please correct the amounts and try again.'
+                );
+                return false;
+            }
+            return true;
+        }
+    };
+}
+</script>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "layouts/base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="max-w-2xl space-y-6">
+
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="{% url 'core:insurance_claim_list' %}" class="hover:text-gray-700 dark:hover:text-gray-200">Insurance Claims</a>
+            <span>/</span>
+            <a href="{% url 'core:insurance_claim_detail' claim.id %}" class="hover:text-gray-700 dark:hover:text-gray-200">{{ claim.claim_ref }}</a>
+            <span>/</span><span>Review</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+    </div>
+
+    <!-- Claim summary -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Claim Summary</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+            <div><p class="text-xs text-gray-400 uppercase font-semibold">Claim Ref</p><p class="font-medium text-gray-900 dark:text-white mt-0.5">{{ claim.claim_ref }}</p></div>
+            <div><p class="text-xs text-gray-400 uppercase font-semibold">Type</p><p class="font-medium text-gray-900 dark:text-white mt-0.5">{{ claim.get_claim_type_display }}</p></div>
+            <div><p class="text-xs text-gray-400 uppercase font-semibold">Event Date</p><p class="font-medium text-gray-900 dark:text-white mt-0.5">{{ claim.event_date|date:"d M Y" }}</p></div>
+            <div><p class="text-xs text-gray-400 uppercase font-semibold">Loan Number</p><p class="font-medium text-gray-900 dark:text-white mt-0.5">{{ loan.loan_number }}</p></div>
+            <div><p class="text-xs text-gray-400 uppercase font-semibold">Client</p><p class="font-medium text-gray-900 dark:text-white mt-0.5">{{ loan.client.get_full_name }}</p></div>
+            <div><p class="text-xs text-gray-400 uppercase font-semibold">Claim Amount</p><p class="font-semibold text-red-600 mt-0.5">₦{{ claim.claim_amount|floatformat:2|intcomma }}</p></div>
+        </div>
+        {% if claim.description %}
+        <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <p class="text-xs text-gray-400 uppercase font-semibold mb-1">Description</p>
+            <p class="text-sm text-gray-700 dark:text-gray-300">{{ claim.description }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Review form -->
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+            <div class="px-6 py-5">
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Decision <span class="text-red-500">*</span></p>
+                {% for radio in form.decision %}
+                <label class="flex items-center gap-3 mb-3 cursor-pointer group">
+                    {{ radio.tag }}
+                    <span class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">{{ radio.choice_label }}</span>
+                </label>
+                {% endfor %}
+                {% if form.decision.errors %}<p class="mt-1 text-xs text-red-600">{{ form.decision.errors.0 }}</p>{% endif %}
+            </div>
+            <div class="px-6 py-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.review_notes.label }}
+                    <span class="text-gray-400 text-xs">(required when rejecting)</span>
+                </label>
+                {{ form.review_notes }}
+                {% if form.review_notes.errors %}<p class="mt-1 text-xs text-red-600">{{ form.review_notes.errors.0 }}</p>{% endif %}
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-4">
+            <a href="{% url 'core:insurance_claim_detail' claim.id %}" class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                <i class="fas fa-arrow-left mr-1"></i>Back
+            </a>
+            <button type="submit" class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg">
+                <i class="fas fa-gavel mr-2"></i>Submit Decision
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

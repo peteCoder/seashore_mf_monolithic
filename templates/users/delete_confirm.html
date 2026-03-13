@@ -1,0 +1,88 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Delete User - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">{{ page_title }}</h1>
+        <p class="text-gray-600 dark:text-gray-400">Permanently delete this user</p>
+    </div>
+
+    <!-- User Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center mb-4">
+            <div class="h-12 w-12 flex-shrink-0">
+                {% if staff_user.profile_picture %}
+                <img class="h-12 w-12 rounded-full object-cover" src="{{ staff_user.profile_picture.url }}" alt="{{ staff_user.get_full_name }}">
+                {% else %}
+                <div class="h-12 w-12 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+                    <span class="text-primary-600 dark:text-primary-400 font-semibold text-lg">
+                        {{ staff_user.first_name.0 }}{{ staff_user.last_name.0 }}
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+            <div class="ml-4">
+                <p class="text-xl font-bold text-gray-900 dark:text-white">{{ staff_user.get_full_name }}</p>
+                <p class="text-gray-600 dark:text-gray-400">{{ staff_user.email }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Role</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ staff_user.get_user_role_display }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ staff_user.branch.name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning Notice -->
+    <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-red-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-red-800 dark:text-red-300 mb-1">Warning</h3>
+                <div class="text-sm text-red-700 dark:text-red-300">
+                    <p class="mb-2">This action cannot be undone. Deleting this user will:</p>
+                    <ul class="list-disc ml-5">
+                        <li>Permanently remove all user data</li>
+                        <li>Remove system access</li>
+                        <li>Remove from all assignments</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post">
+            {% csrf_token %}
+
+            <p class="text-gray-700 dark:text-gray-300 mb-4">
+                Are you sure you want to delete <strong class="text-red-600 dark:text-red-400">{{ staff_user.get_full_name }}</strong>?
+            </p>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3">
+                <a href="{% url 'core:user_detail' staff_user.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-trash mr-2"></i>Delete User
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

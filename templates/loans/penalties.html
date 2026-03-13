@@ -1,0 +1,119 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+                <a href="{% url 'core:loan_list' %}" class="hover:text-primary-600">Loans</a>
+                <span>/</span>
+                <a href="{% url 'core:loan_detail' loan.id %}" class="hover:text-primary-600">{{ loan.loan_number }}</a>
+                <span>/</span>
+                <span>Penalties</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+            <p class="text-sm text-gray-500 mt-1">Client: {{ loan.client.get_full_name }}</p>
+        </div>
+        <a href="{% url 'core:loan_add_penalty' loan.id %}"
+           class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors">
+            <i class="fas fa-plus"></i><span>Add Penalty</span>
+        </a>
+    </div>
+
+    <!-- Summary -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 text-center">
+            <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ summary.total }}</div>
+            <div class="text-xs text-gray-500 mt-1">Total Penalties</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-red-200 dark:border-red-800 p-4 text-center">
+            <div class="text-2xl font-bold text-red-600">₦{{ summary.outstanding|floatformat:2|intcomma }}</div>
+            <div class="text-xs text-gray-500 mt-1">Outstanding</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-green-200 dark:border-green-800 p-4 text-center">
+            <div class="text-2xl font-bold text-green-600">₦{{ summary.paid|floatformat:2|intcomma }}</div>
+            <div class="text-xs text-gray-500 mt-1">Paid</div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 text-center">
+            <div class="text-2xl font-bold text-gray-500">₦{{ summary.waived|floatformat:2|intcomma }}</div>
+            <div class="text-xs text-gray-500 mt-1">Waived</div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    {% if penalties %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+                    <tr>
+                        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400">Type</th>
+                        <th class="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-400">Amount</th>
+                        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400">Reason</th>
+                        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400">Status</th>
+                        <th class="text-left px-4 py-3 font-semibold text-gray-600 dark:text-gray-400">Date</th>
+                        <th class="text-right px-4 py-3 font-semibold text-gray-600 dark:text-gray-400">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    {% for p in penalties %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                        <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{{ p.get_penalty_type_display }}</td>
+                        <td class="px-4 py-3 text-right font-semibold text-red-600">₦{{ p.amount|floatformat:2|intcomma }}</td>
+                        <td class="px-4 py-3 text-gray-600 dark:text-gray-400 max-w-xs truncate" title="{{ p.reason }}">{{ p.reason|truncatechars:60 }}</td>
+                        <td class="px-4 py-3">
+                            {% if p.is_waived %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">Waived</span>
+                            {% elif p.is_paid %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">Paid</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">Outstanding</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-gray-500 text-xs">{{ p.created_at|date:"d M Y" }}</td>
+                        <td class="px-4 py-3 text-right">
+                            {% if not p.is_paid and not p.is_waived %}
+                            <div class="flex items-center justify-end space-x-2">
+                                <form method="post" action="{% url 'core:loan_mark_penalty_paid' loan.id p.id %}"
+                                      onsubmit="return confirm('Mark this penalty as paid and post journal entry?')">
+                                    {% csrf_token %}
+                                    <button type="submit"
+                                            class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors">
+                                        Mark Paid
+                                    </button>
+                                </form>
+                                {% if checker.is_manager or checker.is_admin_or_director %}
+                                <a href="{% url 'core:loan_waive_penalty' loan.id p.id %}"
+                                   class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                                    Waive
+                                </a>
+                                {% endif %}
+                            </div>
+                            {% else %}
+                            <span class="text-xs text-gray-400">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-16 text-center">
+        <div class="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-check-circle text-2xl text-gray-400"></i>
+        </div>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No penalties</h3>
+        <p class="text-gray-500 dark:text-gray-400">This loan has no penalty records.</p>
+    </div>
+    {% endif %}
+
+    <div><a href="{% url 'core:loan_detail' loan.id %}" class="text-sm text-gray-500 hover:text-primary-600"><i class="fas fa-arrow-left mr-1"></i>Back to Loan</a></div>
+</div>
+{% endblock %}

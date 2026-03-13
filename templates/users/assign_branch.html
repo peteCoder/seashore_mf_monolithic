@@ -1,0 +1,108 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:user_list' %}" class="hover:text-primary-600">Staff</a>
+            <span>/</span>
+            <a href="{% url 'core:user_detail' staff_user.id %}" class="hover:text-primary-600">{{ staff_user.get_full_name }}</a>
+            <span>/</span>
+            <span>Assign Branch</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+    </div>
+
+    <!-- User Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center mb-4">
+            <div class="h-12 w-12 flex-shrink-0">
+                {% if staff_user.profile_picture %}
+                <img class="h-12 w-12 rounded-full object-cover" src="{{ staff_user.profile_picture.url }}" alt="{{ staff_user.get_full_name }}">
+                {% else %}
+                <div class="h-12 w-12 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+                    <span class="text-primary-600 dark:text-primary-400 font-semibold">
+                        {{ staff_user.first_name.0 }}{{ staff_user.last_name.0 }}
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+            <div class="ml-4">
+                <p class="text-xl font-bold text-gray-900 dark:text-white">{{ staff_user.get_full_name }}</p>
+                <p class="text-gray-600 dark:text-gray-400">{{ staff_user.email }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Role</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ staff_user.get_user_role_display }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Current Branch</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ staff_user.branch.name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Notice -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Branch Assignment</h3>
+                <p class="text-sm text-blue-700 dark:text-blue-300">
+                    Assigning this user to a different branch will update their branch assignment.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignment Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.branch.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.branch }}
+                {% if form.branch.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.branch.errors.0 }}</p>
+                {% endif %}
+                {% if form.branch.help_text %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.branch.help_text }}</p>
+                {% endif %}
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.notes.label }}
+                </label>
+                {{ form.notes }}
+                {% if form.notes.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3 pt-4">
+                <a href="{% url 'core:user_detail' staff_user.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-building mr-2"></i>Assign Branch
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

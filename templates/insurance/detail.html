@@ -1,0 +1,163 @@
+{% extends "layouts/base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="max-w-3xl space-y-6">
+
+    <!-- Header -->
+    <div class="flex items-start justify-between">
+        <div>
+            <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+                <a href="{% url 'core:insurance_claim_list' %}" class="hover:text-gray-700 dark:hover:text-gray-200">Insurance Claims</a>
+                <span>/</span><span>{{ claim.claim_ref }}</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Filed {{ claim.created_at|date:"d M Y" }} by {{ claim.filed_by.get_full_name }}</p>
+        </div>
+        <div class="flex gap-2">
+            {% if claim.status in 'submitted,under_review' %}
+            <a href="{% url 'core:insurance_claim_review' claim.id %}"
+               class="px-4 py-2 text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white rounded-lg">
+                <i class="fas fa-gavel mr-1"></i>Review
+            </a>
+            {% elif claim.status == 'approved' and checker.is_admin_or_director %}
+            <a href="{% url 'core:insurance_claim_record_payout' claim.id %}"
+               class="px-4 py-2 text-sm font-medium bg-green-600 hover:bg-green-700 text-white rounded-lg">
+                <i class="fas fa-money-bill-wave mr-1"></i>Record Payout
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Status banner -->
+    <div class="flex items-center gap-3 px-4 py-3 rounded-lg border
+        {% if claim.status == 'paid' %}bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700
+        {% elif claim.status == 'approved' %}bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700
+        {% elif claim.status == 'under_review' %}bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700
+        {% elif claim.status == 'rejected' %}bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700
+        {% else %}bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600{% endif %}">
+        <i class="fas {% if claim.status == 'paid' %}fa-check-circle text-green-500{% elif claim.status == 'approved' %}fa-thumbs-up text-blue-500{% elif claim.status == 'under_review' %}fa-search text-amber-500{% elif claim.status == 'rejected' %}fa-times-circle text-red-500{% else %}fa-clock text-gray-400{% endif %}"></i>
+        <span class="text-sm font-medium
+            {% if claim.status == 'paid' %}text-green-700 dark:text-green-300
+            {% elif claim.status == 'approved' %}text-blue-700 dark:text-blue-300
+            {% elif claim.status == 'under_review' %}text-amber-700 dark:text-amber-300
+            {% elif claim.status == 'rejected' %}text-red-700 dark:text-red-300
+            {% else %}text-gray-700 dark:text-gray-300{% endif %}">
+            {{ claim.get_status_display }}
+        </span>
+    </div>
+
+    <!-- Claim details -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Claim Details</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm mb-4">
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold">Claim Type</p>
+                <p class="font-medium text-gray-900 dark:text-white mt-0.5">{{ claim.get_claim_type_display }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold">Event Date</p>
+                <p class="font-medium text-gray-900 dark:text-white mt-0.5">{{ claim.event_date|date:"d M Y" }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold">Claim Amount</p>
+                <p class="font-medium text-gray-900 dark:text-white mt-0.5">₦{{ claim.claim_amount|floatformat:2|intcomma }}</p>
+            </div>
+            {% if claim.payout_amount %}
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold">Payout Received</p>
+                <p class="font-medium text-green-600 mt-0.5">₦{{ claim.payout_amount|floatformat:2|intcomma }}</p>
+            </div>
+            {% endif %}
+            {% if claim.payout_journal %}
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold">Payout Journal</p>
+                <p class="font-medium text-gray-900 dark:text-white mt-0.5">{{ claim.payout_journal.journal_number }}</p>
+            </div>
+            {% endif %}
+        </div>
+        <div class="border-t border-gray-100 dark:border-gray-700 pt-4 space-y-3">
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold mb-1">Description</p>
+                <p class="text-sm text-gray-700 dark:text-gray-300">{{ claim.description }}</p>
+            </div>
+            {% if claim.document_references %}
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold mb-1">Supporting Documents</p>
+                <p class="text-sm text-gray-700 dark:text-gray-300">{{ claim.document_references }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Loan details -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Associated Loan</h2>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold">Loan Number</p>
+                <a href="{% url 'core:loan_detail' loan.id %}" class="font-medium text-primary-600 dark:text-primary-400 hover:underline mt-0.5 block">{{ loan.loan_number }}</a>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold">Client</p>
+                <p class="font-medium text-gray-900 dark:text-white mt-0.5">{{ loan.client.get_full_name }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold">Outstanding Balance</p>
+                <p class="font-medium text-red-600 mt-0.5">₦{{ loan.outstanding_balance|floatformat:2|intcomma }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-gray-400 uppercase font-semibold">Loan Status</p>
+                <p class="font-medium text-gray-900 dark:text-white mt-0.5">{{ loan.get_status_display }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit timeline -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Timeline</h2>
+        <div class="space-y-4">
+            <div class="flex items-start gap-3">
+                <div class="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <i class="fas fa-file-alt text-xs text-gray-500"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">Claim Filed</p>
+                    <p class="text-xs text-gray-400">{{ claim.created_at|date:"d M Y H:i" }} &middot; {{ claim.filed_by.get_full_name }}</p>
+                </div>
+            </div>
+            {% if claim.reviewed_at %}
+            <div class="flex items-start gap-3">
+                <div class="w-7 h-7 rounded-full {% if claim.status == 'rejected' %}bg-red-100 dark:bg-red-900/30{% else %}bg-blue-100 dark:bg-blue-900/30{% endif %} flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <i class="fas fa-gavel text-xs {% if claim.status == 'rejected' %}text-red-500{% else %}text-blue-500{% endif %}"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">
+                        {% if claim.status == 'rejected' %}Claim Rejected{% else %}Claim Approved{% endif %}
+                    </p>
+                    <p class="text-xs text-gray-400">{{ claim.reviewed_at|date:"d M Y H:i" }} &middot; {{ claim.reviewed_by.get_full_name }}</p>
+                    {% if claim.review_notes %}
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1 italic">"{{ claim.review_notes }}"</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% if claim.paid_at %}
+            <div class="flex items-start gap-3">
+                <div class="w-7 h-7 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <i class="fas fa-money-bill-wave text-xs text-green-500"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">Payout Recorded — ₦{{ claim.payout_amount|floatformat:2|intcomma }}</p>
+                    <p class="text-xs text-gray-400">{{ claim.paid_at|date:"d M Y H:i" }} &middot; {{ claim.paid_by.get_full_name }}</p>
+                    {% if claim.payout_journal %}
+                    <p class="text-xs text-gray-500 mt-0.5">Journal: {{ claim.payout_journal.journal_number }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,244 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+{% block title %}{{ page_title }} — Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+
+    <!-- ── Page Header ──────────────────────────────────────────────────── -->
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+                <a href="{% url 'core:client_detail' client.id %}" class="hover:text-primary-600 dark:hover:text-primary-400">
+                    {{ client.get_full_name }}
+                </a>
+                <span>/</span>
+                <span>Subsidiary Ledger</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Double-entry GL journal lines attributed to this client.
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="{% url 'core:client_statement' client.id %}?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}"
+               class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <i class="fas fa-file-alt text-xs"></i>Statement
+            </a>
+            <a href="{% url 'core:client_detail' client.id %}"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-user text-xs"></i>Client Profile
+            </a>
+        </div>
+    </div>
+
+    <!-- ── Client Info Card ─────────────────────────────────────────────── -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div class="h-12 w-12 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
+                <span class="text-lg font-bold text-primary-700 dark:text-primary-400">
+                    {{ client.get_full_name|slice:":1"|upper }}
+                </span>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="font-bold text-gray-900 dark:text-white truncate">{{ client.get_full_name }}</p>
+                <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                    <span>{{ client.client_id }}</span>
+                    <span>&bull;</span>
+                    <span>{{ client.branch.name }}</span>
+                </div>
+            </div>
+            <div class="text-sm text-gray-500 dark:text-gray-400 sm:text-right">
+                Period:
+                <span class="font-semibold text-gray-900 dark:text-white">{{ date_from|date:"d M Y" }}</span>
+                &ndash;
+                <span class="font-semibold text-gray-900 dark:text-white">{{ date_to|date:"d M Y" }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Filters ──────────────────────────────────────────────────────── -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6">
+        <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            <i class="fas fa-filter mr-2 text-gray-400"></i>Filter
+        </p>
+        <form method="get" class="flex flex-wrap gap-3 items-end">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Date From</label>
+                <input type="date" name="date_from" value="{{ date_from|date:'Y-m-d' }}"
+                       class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Date To</label>
+                <input type="date" name="date_to" value="{{ date_to|date:'Y-m-d' }}"
+                       class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">GL Account</label>
+                <select name="account"
+                        class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <option value="">All Accounts</option>
+                    {% for acct in gl_accounts %}
+                    <option value="{{ acct.account__gl_code }}"
+                        {% if acct.account__gl_code == account_filter %}selected{% endif %}>
+                        {{ acct.account__gl_code }} — {{ acct.account__account_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
+                <i class="fas fa-check text-xs"></i>Apply
+            </button>
+            <a href="?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}"
+               class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <i class="fas fa-times text-xs"></i>Clear
+            </a>
+        </form>
+    </div>
+
+    <!-- ── Account Summary Cards ────────────────────────────────────────── -->
+    {% if account_summary %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        {% for row in account_summary %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3 truncate">
+                <span class="font-mono text-primary-600 dark:text-primary-400">{{ row.account__gl_code }}</span>
+                &nbsp;—&nbsp;{{ row.account__account_name }}
+            </p>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-red-50 dark:bg-red-900/10 rounded-lg p-2.5">
+                    <p class="text-xs text-red-500 dark:text-red-400 font-medium mb-0.5">Debit</p>
+                    <p class="text-sm font-bold text-red-700 dark:text-red-300">
+                        ₦{{ row.total_debit|default:0|floatformat:2|intcomma }}
+                    </p>
+                </div>
+                <div class="bg-green-50 dark:bg-green-900/10 rounded-lg p-2.5">
+                    <p class="text-xs text-green-500 dark:text-green-400 font-medium mb-0.5">Credit</p>
+                    <p class="text-sm font-bold text-green-700 dark:text-green-300">
+                        ₦{{ row.total_credit|default:0|floatformat:2|intcomma }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- ── Totals Bar ───────────────────────────────────────────────────── -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                <i class="fas fa-list-ol text-gray-400"></i>
+                <span class="font-semibold text-gray-700 dark:text-gray-300">{{ page_obj.paginator.count }}</span>
+                line{{ page_obj.paginator.count|pluralize }} found
+            </p>
+            <div class="flex flex-wrap items-center gap-4 text-sm font-semibold">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
+                    <span class="text-gray-600 dark:text-gray-400">Total Debits:</span>
+                    <span class="text-red-600 dark:text-red-400">₦{{ totals.total_debit|default:0|floatformat:2|intcomma }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span>
+                    <span class="text-gray-600 dark:text-gray-400">Total Credits:</span>
+                    <span class="text-green-600 dark:text-green-400">₦{{ totals.total_credit|default:0|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Journal Lines Table ──────────────────────────────────────────── -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                <thead>
+                    <tr class="bg-gray-50 dark:bg-gray-700/60">
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide whitespace-nowrap">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide whitespace-nowrap">Journal Ref</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">GL Account</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide hidden md:table-cell">Description</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide hidden lg:table-cell whitespace-nowrap">Branch</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide whitespace-nowrap">Debit (₦)</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide whitespace-nowrap">Credit (₦)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    {% for line in page_obj %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
+                        <td class="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap text-xs font-medium">
+                            {{ line.journal_entry.transaction_date|date:"d M Y" }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <a href="{% url 'core:journal_entry_detail' line.journal_entry.id %}"
+                               class="font-mono text-xs text-primary-600 dark:text-primary-400 hover:underline">
+                                {{ line.journal_entry.reference_number|default:"—" }}
+                            </a>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span class="font-mono text-xs text-gray-500 dark:text-gray-400">{{ line.account.gl_code }}</span>
+                            <span class="text-gray-700 dark:text-gray-300 ml-1 hidden sm:inline">— {{ line.account.account_name }}</span>
+                        </td>
+                        <td class="px-4 py-3 text-gray-600 dark:text-gray-400 max-w-xs truncate hidden md:table-cell">
+                            {{ line.description|default:"—" }}
+                        </td>
+                        <td class="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap hidden lg:table-cell">
+                            {{ line.journal_entry.branch.name|default:"—" }}
+                        </td>
+                        <td class="px-4 py-3 text-right font-semibold whitespace-nowrap">
+                            {% if line.debit_amount %}
+                            <span class="text-red-600 dark:text-red-400">{{ line.debit_amount|floatformat:2|intcomma }}</span>
+                            {% else %}
+                            <span class="text-gray-300 dark:text-gray-600">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right font-semibold whitespace-nowrap">
+                            {% if line.credit_amount %}
+                            <span class="text-green-600 dark:text-green-400">{{ line.credit_amount|floatformat:2|intcomma }}</span>
+                            {% else %}
+                            <span class="text-gray-300 dark:text-gray-600">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-4 py-16 text-center">
+                            <div class="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mx-auto mb-3">
+                                <i class="fas fa-book-open text-xl text-gray-300 dark:text-gray-600"></i>
+                            </div>
+                            <p class="text-gray-500 dark:text-gray-400 font-medium">No journal lines found</p>
+                            <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Try adjusting the filters above.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── Pagination ───────────────────────────────────────────────────── -->
+    {% if page_obj.has_other_pages %}
+    <div class="flex items-center justify-between">
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+            Page <span class="font-semibold text-gray-700 dark:text-gray-300">{{ page_obj.number }}</span>
+            of <span class="font-semibold text-gray-700 dark:text-gray-300">{{ page_obj.paginator.num_pages }}</span>
+        </p>
+        <div class="flex items-center gap-1">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}&account={{ account_filter }}"
+               class="inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors">
+                <i class="fas fa-chevron-left text-xs"></i>Prev
+            </a>
+            {% endif %}
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}&account={{ account_filter }}"
+               class="inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors">
+                Next<i class="fas fa-chevron-right text-xs"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,258 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ branch.name }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header with Actions -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+                {{ branch.name }}
+            </h1>
+            <p class="text-gray-600 dark:text-gray-400">{{ branch.code }}</p>
+            <div class="flex items-center space-x-2 mt-2">
+                <span class="px-2 py-1 text-xs font-semibold rounded-full
+                             {% if branch.is_active %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                             {% else %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300{% endif %}">
+                    {% if branch.is_active %}Active{% else %}Inactive{% endif %}
+                </span>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap items-center gap-3">
+            {% if checker.can_manage_branches %}
+            <a href="{% url 'core:branch_update' branch.id %}"
+               class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                <i class="fas fa-edit mr-2"></i>Edit
+            </a>
+
+            {% if not branch.is_active %}
+            <a href="{% url 'core:branch_activate' branch.id %}"
+               class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">
+                <i class="fas fa-check mr-2"></i>Activate
+            </a>
+            {% endif %}
+
+            {% if branch.is_active %}
+            <a href="{% url 'core:branch_deactivate' branch.id %}"
+               class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg">
+                <i class="fas fa-ban mr-2"></i>Deactivate
+            </a>
+            {% endif %}
+
+            {% if checker.is_admin %}
+            <a href="{% url 'core:branch_delete' branch.id %}"
+               class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg">
+                <i class="fas fa-trash mr-2"></i>Delete
+            </a>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Staff Members</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ staff_count }}</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-users text-blue-600 dark:text-blue-400 text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Active Clients</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ client_count }}</p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-user-friends text-green-600 dark:text-green-400 text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Active Loans</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ active_loans_count }}</p>
+                </div>
+                <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-hand-holding-usd text-yellow-600 dark:text-yellow-400 text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Portfolio</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">₦{{ portfolio_summary.total_disbursed|floatformat:0|default:"0" }}</p>
+                </div>
+                <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-chart-line text-purple-600 dark:text-purple-400 text-xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Branch Information -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Information -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Contact Information Card -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Contact Information</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Phone</p>
+                        <p class="text-base font-medium text-gray-900 dark:text-white">{{ branch.phone }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Email</p>
+                        <p class="text-base font-medium text-gray-900 dark:text-white">{{ branch.email }}</p>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Address</p>
+                        <p class="text-base font-medium text-gray-900 dark:text-white">
+                            {{ branch.address }}<br>
+                            {% if branch.city %}{{ branch.city }}, {% endif %}{{ branch.state }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Portfolio Summary Card -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Portfolio Summary</h2>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Total Disbursed</p>
+                        <p class="text-xl font-bold text-gray-900 dark:text-white">₦{{ portfolio_summary.total_disbursed|floatformat:2|default:"0.00" }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Outstanding</p>
+                        <p class="text-xl font-bold text-gray-900 dark:text-white">₦{{ portfolio_summary.total_outstanding|floatformat:2|default:"0.00" }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Total Loans</p>
+                        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ portfolio_summary.loan_count|default:"0" }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Avg Loan Size</p>
+                        <p class="text-xl font-bold text-gray-900 dark:text-white">₦{{ portfolio_summary.avg_loan_size|floatformat:2|default:"0.00" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Clients -->
+            {% if recent_clients %}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Recent Clients</h2>
+
+                <div class="space-y-3">
+                    {% for client in recent_clients %}
+                    <div class="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold mr-3">
+                                {{ client.first_name.0 }}{{ client.last_name.0 }}
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ client.get_full_name }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ client.client_id }}</p>
+                            </div>
+                        </div>
+                        <a href="{% url 'core:client_detail' client.id %}"
+                           class="text-primary-600 dark:text-primary-400 text-sm hover:underline">
+                            View
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <a href="{% url 'core:client_list' %}?branch={{ branch.id }}"
+                       class="text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline">
+                        View All Clients →
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Manager Card -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Branch Manager</h2>
+
+                {% if branch.manager %}
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-12 h-12 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold">
+                        {{ branch.manager.first_name.0 }}{{ branch.manager.last_name.0 }}
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ branch.manager.get_full_name }}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ branch.manager.email }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-500 dark:text-gray-400">No manager assigned</p>
+                {% endif %}
+            </div>
+
+            <!-- Recent Staff -->
+            {% if recent_staff %}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Recent Staff</h2>
+
+                <div class="space-y-3">
+                    {% for staff in recent_staff %}
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-gray-700 dark:text-gray-300 text-sm font-semibold mr-3">
+                            {{ staff.first_name.0 }}{{ staff.last_name.0 }}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ staff.get_full_name }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ staff.get_user_role_display }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Metadata -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Information</h2>
+
+                <div class="space-y-3">
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Created</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ branch.created_at|date:"F d, Y" }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Last Updated</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ branch.updated_at|date:"F d, Y" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

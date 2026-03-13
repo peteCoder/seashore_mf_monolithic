@@ -1,0 +1,213 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}Savings Products - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div x-data="{ showFilters: false }">
+    <!-- Header with Create Button -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Savings Products</h1>
+            <p class="text-gray-600 dark:text-gray-400">{{ total_count }} total products</p>
+        </div>
+
+        <a href="{% url 'core:savings_product_create' %}"
+           class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors flex items-center space-x-2">
+            <i class="fas fa-plus"></i>
+            <span>Create New Product</span>
+        </a>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <form method="get" action="{% url 'core:savings_product_list' %}">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <!-- Search -->
+                <div>
+                    {{ search_form.search }}
+                </div>
+
+                <!-- Product Type Filter -->
+                <div>
+                    {{ search_form.product_type }}
+                </div>
+
+                <!-- Status Filter -->
+                <div>
+                    {{ search_form.status }}
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end space-x-2">
+                <a href="{% url 'core:savings_product_list' %}"
+                   class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    Clear
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Products Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+        {% if products %}
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Product
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Type
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Interest Rate
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Min Balance
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Accounts
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Status
+                    </th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Actions
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {% for product in products %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-piggy-bank text-primary-600 dark:text-primary-400"></i>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ product.name }}
+                                </div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400">
+                                    {{ product.code }}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs font-medium rounded-full
+                                     {% if product.product_type == 'regular' %}bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300
+                                     {% elif product.product_type == 'fixed' %}bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300
+                                     {% elif product.product_type == 'target' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
+                                     {% else %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300{% endif %}">
+                            {{ product.get_product_type_display }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {{ product.interest_rate_annual }}% p.a.
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        &#8358;{{ product.minimum_balance|floatformat:0|intcomma|default:"0" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        <span class="flex items-center">
+                            <i class="fas fa-users mr-2 text-gray-400"></i>
+                            {{ product.account_count }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if product.is_active %}
+                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                            <i class="fas fa-check-circle mr-1"></i>Active
+                        </span>
+                        {% else %}
+                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                            <i class="fas fa-times-circle mr-1"></i>Inactive
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex items-center justify-end space-x-2">
+                            <a href="{% url 'core:savings_product_detail' product.id %}"
+                               class="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300"
+                               title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{% url 'core:savings_product_update' product.id %}"
+                               class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                               title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% if product.is_active %}
+                            <a href="{% url 'core:savings_product_deactivate' product.id %}"
+                               class="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300"
+                               title="Deactivate">
+                                <i class="fas fa-pause-circle"></i>
+                            </a>
+                            {% else %}
+                            <a href="{% url 'core:savings_product_activate' product.id %}"
+                               class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                               title="Activate">
+                                <i class="fas fa-play-circle"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Pagination -->
+        {% if products.has_other_pages %}
+        <div class="bg-gray-50 dark:bg-gray-900 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
+            <div class="flex items-center justify-between">
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                    Page {{ products.number }} of {{ products.paginator.num_pages }}
+                </div>
+                <div class="flex space-x-2">
+                    {% if products.has_previous %}
+                    <a href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.product_type %}&product_type={{ request.GET.product_type }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}"
+                       class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        First
+                    </a>
+                    <a href="?page={{ products.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.product_type %}&product_type={{ request.GET.product_type }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}"
+                       class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        Previous
+                    </a>
+                    {% endif %}
+
+                    {% if products.has_next %}
+                    <a href="?page={{ products.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.product_type %}&product_type={{ request.GET.product_type }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}"
+                       class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        Next
+                    </a>
+                    <a href="?page={{ products.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.product_type %}&product_type={{ request.GET.product_type }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}"
+                       class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        Last
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-12">
+            <i class="fas fa-piggy-bank text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+            <p class="text-gray-500 dark:text-gray-400 mb-4">No savings products found</p>
+            <a href="{% url 'core:savings_product_create' %}"
+               class="inline-flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg">
+                <i class="fas fa-plus mr-2"></i>
+                Create First Product
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

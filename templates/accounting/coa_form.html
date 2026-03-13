@@ -1,0 +1,187 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+{% block content %}
+
+{% with INPUT_CLS="block w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 shadow-sm focus:border-amber-500 focus:ring-amber-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white" %}
+
+<div class="p-6 max-w-4xl mx-auto">
+
+    <!-- Breadcrumb -->
+    <nav class="mb-6 text-sm">
+        <ol class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+            <li><a href="{% url 'core:coa_list' %}" class="hover:text-amber-600 dark:hover:text-amber-400">Chart of Accounts</a></li>
+            <li><i class="fas fa-chevron-right text-xs"></i></li>
+            {% if account.id %}
+            <li><a href="{% url 'core:coa_detail' account_id=account.id %}" class="hover:text-amber-600 dark:hover:text-amber-400">{{ account.gl_code }}</a></li>
+            <li><i class="fas fa-chevron-right text-xs"></i></li>
+            <li class="text-gray-900 dark:text-white font-medium">Edit</li>
+            {% else %}
+            <li class="text-gray-900 dark:text-white font-medium">New Account</li>
+            {% endif %}
+        </ol>
+    </nav>
+
+    <h1 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">{{ page_title }}</h1>
+
+    {% if has_transactions %}
+    <div class="mb-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 flex items-start gap-3">
+        <i class="fas fa-lock text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0"></i>
+        <p class="text-sm text-yellow-800 dark:text-yellow-200">
+            This account has existing transactions. <strong>GL Code, Account Type, Category, and Branch</strong> are locked and cannot be changed.
+        </p>
+    </div>
+    {% endif %}
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- GL Code -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        GL Code <span class="text-red-500">*</span>
+                        {% if has_transactions %}<span class="ml-1 text-xs text-gray-400 dark:text-gray-500 font-normal">(locked)</span>{% endif %}
+                    </label>
+                    <input type="text" name="gl_code" value="{{ account.gl_code|default:'' }}"
+                           {% if has_transactions %}readonly{% endif %}
+                           required maxlength="20"
+                           class="{{ INPUT_CLS }} {% if has_transactions %}bg-gray-100 dark:bg-gray-600 cursor-not-allowed{% endif %}"
+                           placeholder="e.g. 1010">
+                </div>
+
+                <!-- Account Name -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Account Name <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="account_name" value="{{ account.account_name|default:'' }}" required
+                           class="{{ INPUT_CLS }}"
+                           placeholder="e.g. Cash In Hand">
+                </div>
+
+                <!-- Account Type -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Account Type <span class="text-red-500">*</span>
+                        {% if has_transactions %}<span class="ml-1 text-xs text-gray-400 dark:text-gray-500 font-normal">(locked)</span>{% endif %}
+                    </label>
+                    <select name="account_type" required
+                            {% if has_transactions %}disabled{% endif %}
+                            class="{{ INPUT_CLS }} {% if has_transactions %}bg-gray-100 dark:bg-gray-600 cursor-not-allowed{% endif %}">
+                        {% for type in account_types %}
+                        <option value="{{ type.id }}" {% if account.account_type_id == type.id %}selected{% endif %}>
+                            {{ type.get_name_display }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if has_transactions %}
+                    <input type="hidden" name="account_type" value="{{ account.account_type_id }}">
+                    {% endif %}
+                </div>
+
+                <!-- Account Category -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Category <span class="text-xs font-normal text-gray-400 dark:text-gray-500">(optional)</span>
+                        {% if has_transactions %}<span class="ml-1 text-xs text-gray-400 dark:text-gray-500 font-normal">(locked)</span>{% endif %}
+                    </label>
+                    <select name="account_category"
+                            {% if has_transactions %}disabled{% endif %}
+                            class="{{ INPUT_CLS }} {% if has_transactions %}bg-gray-100 dark:bg-gray-600 cursor-not-allowed{% endif %}">
+                        <option value="">— No category —</option>
+                        {% for cat in account_categories %}
+                        <option value="{{ cat.id }}" {% if account.account_category_id == cat.id %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Parent Account -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Parent Account <span class="text-xs font-normal text-gray-400 dark:text-gray-500">(optional)</span>
+                    </label>
+                    <select name="parent_account" class="{{ INPUT_CLS }}">
+                        <option value="">— None (top-level) —</option>
+                        {% for parent in parent_accounts %}
+                        <option value="{{ parent.id }}" {% if account.parent_account_id == parent.id %}selected{% endif %}>
+                            {{ parent.gl_code }} — {{ parent.account_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Branch -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Branch <span class="text-xs font-normal text-gray-400 dark:text-gray-500">(optional)</span>
+                        {% if has_transactions %}<span class="ml-1 text-xs text-gray-400 dark:text-gray-500 font-normal">(locked)</span>{% endif %}
+                    </label>
+                    <select name="branch"
+                            {% if has_transactions %}disabled{% endif %}
+                            class="{{ INPUT_CLS }} {% if has_transactions %}bg-gray-100 dark:bg-gray-600 cursor-not-allowed{% endif %}">
+                        <option value="">System-wide (all branches)</option>
+                        {% for branch in branches %}
+                        <option value="{{ branch.id }}" {% if account.branch_id == branch.id %}selected{% endif %}>
+                            {{ branch.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Description -->
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Description <span class="text-xs font-normal text-gray-400 dark:text-gray-500">(optional)</span>
+                    </label>
+                    <textarea name="description" rows="3"
+                              class="{{ INPUT_CLS }}"
+                              placeholder="Brief description of what this account is used for">{{ account.description|default:'' }}</textarea>
+                </div>
+
+                <!-- Checkboxes -->
+                <div class="flex items-start gap-3">
+                    <input type="checkbox" name="is_control_account" id="is_control_account"
+                           {% if account.is_control_account %}checked{% endif %}
+                           class="mt-0.5 h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700">
+                    <div>
+                        <label for="is_control_account" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                            Control Account
+                        </label>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Groups sub-accounts; cannot be posted to directly</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start gap-3">
+                    <input type="checkbox" name="allows_manual_entries" id="allows_manual_entries"
+                           {% if account.allows_manual_entries or not account.id %}checked{% endif %}
+                           class="mt-0.5 h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-700">
+                    <div>
+                        <label for="allows_manual_entries" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                            Allow Manual Entries
+                        </label>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Can be selected in the journal entry form</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="flex flex-wrap justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <a href="{% if account.id %}{% url 'core:coa_detail' account_id=account.id %}{% else %}{% url 'core:coa_list' %}{% endif %}"
+                   class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-sm font-semibold transition-colors flex items-center gap-2">
+                    <i class="fas fa-save"></i> Save Account
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endwith %}
+{% endblock %}

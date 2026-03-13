@@ -1,0 +1,285 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+{% block title %}Account Statement — {{ client.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+
+    <!-- ── Page Header ──────────────────────────────────────────────────── -->
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+                <a href="{% url 'core:client_detail' client.id %}" class="hover:text-primary-600 dark:hover:text-primary-400">
+                    {{ client.get_full_name }}
+                </a>
+                <span>/</span>
+                <span>Account Statement</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Account Statement</h1>
+        </div>
+        <div class="flex gap-2 print:hidden">
+            <a href="{% url 'core:client_detail' client.id %}"
+               class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <i class="fas fa-arrow-left text-xs"></i>Back
+            </a>
+            <a href="{% url 'core:subsidiary_ledger' client.id %}?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}"
+               class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <i class="fas fa-book text-xs"></i>GL Ledger
+            </a>
+            <button onclick="window.print()"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-print text-xs"></i>Print
+            </button>
+        </div>
+    </div>
+
+    <!-- ── Print Header (screen-hidden) ────────────────────────────────── -->
+    <div class="hidden print:block mb-8 border-b-2 border-gray-800 pb-5">
+        <div class="flex items-start justify-between">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900">Seashore Microfinance</h2>
+                <p class="text-sm text-gray-500 mt-0.5">Client Account Statement</p>
+            </div>
+            <div class="text-right text-xs text-gray-500">
+                Generated: {{ today|date:"d M Y" }}<br>
+                Period: {{ date_from|date:"d M Y" }} — {{ date_to|date:"d M Y" }}
+            </div>
+        </div>
+        <div class="mt-4 grid grid-cols-3 gap-4 text-sm">
+            <div><span class="text-gray-500">Client:</span> <strong>{{ client.get_full_name }}</strong></div>
+            <div><span class="text-gray-500">Client No.:</span> <strong>{{ client.client_id }}</strong></div>
+            <div><span class="text-gray-500">Branch:</span> <strong>{{ client.branch.name|default:"—" }}</strong></div>
+        </div>
+    </div>
+
+    <!-- ── Client Info Card ─────────────────────────────────────────────── -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6 print:hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+            <!-- Avatar -->
+            <div class="h-14 w-14 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
+                <span class="text-xl font-bold text-primary-700 dark:text-primary-400">
+                    {{ client.get_full_name|slice:":1"|upper }}
+                </span>
+            </div>
+            <!-- Info -->
+            <div class="flex-1 min-w-0">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white truncate">{{ client.get_full_name }}</h2>
+                <div class="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    <span><i class="fas fa-id-card mr-1 text-gray-400 dark:text-gray-500"></i>{{ client.client_id }}</span>
+                    <span><i class="fas fa-building mr-1 text-gray-400 dark:text-gray-500"></i>{{ client.branch.name|default:"—" }}</span>
+                    {% if client.phone %}<span><i class="fas fa-phone mr-1 text-gray-400 dark:text-gray-500"></i>{{ client.phone }}</span>{% endif %}
+                </div>
+            </div>
+            <!-- Period -->
+            <div class="sm:text-right bg-gray-50 dark:bg-gray-700/50 rounded-lg px-4 py-2 flex-shrink-0">
+                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">Period</p>
+                <p class="text-sm font-bold text-gray-900 dark:text-white">{{ date_from|date:"d M Y" }}</p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1 justify-end">
+                    <i class="fas fa-arrow-down text-xs"></i>
+                </p>
+                <p class="text-sm font-bold text-gray-900 dark:text-white">{{ date_to|date:"d M Y" }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Date Filter ──────────────────────────────────────────────────── -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 mb-6 print:hidden">
+        <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            <i class="fas fa-filter mr-2 text-gray-400"></i>Filter Period
+        </p>
+        <form method="get" class="flex flex-wrap gap-3 items-end">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">From</label>
+                <input type="date" name="date_from" value="{{ date_from|date:'Y-m-d' }}"
+                       class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">To</label>
+                <input type="date" name="date_to" value="{{ date_to|date:'Y-m-d' }}"
+                       class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+            </div>
+            <button type="submit"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-filter text-xs"></i>Apply
+            </button>
+        </form>
+    </div>
+
+    <!-- ── Summary Cards ────────────────────────────────────────────────── -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- Total Inflows -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 border-l-4 border-l-green-500">
+            <div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Inflows</p>
+                <span class="w-7 h-7 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                    <i class="fas fa-arrow-down text-xs text-green-600 dark:text-green-400"></i>
+                </span>
+            </div>
+            <p class="text-xl font-bold text-gray-900 dark:text-white">₦{{ total_in|floatformat:2|intcomma }}</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Repayments · Deposits · Fees</p>
+        </div>
+
+        <!-- Total Outflows -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 border-l-4 border-l-red-500">
+            <div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Outflows</p>
+                <span class="w-7 h-7 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                    <i class="fas fa-arrow-up text-xs text-red-600 dark:text-red-400"></i>
+                </span>
+            </div>
+            <p class="text-xl font-bold text-gray-900 dark:text-white">₦{{ total_out|floatformat:2|intcomma }}</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Disbursements · Withdrawals</p>
+        </div>
+
+        <!-- Net Position -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 border-l-4 {% if net_position >= 0 %}border-l-blue-500{% else %}border-l-orange-500{% endif %}">
+            <div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Net</p>
+                <span class="w-7 h-7 rounded-full {% if net_position >= 0 %}bg-blue-100 dark:bg-blue-900/30{% else %}bg-orange-100 dark:bg-orange-900/30{% endif %} flex items-center justify-center">
+                    <i class="fas fa-balance-scale text-xs {% if net_position >= 0 %}text-blue-600 dark:text-blue-400{% else %}text-orange-600 dark:text-orange-400{% endif %}"></i>
+                </span>
+            </div>
+            <p class="text-xl font-bold {% if net_position >= 0 %}text-blue-700 dark:text-blue-400{% else %}text-orange-700 dark:text-orange-400{% endif %}">
+                {% if net_position >= 0 %}+{% endif %}₦{{ net_position|floatformat:2|intcomma }}
+            </p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Net position for period</p>
+        </div>
+
+        <!-- Transaction Count -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 border-l-4 border-l-purple-500">
+            <div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Transactions</p>
+                <span class="w-7 h-7 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                    <i class="fas fa-list text-xs text-purple-600 dark:text-purple-400"></i>
+                </span>
+            </div>
+            <p class="text-xl font-bold text-gray-900 dark:text-white">{{ transaction_count }}</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">{{ date_from|date:"d M Y" }} — {{ date_to|date:"d M Y" }}</p>
+        </div>
+    </div>
+
+    <!-- ── Transaction Table ────────────────────────────────────────────── -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                <i class="fas fa-history text-gray-400"></i>Transaction History
+            </h3>
+            <span class="text-xs text-gray-400 dark:text-gray-500">{{ transaction_count }} record{{ transaction_count|pluralize }}</span>
+        </div>
+
+        {% if transactions %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 dark:bg-gray-700/60">
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide whitespace-nowrap">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide whitespace-nowrap">Reference</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Type</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide hidden md:table-cell">Description</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide whitespace-nowrap">Debit (Out)</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide whitespace-nowrap">Credit (In)</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide hidden lg:table-cell whitespace-nowrap">Processed By</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    {% for txn in transactions %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
+                        <!-- Date -->
+                        <td class="px-4 py-3 text-gray-600 dark:text-gray-300 whitespace-nowrap text-xs font-medium">
+                            {{ txn.transaction_date|date:"d M Y" }}
+                        </td>
+                        <!-- Reference -->
+                        <td class="px-4 py-3 font-mono text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                            {{ txn.transaction_ref|default:"—" }}
+                        </td>
+                        <!-- Type Badge -->
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold
+                                {% if txn.transaction_type == 'loan_disbursement' %}bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300
+                                {% elif txn.transaction_type == 'loan_repayment' %}bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300
+                                {% elif txn.transaction_type == 'deposit' %}bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300
+                                {% elif txn.transaction_type == 'withdrawal' %}bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300
+                                {% elif txn.transaction_type == 'interest_credit' %}bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300
+                                {% elif txn.transaction_type == 'interest_applied' %}bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300
+                                {% elif txn.transaction_type == 'charges_at_disbursement' or txn.transaction_type == 'fee' %}bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300
+                                {% elif txn.transaction_type == 'reversal' %}bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300
+                                {% else %}bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300{% endif %}">
+                                {{ txn.get_transaction_type_display }}
+                            </span>
+                        </td>
+                        <!-- Description (hidden on mobile) -->
+                        <td class="px-4 py-3 text-gray-600 dark:text-gray-400 max-w-xs truncate hidden md:table-cell">
+                            {{ txn.description|default:"—" }}
+                        </td>
+                        <!-- Debit (Out) -->
+                        <td class="px-4 py-3 text-right font-semibold whitespace-nowrap">
+                            {% if txn.transaction_type == 'loan_disbursement' or txn.transaction_type == 'withdrawal' %}
+                            <span class="text-red-600 dark:text-red-400">₦{{ txn.amount|floatformat:2|intcomma }}</span>
+                            {% else %}
+                            <span class="text-gray-300 dark:text-gray-600">—</span>
+                            {% endif %}
+                        </td>
+                        <!-- Credit (In) -->
+                        <td class="px-4 py-3 text-right font-semibold whitespace-nowrap">
+                            {% if txn.transaction_type != 'loan_disbursement' and txn.transaction_type != 'withdrawal' %}
+                            <span class="text-green-600 dark:text-green-400">₦{{ txn.amount|floatformat:2|intcomma }}</span>
+                            {% else %}
+                            <span class="text-gray-300 dark:text-gray-600">—</span>
+                            {% endif %}
+                        </td>
+                        <!-- Processed By (hidden on small screens) -->
+                        <td class="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs hidden lg:table-cell whitespace-nowrap">
+                            {{ txn.processed_by.get_full_name|default:"—" }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <!-- Footer totals row -->
+                <tfoot>
+                    <tr class="bg-gray-50 dark:bg-gray-700/60 border-t-2 border-gray-300 dark:border-gray-600">
+                        <td colspan="4" class="px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 text-right hidden md:table-cell">
+                            Totals
+                        </td>
+                        <td colspan="2" class="px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-200 text-right md:hidden">
+                            Totals
+                        </td>
+                        <td class="px-4 py-3 text-right font-bold text-red-600 dark:text-red-400 whitespace-nowrap">
+                            ₦{{ total_out|floatformat:2|intcomma }}
+                        </td>
+                        <td class="px-4 py-3 text-right font-bold text-green-600 dark:text-green-400 whitespace-nowrap">
+                            ₦{{ total_in|floatformat:2|intcomma }}
+                        </td>
+                        <td class="hidden lg:table-cell"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="py-16 text-center">
+            <div class="w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-file-alt text-2xl text-gray-300 dark:text-gray-600"></i>
+            </div>
+            <p class="text-gray-500 dark:text-gray-400 font-medium">No transactions found</p>
+            <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">Try adjusting the date range above.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ── Print Footer ─────────────────────────────────────────────────── -->
+    <div class="hidden print:block mt-10 pt-4 border-t border-gray-300 text-center text-xs text-gray-400">
+        Seashore Microfinance &middot; Statement generated {{ today|date:"d M Y" }} &middot; Confidential
+    </div>
+
+</div>
+
+<style>
+@media print {
+    aside, nav, .print\:hidden { display: none !important; }
+    .main-wrapper { margin-left: 0 !important; }
+    body { background: white !important; color: black !important; }
+    .dark\:bg-gray-800 { background: white !important; }
+    table { font-size: 11px; }
+    th, td { padding: 6px 8px !important; }
+}
+</style>
+{% endblock %}

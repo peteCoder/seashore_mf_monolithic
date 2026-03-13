@@ -1,0 +1,275 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}Loans - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div x-data="{ showFilters: false }">
+    <!-- Header with Create Button -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Loans</h1>
+            <p class="text-gray-600 dark:text-gray-400">{{ summary.total_count }} total loans</p>
+        </div>
+
+        {% if checker.can_create_loan %}
+        <a href="{% url 'core:loan_create' %}"
+           class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium text-sm transition-colors flex items-center space-x-2 self-start sm:self-auto">
+            <i class="fas fa-plus"></i>
+            <span>Create New Loan</span>
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Total Loans</p>
+                    <p class="text-xl font-bold text-gray-900 dark:text-white">{{ summary.total_count }}</p>
+                </div>
+                <div class="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                    <i class="fas fa-file-invoice-dollar text-blue-600 dark:text-blue-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Total Disbursed</p>
+                    <p class="text-xl font-bold text-gray-900 dark:text-white">₦{{ summary.total_disbursed|floatformat:0|intcomma }}</p>
+                </div>
+                <div class="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                    <i class="fas fa-money-bill-wave text-green-600 dark:text-green-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Total Outstanding</p>
+                    <p class="text-xl font-bold text-gray-900 dark:text-white">₦{{ summary.total_outstanding|floatformat:0|intcomma }}</p>
+                </div>
+                <div class="h-12 w-12 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
+                    <i class="fas fa-hourglass-half text-yellow-600 dark:text-yellow-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Active Loans</p>
+                    <p class="text-xl font-bold text-gray-900 dark:text-white">{{ summary.active_count }}</p>
+                </div>
+                <div class="h-12 w-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+                    <i class="fas fa-check-circle text-purple-600 dark:text-purple-400"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <form method="get" action="{% url 'core:loan_list' %}">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <!-- Search -->
+                <div>
+                    {{ search_form.search }}
+                </div>
+
+                <!-- Status Filter -->
+                <div>
+                    {{ search_form.status }}
+                </div>
+
+                <!-- Branch Filter -->
+                {% if checker.is_admin_or_director %}
+                <div>
+                    {{ search_form.branch }}
+                </div>
+                {% endif %}
+
+                <!-- Loan Product Filter -->
+                <div>
+                    {{ search_form.loan_product }}
+                </div>
+            </div>
+
+            <!-- Advanced Filters Toggle -->
+            <div x-show="showFilters" x-cloak class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    {{ search_form.date_from }}
+                </div>
+                <div>
+                    {{ search_form.date_to }}
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <button type="button" @click="showFilters = !showFilters"
+                        class="text-primary-600 dark:text-primary-400 text-sm font-medium self-start">
+                    <span x-text="showFilters ? 'Hide Filters' : 'Show More Filters'"></span>
+                </button>
+
+                <div class="flex gap-2">
+                    <a href="{% url 'core:loan_list' %}"
+                       class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm">
+                        Clear
+                    </a>
+                    <button type="submit"
+                            class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm">
+                        Apply Filters
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Loans Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Loan Details
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Client
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Product
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Principal
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Outstanding
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Progress
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Status
+                    </th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Actions
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {% for loan in loans %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">
+                            {{ loan.loan_number }}
+                        </div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">
+                            {{ loan.created_at|date:"M d, Y" }}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">
+                            {{ loan.client.get_full_name }}
+                        </div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">
+                            {{ loan.client.client_id }}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        {{ loan.loan_product.name }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        ₦{{ loan.principal_amount|floatformat:2|intcomma }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        ₦{{ loan.outstanding_balance|floatformat:2|intcomma }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center space-x-2">
+                            <div class="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                {% if loan.total_repayment > 0 %}
+                                    {% widthratio loan.amount_paid loan.total_repayment 100 as progress_percent %}
+                                {% else %}
+                                    {% with progress_percent=0 %}{% endwith %}
+                                {% endif %}
+                                <div class="h-full bg-primary-600 dark:bg-primary-500 rounded-full" style="width: {% if loan.total_repayment > 0 %}{{ progress_percent }}{% else %}0{% endif %}%"></div>
+                            </div>
+                            <span class="text-xs text-gray-600 dark:text-gray-400">{% if loan.total_repayment > 0 %}{{ progress_percent }}{% else %}0{% endif %}%</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                     {% if loan.status == 'pending_fees' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300
+                                     {% elif loan.status == 'pending_approval' %}bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300
+                                     {% elif loan.status == 'approved' %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                                     {% elif loan.status == 'active' %}bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300
+                                     {% elif loan.status == 'completed' %}bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300
+                                     {% elif loan.status == 'overdue' %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300
+                                     {% elif loan.status == 'rejected' %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300
+                                     {% else %}bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300{% endif %}">
+                            {{ loan.get_status_display }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <a href="{% url 'core:loan_detail' loan.id %}"
+                           class="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300">
+                            View
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-file-invoice-dollar text-4xl mb-2"></i>
+                        <p>No loans found</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Pagination -->
+        {% if loans.has_other_pages %}
+        <div class="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6">
+            <div class="flex-1 flex justify-between sm:hidden">
+                {% if loans.has_previous %}
+                <a href="?page={{ loans.previous_page_number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    Previous
+                </a>
+                {% endif %}
+                {% if loans.has_next %}
+                <a href="?page={{ loans.next_page_number }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    Next
+                </a>
+                {% endif %}
+            </div>
+            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700 dark:text-gray-300">
+                        Showing page <span class="font-medium">{{ loans.number }}</span> of <span class="font-medium">{{ loans.paginator.num_pages }}</span>
+                    </p>
+                </div>
+                <div>
+                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        {% if loans.has_previous %}
+                        <a href="?page={{ loans.previous_page_number }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                        {% endif %}
+                        {% if loans.has_next %}
+                        <a href="?page={{ loans.next_page_number }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                        {% endif %}
+                    </nav>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

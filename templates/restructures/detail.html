@@ -1,0 +1,161 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+                <a href="{% url 'core:restructure_list' %}" class="hover:text-primary-600">Restructure Requests</a>
+                <span>/</span>
+                <span>Detail</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        </div>
+        {% if req.status == 'pending' and checker.is_manager or checker.is_admin_or_director %}
+        <a href="{% url 'core:restructure_approve' req.id %}"
+           class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+            <i class="fas fa-gavel mr-2"></i>Review
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Status Badge -->
+    <div class="flex items-center space-x-3">
+        {% if req.status == 'approved' %}
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+            <i class="fas fa-check-circle mr-1.5"></i>Approved
+        </span>
+        {% elif req.status == 'rejected' %}
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+            <i class="fas fa-times-circle mr-1.5"></i>Rejected
+        </span>
+        {% else %}
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+            <i class="fas fa-clock mr-1.5"></i>Pending Review
+        </span>
+        {% endif %}
+        <span class="text-sm text-gray-500 dark:text-gray-400">Submitted {{ req.created_at|date:"d M Y" }}</span>
+    </div>
+
+    <!-- Request Details -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Request Info -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+                <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Request Information</h2>
+            </div>
+            <div class="p-6 space-y-4 text-sm">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Type</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ req.get_restructure_type_display }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Requested By</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ req.requested_by.get_full_name }}</p>
+                    </div>
+                    {% if req.proposed_duration %}
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Proposed Duration</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ req.proposed_duration }} months</p>
+                    </div>
+                    {% endif %}
+                    {% if req.proposed_installment %}
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Proposed Installment</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">₦{{ req.proposed_installment|floatformat:2|intcomma }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                <div>
+                    <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Reason</span>
+                    <p class="text-gray-700 dark:text-gray-300 mt-1">{{ req.reason }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Loan Terms -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+                <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Loan — {{ loan.loan_number }}</h2>
+            </div>
+            <div class="p-6 space-y-3 text-sm">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Client</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ loan.client.get_full_name }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Status</span>
+                        <p class="font-semibold mt-0.5
+                            {% if loan.status == 'overdue' %}text-red-600
+                            {% elif loan.status == 'active' %}text-green-600
+                            {% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                            {{ loan.get_status_display }}
+                        </p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Outstanding</span>
+                        <p class="font-bold text-gray-900 dark:text-white mt-0.5">₦{{ loan.outstanding_balance|floatformat:2|intcomma }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Installment</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">₦{{ loan.installment_amount|floatformat:2|intcomma }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Duration</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ loan.duration_months }} months</p>
+                    </div>
+                    {% if loan.next_repayment_date %}
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Next Payment</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ loan.next_repayment_date|date:"d M Y" }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                <a href="{% url 'core:loan_detail' loan.id %}" class="text-xs text-primary-600 hover:text-primary-700">
+                    View loan details <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Info (if already reviewed) -->
+    {% if req.reviewed_by %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+            <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Review Decision</h2>
+        </div>
+        <div class="p-6 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Reviewed By</span>
+                <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ req.reviewed_by.get_full_name }}</p>
+            </div>
+            <div>
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Reviewed At</span>
+                <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ req.reviewed_at|date:"d M Y H:i" }}</p>
+            </div>
+            {% if req.review_notes %}
+            <div class="col-span-2 sm:col-span-3">
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Review Notes</span>
+                <p class="text-gray-700 dark:text-gray-300 mt-1">{{ req.review_notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Back Link -->
+    <div>
+        <a href="{% url 'core:restructure_list' %}" class="text-sm text-gray-500 hover:text-primary-600">
+            <i class="fas fa-arrow-left mr-1"></i>Back to Restructure Requests
+        </a>
+    </div>
+</div>
+{% endblock %}

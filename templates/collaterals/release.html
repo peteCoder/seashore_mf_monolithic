@@ -1,0 +1,40 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="{% url 'core:loan_collaterals' loan.id %}" class="hover:text-primary-600">Collaterals</a>
+            <span>/</span><span>Release</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+    </div>
+
+    <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+        <div class="flex items-start space-x-3">
+            <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
+            <p class="text-sm text-amber-800 dark:text-amber-300">
+                You are about to release <strong>{{ collateral.get_collateral_type_display }}</strong>
+                (₦{{ collateral.value|floatformat:2|intcomma }}) back to the owner.
+                This action marks the collateral as released and cannot be undone.
+            </p>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <form method="post" class="space-y-5">
+            {% csrf_token %}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Release Notes</label>
+                {{ form.notes }}
+            </div>
+            <div class="flex items-center space-x-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <button type="submit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">Confirm Release</button>
+                <a href="{% url 'core:loan_collaterals' loan.id %}" class="px-6 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

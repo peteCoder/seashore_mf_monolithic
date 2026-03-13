@@ -1,0 +1,188 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:loan_list' %}" class="hover:text-primary-600">Loans</a>
+            <span>/</span>
+            <a href="{% url 'core:loan_detail' loan.id %}" class="hover:text-primary-600">{{ loan.loan_number }}</a>
+            <span>/</span>
+            <span>Disburse Loan</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Complete loan disbursement details</p>
+    </div>
+
+    <!-- Loan Summary Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Loan Details</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Loan ID</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white font-mono">{{ loan.loan_number }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Client</p>
+                <a href="{% url 'core:client_detail' loan.client.id %}"
+                   class="text-base font-medium text-primary-600 dark:text-primary-400 hover:underline">
+                    {{ loan.client.get_full_name }}
+                </a>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Loan Product</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.loan_product.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.branch.name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Disbursement Amount Card -->
+    <div class="bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 rounded-lg shadow-sm p-6 mb-6 border border-primary-200 dark:border-primary-800">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-primary-700 dark:text-primary-400 mb-1">Disbursement Amount</p>
+                <p class="text-4xl font-bold text-primary-900 dark:text-primary-300">₦{{ loan.principal_amount|floatformat:2|intcomma }}</p>
+                <p class="text-sm text-primary-600 dark:text-primary-500 mt-2">
+                    Total Repayment: ₦{{ loan.total_repayment|floatformat:2|intcomma }} over {{ loan.duration_months }} months
+                </p>
+            </div>
+            <div class="h-20 w-20 bg-primary-200 dark:bg-primary-800 rounded-full flex items-center justify-center">
+                <i class="fas fa-hand-holding-usd text-4xl text-primary-600 dark:text-primary-400"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval Status -->
+    <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-check-circle text-green-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-green-800 dark:text-green-300 mb-1">Loan Approved</h3>
+                <div class="text-sm text-green-700 dark:text-green-300">
+                    <p>Approved by: {{ loan.approved_by.get_full_name }}</p>
+                    <p class="text-xs mt-1">{{ loan.approved_at|date:"F d, Y g:i A" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Disbursement Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6">Disbursement Details</h2>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- Disbursement Method -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.disbursement_method.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.disbursement_method }}
+                {% if form.disbursement_method.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.disbursement_method.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Select how the loan will be disbursed</p>
+            </div>
+
+            <!-- Bank Name (for bank transfer) -->
+            <div class="mb-6" x-data="{ method: '' }" x-init="method = document.querySelector('[name=disbursement_method]')?.value">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.bank_name.label }}
+                </label>
+                {{ form.bank_name }}
+                {% if form.bank_name.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.bank_name.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Required for bank transfer</p>
+            </div>
+
+            <!-- Account Number (for bank transfer) -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Bank Account Number
+                </label>
+                {{ form.bank_account_number }}
+                {% if form.bank_account_number.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.bank_account_number.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Required for bank transfer</p>
+            </div>
+
+            <!-- Account Name (for bank transfer) -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Bank Account Name
+                </label>
+                {{ form.bank_account_name }}
+                {% if form.bank_account_name.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.bank_account_name.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Required for bank transfer</p>
+            </div>
+
+            <!-- Disbursement Reference -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.disbursement_reference.label }}
+                </label>
+                {{ form.disbursement_reference }}
+                {% if form.disbursement_reference.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.disbursement_reference.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Optional: Transaction reference or receipt number</p>
+            </div>
+
+            <!-- Disbursement Notes -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.disbursement_notes.label }}
+                </label>
+                {{ form.disbursement_notes }}
+                {% if form.disbursement_notes.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.disbursement_notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Confirmation Notice -->
+            <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">Confirmation Required</h3>
+                        <p class="text-sm text-yellow-700 dark:text-yellow-300">
+                            By confirming this disbursement, you certify that ₦{{ loan.principal_amount|floatformat:2|intcomma }} will be or has been disbursed to the client.
+                            The loan status will change to "Active" and repayments will be expected according to the schedule.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3 pt-4">
+                <a href="{% url 'core:loan_detail' loan.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-hand-holding-usd mr-2"></i>Confirm Disbursement
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

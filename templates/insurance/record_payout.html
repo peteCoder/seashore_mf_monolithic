@@ -1,0 +1,72 @@
+{% extends "layouts/base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="max-w-2xl space-y-6">
+
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="{% url 'core:insurance_claim_list' %}" class="hover:text-gray-700 dark:hover:text-gray-200">Insurance Claims</a>
+            <span>/</span>
+            <a href="{% url 'core:insurance_claim_detail' claim.id %}" class="hover:text-gray-700 dark:hover:text-gray-200">{{ claim.claim_ref }}</a>
+            <span>/</span><span>Record Payout</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+    </div>
+
+    <!-- Journal preview -->
+    <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-5">
+        <div class="flex items-center gap-2 mb-3">
+            <i class="fas fa-info-circle text-amber-600"></i>
+            <p class="text-sm font-semibold text-amber-700 dark:text-amber-300">Journal Entry Will Be Posted</p>
+        </div>
+        <table class="w-full text-xs text-amber-800 dark:text-amber-200">
+            <thead><tr><th class="text-left py-1 font-semibold">Account</th><th class="text-right py-1 font-semibold">Debit</th><th class="text-right py-1 font-semibold">Credit</th></tr></thead>
+            <tbody class="divide-y divide-amber-200 dark:divide-amber-700">
+                <tr><td class="py-1.5">Dr 1010 — Cash In Hand</td><td class="text-right py-1.5">Payout Amount</td><td class="text-right py-1.5">—</td></tr>
+                <tr><td class="py-1.5">Cr 1810 — Loan Receivable (Principal)</td><td class="text-right py-1.5">—</td><td class="text-right py-1.5">Outstanding Balance</td></tr>
+                <tr><td class="py-1.5 text-amber-600 dark:text-amber-400">Cr 1820 — Interest Receivable (if any)</td><td class="text-right py-1.5">—</td><td class="text-right py-1.5">Accrued Interest</td></tr>
+            </tbody>
+        </table>
+        <p class="text-xs text-amber-600 dark:text-amber-400 mt-3">If the payout fully clears the outstanding balance, the loan will be marked as <strong>Completed</strong>.</p>
+    </div>
+
+    <!-- Loan balances -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+        <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Current Loan Balances</h2>
+        <div class="grid grid-cols-2 gap-4 text-sm">
+            <div><p class="text-xs text-gray-400 uppercase font-semibold">Outstanding Principal</p><p class="font-semibold text-red-600 mt-0.5">₦{{ loan.outstanding_balance|floatformat:2|intcomma }}</p></div>
+            <div><p class="text-xs text-gray-400 uppercase font-semibold">Accrued Interest</p><p class="font-semibold text-red-600 mt-0.5">₦{{ loan.accrued_interest_balance|floatformat:2|intcomma }}</p></div>
+            <div><p class="text-xs text-gray-400 uppercase font-semibold">Claim Amount</p><p class="font-semibold text-gray-900 dark:text-white mt-0.5">₦{{ claim.claim_amount|floatformat:2|intcomma }}</p></div>
+            <div><p class="text-xs text-gray-400 uppercase font-semibold">Loan Number</p><p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ loan.loan_number }}</p></div>
+        </div>
+    </div>
+
+    <!-- Payout form -->
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+            <div class="px-6 py-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.payout_amount.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.payout_amount }}
+                {% if form.payout_amount.errors %}<p class="mt-1 text-xs text-red-600">{{ form.payout_amount.errors.0 }}</p>{% endif %}
+            </div>
+            <div class="px-6 py-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ form.payout_notes.label }}</label>
+                {{ form.payout_notes }}
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-4">
+            <a href="{% url 'core:insurance_claim_detail' claim.id %}" class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                <i class="fas fa-arrow-left mr-1"></i>Cancel
+            </a>
+            <button type="submit" class="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg">
+                <i class="fas fa-money-bill-wave mr-2"></i>Record Payout & Post Journal
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

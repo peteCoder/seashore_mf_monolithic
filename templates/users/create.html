@@ -1,0 +1,188 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:user_list' %}" class="hover:text-primary-600">Staff</a>
+            <span>/</span>
+            <span>Create</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Create a new staff account with login credentials</p>
+    </div>
+
+    <!-- Error Summary -->
+    {% if form.errors %}
+    <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-circle text-red-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-red-800 dark:text-red-300">Please correct the errors below:</h3>
+                <ul class="mt-2 text-sm text-red-700 dark:text-red-300 list-disc list-inside space-y-1">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- Name Fields -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {{ form.first_name.label }} <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.first_name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {{ form.last_name.label }} <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.last_name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Contact Fields -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {{ form.email.label }} <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.email }}
+                    {% if form.email.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.email.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {{ form.phone.label }} <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.phone }}
+                    {% if form.phone.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.phone.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Role and Branch -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {{ form.user_role.label }} <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.user_role }}
+                    {% if form.user_role.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.user_role.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {{ form.branch.label }} <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.branch }}
+                    {% if form.branch.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.branch.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Designation and Department -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {{ form.designation.label }}
+                    </label>
+                    {{ form.designation }}
+                    {% if form.designation.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.designation.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {{ form.department.label }}
+                    </label>
+                    {{ form.department }}
+                    {% if form.department.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.department.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Password Fields -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Password <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.password1 }}
+                    {% if form.password1.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.password1.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Minimum 8 characters</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Confirm Password <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.password2 }}
+                    {% if form.password2.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.password2.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Address Field -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.address.label }}
+                </label>
+                {{ form.address }}
+                {% if form.address.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.address.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <a href="{% url 'core:user_list' %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-user-plus mr-2"></i>Create Staff Account
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

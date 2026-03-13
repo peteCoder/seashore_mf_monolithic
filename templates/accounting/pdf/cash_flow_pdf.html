@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cash Flow Statement</title>
+</head>
+<body>
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="report-title">CASH FLOW STATEMENT</div>
+        <div class="report-subtitle">
+            Period: {{ report_data.date_from|date:"F d, Y" }} to {{ report_data.date_to|date:"F d, Y" }}
+        </div>
+    </div>
+
+    <!-- Summary Box -->
+    <div class="summary-box">
+        <strong>Net Cash Flow:</strong>
+        <span style="font-size: 14pt; {% if report_data.net_cash_flow >= 0 %}color: #059669;{% else %}color: #DC2626;{% endif %}">
+            ₦{{ report_data.net_cash_flow|floatformat:2 }}
+        </span>
+    </div>
+
+    <!-- Operating Activities -->
+    <h2 style="margin-top: 2rem; color: #059669; border-bottom: 2px solid #059669; padding-bottom: 0.5rem;">
+        OPERATING ACTIVITIES
+    </h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Journal</th>
+                <th>Description</th>
+                <th class="text-right">Amount (₦)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report_data.operating_activities %}
+            <tr>
+                <td>{{ item.line.journal_entry.transaction_date|date:"M d, Y" }}</td>
+                <td>{{ item.line.journal_entry.journal_number }}</td>
+                <td>{{ item.line.description|truncatewords:10 }}</td>
+                <td class="text-right {% if item.amount >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                    {{ item.amount|floatformat:2 }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center; color: #6B7280; padding: 1.5rem;">No operating activities</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="bg-gray-100 font-bold">
+                <td colspan="3">Total Operating Activities</td>
+                <td class="text-right {% if report_data.operating_total >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                    {{ report_data.operating_total|floatformat:2 }}
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- Investing Activities -->
+    <h2 style="margin-top: 2rem; color: #2563EB; border-bottom: 2px solid #2563EB; padding-bottom: 0.5rem;">
+        INVESTING ACTIVITIES
+    </h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Journal</th>
+                <th>Description</th>
+                <th class="text-right">Amount (₦)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report_data.investing_activities %}
+            <tr>
+                <td>{{ item.line.journal_entry.transaction_date|date:"M d, Y" }}</td>
+                <td>{{ item.line.journal_entry.journal_number }}</td>
+                <td>{{ item.line.description|truncatewords:10 }}</td>
+                <td class="text-right {% if item.amount >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                    {{ item.amount|floatformat:2 }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center; color: #6B7280; padding: 1.5rem;">No investing activities</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="bg-gray-100 font-bold">
+                <td colspan="3">Total Investing Activities</td>
+                <td class="text-right {% if report_data.investing_total >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                    {{ report_data.investing_total|floatformat:2 }}
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- Financing Activities -->
+    <h2 style="margin-top: 2rem; color: #7C3AED; border-bottom: 2px solid #7C3AED; padding-bottom: 0.5rem;">
+        FINANCING ACTIVITIES
+    </h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Journal</th>
+                <th>Description</th>
+                <th class="text-right">Amount (₦)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in report_data.financing_activities %}
+            <tr>
+                <td>{{ item.line.journal_entry.transaction_date|date:"M d, Y" }}</td>
+                <td>{{ item.line.journal_entry.journal_number }}</td>
+                <td>{{ item.line.description|truncatewords:10 }}</td>
+                <td class="text-right {% if item.amount >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                    {{ item.amount|floatformat:2 }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center; color: #6B7280; padding: 1.5rem;">No financing activities</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="bg-gray-100 font-bold">
+                <td colspan="3">Total Financing Activities</td>
+                <td class="text-right {% if report_data.financing_total >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                    {{ report_data.financing_total|floatformat:2 }}
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- Net Cash Flow Summary -->
+    <div style="margin-top: 2rem; padding: 1.5rem; border: 2px solid #D97706; background-color: #FEF3C7;">
+        <h3 style="margin: 0 0 1rem 0; color: #D97706;">CASH FLOW SUMMARY</h3>
+        <table style="width: 100%;">
+            <tr>
+                <td style="padding: 0.5rem 0;">Operating Activities</td>
+                <td class="text-right font-bold">₦{{ report_data.operating_total|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.5rem 0;">Investing Activities</td>
+                <td class="text-right font-bold">₦{{ report_data.investing_total|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.5rem 0;">Financing Activities</td>
+                <td class="text-right font-bold">₦{{ report_data.financing_total|floatformat:2 }}</td>
+            </tr>
+            <tr style="border-top: 2px solid #D97706;">
+                <td style="padding: 0.5rem 0; font-size: 14pt; font-weight: bold;">NET CASH FLOW</td>
+                <td class="text-right" style="font-size: 14pt; font-weight: bold; {% if report_data.net_cash_flow >= 0 %}color: #059669;{% else %}color: #DC2626;{% endif %}">
+                    ₦{{ report_data.net_cash_flow|floatformat:2 }}
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #E5E7EB; text-align: center; font-size: 9pt; color: #6B7280;">
+        <p>Generated on {{ "now"|date:"F d, Y H:i" }}</p>
+        <p>Seashore Microfinance - Cash Flow Statement</p>
+    </div>
+</body>
+</html>

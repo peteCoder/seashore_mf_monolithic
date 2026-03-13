@@ -1,0 +1,167 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="{% url 'core:assignment_list' %}" class="hover:text-primary-600">Assignment Requests</a>
+            <span>/</span>
+            <span>New</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-sm text-gray-500 mt-1">Submit a request to reassign clients or groups. A manager will review and approve.</p>
+    </div>
+
+    <!-- Form Card -->
+    <form method="post" novalidate x-data="assignmentForm()">
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+
+            <!-- Assignment Type -->
+            <div class="p-6">
+                <label for="{{ form.assignment_type.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Assignment Type <span class="text-red-500">*</span>
+                </label>
+                {{ form.assignment_type }}
+                {% if form.assignment_type.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.assignment_type.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Single Client -->
+            <div class="p-6" x-show="needsSingleClient()" x-cloak>
+                <label for="{{ form.client.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Client
+                </label>
+                {{ form.client }}
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ form.client.help_text }}</p>
+                {% if form.client.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.client.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Multiple Clients (bulk) -->
+            <div class="p-6" x-show="needsBulkClients()" x-cloak>
+                <label for="{{ form.clients.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Clients (select multiple)
+                </label>
+                {{ form.clients }}
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ form.clients.help_text }}</p>
+                {% if form.clients.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.clients.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Source Group (group → branch) -->
+            <div class="p-6" x-show="needsSourceGroup()" x-cloak>
+                <label for="{{ form.source_group.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.source_group.label }}
+                </label>
+                {{ form.source_group }}
+                {% if form.source_group.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.source_group.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Target Staff -->
+            <div class="p-6" x-show="needsTargetStaff()" x-cloak>
+                <label for="{{ form.target_staff.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.target_staff.label }}
+                </label>
+                {{ form.target_staff }}
+                {% if form.target_staff.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.target_staff.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Target Branch -->
+            <div class="p-6" x-show="needsTargetBranch()" x-cloak>
+                <label for="{{ form.target_branch.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.target_branch.label }}
+                </label>
+                {{ form.target_branch }}
+                {% if form.target_branch.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.target_branch.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Target Group -->
+            <div class="p-6" x-show="needsTargetGroup()" x-cloak>
+                <label for="{{ form.target_group.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.target_group.label }}
+                </label>
+                {{ form.target_group }}
+                {% if form.target_group.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.target_group.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Reason -->
+            <div class="p-6">
+                <label for="{{ form.reason.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.reason.label }}
+                </label>
+                {{ form.reason }}
+                {% if form.reason.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.reason.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            {% if form.non_field_errors %}
+            <div class="px-6 py-4 bg-red-50 dark:bg-red-900/20">
+                <ul class="text-sm text-red-600 list-disc list-inside space-y-1">
+                    {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-between pt-4">
+            <a href="{% url 'core:assignment_list' %}"
+               class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                <i class="fas fa-arrow-left mr-1"></i>Cancel
+            </a>
+            <button type="submit"
+                    class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-paper-plane mr-2"></i>Submit Request
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function assignmentForm() {
+    return {
+        type: document.getElementById('id_assignment_type')?.value || '',
+        init() {
+            const sel = document.getElementById('id_assignment_type');
+            if (sel) sel.addEventListener('change', (e) => { this.type = e.target.value; });
+        },
+        needsSingleClient() {
+            return ['client_to_staff','client_to_branch','client_to_group',
+                    'unassign_client_from_staff','unassign_client_from_group'].includes(this.type);
+        },
+        needsBulkClients() {
+            return ['bulk_clients_to_staff','bulk_clients_to_branch','bulk_clients_to_group'].includes(this.type);
+        },
+        needsSourceGroup() { return this.type === 'group_to_branch'; },
+        needsTargetStaff() {
+            return ['client_to_staff','bulk_clients_to_staff'].includes(this.type);
+        },
+        needsTargetBranch() {
+            return ['client_to_branch','bulk_clients_to_branch','group_to_branch'].includes(this.type);
+        },
+        needsTargetGroup() {
+            return ['client_to_group','bulk_clients_to_group'].includes(this.type);
+        },
+    }
+}
+</script>
+{% endblock %}

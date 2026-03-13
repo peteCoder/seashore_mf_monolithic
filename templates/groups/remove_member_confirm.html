@@ -1,0 +1,90 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Remove Member - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Remove Member from Group</h1>
+        <p class="text-gray-600 dark:text-gray-400">Remove this member from the group</p>
+    </div>
+
+    <!-- Member Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <div class="flex items-center mb-4">
+            <div class="h-12 w-12 bg-primary-100 dark:bg-primary-900 rounded-full flex items-center justify-center mr-4">
+                <i class="fas fa-user text-2xl text-primary-600 dark:text-primary-400"></i>
+            </div>
+            <div>
+                <a href="{% url 'core:client_detail' client.id %}"
+                   class="text-xl font-bold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400">
+                    {{ client.full_name }}
+                </a>
+                <p class="text-gray-600 dark:text-gray-400">{{ client.client_id }}</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Group</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ group.name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Current Role</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ client.get_group_role_display }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
+                <p class="text-base font-medium text-gray-900 dark:text-white">{{ client.branch.name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warning Notice -->
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-6">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+            </div>
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-1">Important</h3>
+                <div class="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                    <p>Removing this member will:</p>
+                    <ul class="list-disc ml-5 mt-1">
+                        <li>Remove them from the group immediately</li>
+                        <li>Set their group role back to "Member"</li>
+                        <li>Update group statistics</li>
+                        <li>They can be re-added to any group later</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="mb-6">
+                <p class="text-gray-700 dark:text-gray-300 mb-4">
+                    Are you sure you want to remove <strong class="text-red-600 dark:text-red-400">{{ client.full_name }}</strong> from <strong>{{ group.name }}</strong>?
+                </p>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-end space-x-3">
+                <a href="{% url 'core:group_detail' group.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-user-times mr-2"></i>Remove Member
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

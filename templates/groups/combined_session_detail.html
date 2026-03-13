@@ -1,0 +1,242 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}Combined Collection - {{ session.group.name }} - Seashore Microfinance{% endblock %}
+{% block page_title %}Combined Collection Session{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <!-- Breadcrumb -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:group_list' %}" class="hover:text-primary-600 dark:hover:text-primary-400">
+                <i class="fas fa-layer-group mr-1"></i>Groups
+            </a>
+            <span>/</span>
+            <a href="{% url 'core:group_detail' session.group.id %}" class="hover:text-primary-600 dark:hover:text-primary-400">{{ session.group.name }}</a>
+            <span>/</span>
+            <span class="text-gray-900 dark:text-white font-medium">Combined Session</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+            <i class="fas fa-layer-group text-primary-600 dark:text-primary-400 mr-2"></i>
+            Combined Collection Session
+        </h1>
+    </div>
+
+    <!-- Status Banner -->
+    {% if session.status == 'pending' %}
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-6 rounded-r-lg">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <i class="fas fa-clock text-yellow-500 text-lg mr-3"></i>
+                <div>
+                    <p class="font-semibold text-yellow-800 dark:text-yellow-300">Awaiting Approval</p>
+                    <p class="text-sm text-yellow-700 dark:text-yellow-400">This session is pending review by a manager or director.</p>
+                </div>
+            </div>
+            {% if checker.is_manager or checker.is_admin_or_director %}
+            <a href="{% url 'core:group_combined_collection_approve' session.id %}"
+               class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold text-sm transition-colors">
+                <i class="fas fa-clipboard-check mr-1"></i>Review Now
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% elif session.status == 'approved' %}
+    <div class="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 mb-6 rounded-r-lg">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle text-green-500 text-lg mr-3"></i>
+            <div>
+                <p class="font-semibold text-green-800 dark:text-green-300">Approved</p>
+                <p class="text-sm text-green-700 dark:text-green-400">
+                    Approved by {{ session.approved_by.get_full_name }} on {{ session.approved_at|date:"F d, Y H:i" }}.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% elif session.status == 'rejected' %}
+    <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg">
+        <div class="flex items-center">
+            <i class="fas fa-times-circle text-red-500 text-lg mr-3"></i>
+            <div>
+                <p class="font-semibold text-red-800 dark:text-red-300">Rejected</p>
+                <p class="text-sm text-red-700 dark:text-red-400">
+                    Rejected by {{ session.rejected_by.get_full_name }} on {{ session.rejected_at|date:"F d, Y H:i" }}.
+                </p>
+                {% if session.rejection_reason %}
+                <p class="text-sm text-red-700 dark:text-red-400 mt-1">Reason: {{ session.rejection_reason }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Session Details -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <i class="fas fa-info-circle text-primary-600 dark:text-primary-400 mr-2"></i>Session Details
+        </h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Group</p>
+                <a href="{% url 'core:group_detail' session.group.id %}"
+                   class="text-base font-semibold text-primary-600 dark:text-primary-400 hover:underline">
+                    {{ session.group.name }}
+                </a>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ session.group.code }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Collection Date</p>
+                <p class="text-base font-semibold text-gray-900 dark:text-white">{{ session.collection_date|date:"F d, Y" }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Collected By</p>
+                <p class="text-base font-semibold text-gray-900 dark:text-white">{{ session.collected_by.get_full_name }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Payment Method</p>
+                <p class="text-base font-semibold text-gray-900 dark:text-white capitalize">{{ session.payment_method|title }}</p>
+            </div>
+        </div>
+
+        <!-- Totals -->
+        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 grid grid-cols-3 gap-6 text-center">
+            <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+                <p class="text-sm text-gray-500 dark:text-gray-400">Loan Repayments</p>
+                <p class="text-xl font-bold text-red-600 dark:text-red-400">&#8358;{{ session.total_loan_amount|floatformat:2|intcomma }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ loan_items|length }} item(s)</p>
+            </div>
+            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                <p class="text-sm text-gray-500 dark:text-gray-400">Savings Deposits</p>
+                <p class="text-xl font-bold text-blue-600 dark:text-blue-400">&#8358;{{ session.total_savings_amount|floatformat:2|intcomma }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ savings_items|length }} item(s)</p>
+            </div>
+            <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                <p class="text-sm text-gray-500 dark:text-gray-400">Grand Total</p>
+                <p class="text-xl font-bold text-green-600 dark:text-green-400">&#8358;{{ session.total_amount|floatformat:2|intcomma }}</p>
+            </div>
+        </div>
+
+        {% if session.notes %}
+        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Notes</p>
+            <div class="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                <p class="text-sm text-gray-900 dark:text-white">{{ session.notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Loan Items -->
+    {% if loan_items %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+        <div class="px-6 py-4 bg-red-50 dark:bg-red-900/20 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                <i class="fas fa-hand-holding-usd text-red-600 dark:text-red-400 mr-2"></i>Loan Repayments
+            </h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">#</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Loan Number</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for item in loan_items %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ forloop.counter }}</td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ item.client.get_full_name }}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ item.client.client_id }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ item.loan.loan_product.name }}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ item.loan.loan_number }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <span class="text-sm font-bold text-red-600 dark:text-red-400">&#8358;{{ item.amount|floatformat:2|intcomma }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <td colspan="3" class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">Sub-total:</td>
+                        <td class="px-6 py-4 text-right">
+                            <span class="text-base font-bold text-red-600 dark:text-red-400">&#8358;{{ session.total_loan_amount|floatformat:2|intcomma }}</span>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Savings Items -->
+    {% if savings_items %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+        <div class="px-6 py-4 bg-blue-50 dark:bg-blue-900/20 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                <i class="fas fa-piggy-bank text-blue-600 dark:text-blue-400 mr-2"></i>Savings Deposits
+            </h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">#</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Account</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for item in savings_items %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ forloop.counter }}</td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ item.client.get_full_name }}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ item.client.client_id }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">{{ item.savings_account.savings_product.name }}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ item.savings_account.account_number }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <span class="text-sm font-bold text-blue-600 dark:text-blue-400">&#8358;{{ item.amount|floatformat:2|intcomma }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <td colspan="3" class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">Sub-total:</td>
+                        <td class="px-6 py-4 text-right">
+                            <span class="text-base font-bold text-blue-600 dark:text-blue-400">&#8358;{{ session.total_savings_amount|floatformat:2|intcomma }}</span>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="flex items-center justify-between">
+        <a href="{% url 'core:group_detail' session.group.id %}"
+           class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Group
+        </a>
+        {% if session.status == 'pending' and checker.can_manage_groups %}
+        <a href="{% url 'core:group_combined_collection_approve' session.id %}"
+           class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors">
+            <i class="fas fa-clipboard-check mr-2"></i>Review / Approve
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

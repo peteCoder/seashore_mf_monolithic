@@ -1,0 +1,86 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="{% url 'core:loan_list' %}" class="hover:text-primary-600">Loans</a>
+            <span>/</span>
+            <a href="{% url 'core:loan_detail' loan.id %}" class="hover:text-primary-600">{{ loan.loan_number }}</a>
+            <span>/</span>
+            <a href="{% url 'core:loan_penalties' loan.id %}" class="hover:text-primary-600">Penalties</a>
+            <span>/</span>
+            <span>Add</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-sm text-gray-500 mt-1">Client: {{ loan.client.get_full_name }}</p>
+    </div>
+
+    <!-- Form Card -->
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+
+            <!-- Penalty Type & Amount -->
+            <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="{{ form.penalty_type.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Penalty Type <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.penalty_type }}
+                    {% if form.penalty_type.errors %}
+                    <p class="mt-1 text-xs text-red-600">{{ form.penalty_type.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ form.amount.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Amount (₦) <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.amount }}
+                    {% if form.amount.errors %}
+                    <p class="mt-1 text-xs text-red-600">{{ form.amount.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Reason -->
+            <div class="p-6">
+                <label for="{{ form.reason.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Reason <span class="text-red-500">*</span>
+                </label>
+                {{ form.reason }}
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Explain why this penalty is being applied to the loan.</p>
+                {% if form.reason.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.reason.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Loan Info -->
+            <div class="px-6 py-4 bg-gray-50 dark:bg-gray-700/30 rounded-b-xl">
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    <span class="font-medium">Loan:</span> {{ loan.loan_number }} &mdash;
+                    <span class="font-medium">Outstanding:</span> ₦{{ loan.outstanding_balance|floatformat:2|intcomma }} &mdash;
+                    <span class="font-medium">Status:</span> {{ loan.get_status_display }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-between pt-4">
+            <a href="{% url 'core:loan_penalties' loan.id %}"
+               class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                <i class="fas fa-arrow-left mr-1"></i>Cancel
+            </a>
+            <button type="submit"
+                    class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-plus mr-2"></i>Add Penalty
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

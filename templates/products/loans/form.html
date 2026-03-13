@@ -1,0 +1,440 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:loan_product_list' %}" class="hover:text-primary-600">Loan Products</a>
+            <span>/</span>
+            <span>{{ is_create|yesno:"Create,Edit" }}</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+    </div>
+
+    <!-- Form -->
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+
+        <!-- Basic Information -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-info-circle mr-2 text-primary-600"></i>
+                Basic Information
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Product Code <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.code }}
+                    {% if form.code.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.code.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Product Name <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Description
+                    </label>
+                    {{ form.description }}
+                    {% if form.description.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.description.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Loan Type <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.loan_type }}
+                    {% if form.loan_type.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.loan_type.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Classifies the loan for reporting and eligibility. Changing this will suggest a default repayment frequency below.
+                    </p>
+                </div>
+                <div>
+                    <label for="{{ form.gl_code.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        GL Account
+                    </label>
+                    {{ form.gl_code }}
+                    <p id="glCodeHint" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Auto-suggested from Loan Type — you can override.
+                    </p>
+                    {% if form.gl_code.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.gl_code.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Interest Configuration -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-percentage mr-2 text-primary-600"></i>
+                Interest Configuration
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Monthly Interest Rate (%) <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.monthly_interest_rate }}
+                    {% if form.monthly_interest_rate.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.monthly_interest_rate.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">e.g., 3.5 for 3.5%</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Annual Interest Rate (%) <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.annual_interest_rate }}
+                    {% if form.annual_interest_rate.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.annual_interest_rate.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">e.g., 42 for 42%</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Calculation Method <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.interest_calculation_method }}
+                    {% if form.interest_calculation_method.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.interest_calculation_method.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        <strong>Flat Rate:</strong> interest = P &times; R &times; T (same amount each month).
+                        <strong>Reducing Balance:</strong> interest charged only on the outstanding principal — earlier installments have more interest, later ones more principal. Total interest is lower.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fee Structure -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-dollar-sign mr-2 text-primary-600"></i>
+                Fee Structure
+            </h2>
+
+            <!-- Risk Premium Fee -->
+            <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
+                <div class="flex items-center mb-3">
+                    <label class="flex items-center cursor-pointer">
+                        {{ form.risk_premium_enabled }}
+                        <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Enable Risk Premium Fee</span>
+                    </label>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Risk Premium Rate (%)
+                        </label>
+                        {{ form.risk_premium_rate }}
+                        {% if form.risk_premium_rate.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.risk_premium_rate.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Calculation Method
+                        </label>
+                        {{ form.risk_premium_calculation }}
+                        {% if form.risk_premium_calculation.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.risk_premium_calculation.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- RP Income Fee -->
+            <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
+                <div class="flex items-center mb-3">
+                    <label class="flex items-center cursor-pointer">
+                        {{ form.rp_income_enabled }}
+                        <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Enable RP Income Fee</span>
+                    </label>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            RP Income Rate (%)
+                        </label>
+                        {{ form.rp_income_rate }}
+                        {% if form.rp_income_rate.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.rp_income_rate.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Calculation Method
+                        </label>
+                        {{ form.rp_income_calculation }}
+                        {% if form.rp_income_calculation.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.rp_income_calculation.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tech Fee -->
+            <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
+                <div class="flex items-center mb-3">
+                    <label class="flex items-center cursor-pointer">
+                        {{ form.tech_fee_enabled }}
+                        <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Enable Tech Fee</span>
+                    </label>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Tech Fee Rate (%)
+                        </label>
+                        {{ form.tech_fee_rate }}
+                        {% if form.tech_fee_rate.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.tech_fee_rate.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Calculation Method
+                        </label>
+                        {{ form.tech_fee_calculation }}
+                        {% if form.tech_fee_calculation.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.tech_fee_calculation.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loan Form Fee -->
+            <div>
+                <div class="flex items-center mb-3">
+                    <label class="flex items-center cursor-pointer">
+                        {{ form.loan_form_fee_enabled }}
+                        <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Enable Loan Form Fee</span>
+                    </label>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Loan Form Fee Amount (&#8358;)
+                        </label>
+                        {{ form.loan_form_fee_amount }}
+                        {% if form.loan_form_fee_amount.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.loan_form_fee_amount.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loan Limits -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-chart-line mr-2 text-primary-600"></i>
+                Loan Limits
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Minimum Principal Amount (&#8358;) <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.min_principal_amount }}
+                    {% if form.min_principal_amount.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.min_principal_amount.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Maximum Principal Amount (&#8358;) <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.max_principal_amount }}
+                    {% if form.max_principal_amount.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.max_principal_amount.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Minimum Duration (Months) <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.min_duration_months }}
+                    {% if form.min_duration_months.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.min_duration_months.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Maximum Duration (Months) <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.max_duration_months }}
+                    {% if form.max_duration_months.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.max_duration_months.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Repayment Settings -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-calendar-check mr-2 text-primary-600"></i>
+                Repayment Settings
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Repayment Frequency
+                    </label>
+                    {{ form.repayment_frequency }}
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        How often borrowers make installment payments. <strong>Does not affect interest calculation</strong> (interest is always P&times;R&times;T where T is months).
+                        Auto-suggested from Loan Type &mdash; you can override.
+                    </p>
+                    {% if form.repayment_frequency.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.repayment_frequency.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Grace Period (Days)
+                    </label>
+                    {{ form.grace_period_days }}
+                    {% if form.grace_period_days.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.grace_period_days.errors.0 }}</p>
+                    {% endif %}
+                </div>
+                <div class="flex items-center">
+                    <label class="flex items-center cursor-pointer">
+                        {{ form.allow_early_repayment }}
+                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Allow early repayment</span>
+                    </label>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Early Repayment Penalty Rate (%)
+                    </label>
+                    {{ form.early_repayment_penalty_rate }}
+                    {% if form.early_repayment_penalty_rate.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.early_repayment_penalty_rate.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="flex items-center justify-end space-x-4 pt-6">
+            <a href="{% url 'core:loan_product_list' %}"
+               class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium">
+                Cancel
+            </a>
+            <button type="submit"
+                    class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold">
+                <i class="fas fa-save mr-2"></i>
+                {{ is_create|yesno:"Create Product,Save Changes" }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/**
+ * Loan Product Form — Auto-suggest repayment frequency and GL code from loan type.
+ *
+ * Loan Type           = WHAT the loan is (category, reporting, eligibility).
+ * Repayment Frequency = HOW OFTEN installments are collected (payment schedule).
+ * GL Code             = Accounting ledger bucket for this product's transactions.
+ *
+ * Both are only suggested — the user can override either at any time.
+ */
+(function () {
+    var FREQ_DEFAULTS = {
+        'thrift':         'daily',
+        'group':          'weekly',
+        'emergency':      'monthly',
+        'med':            'monthly',
+        'business':       'monthly',
+        'salary_advance': 'monthly',
+        'asset_finance':  'monthly',
+        'agricultural':   'monthly',
+    };
+
+    // GL code suggestions per loan type — matched to Chart of Accounts.
+    var GL_DEFAULTS = {
+        'thrift':         { code: '1810', label: 'Loan Receivable - Principal' },
+        'group':          { code: '1810', label: 'Loan Receivable - Principal' },
+        'med':            { code: '1840', label: 'Loan Receivable - MED Clients' },
+        'business':       { code: '1810', label: 'Loan Receivable - Principal' },
+        'emergency':      { code: '1810', label: 'Loan Receivable - Principal' },
+        'salary_advance': { code: '1810', label: 'Loan Receivable - Principal' },
+        'asset_finance':  { code: '1810', label: 'Loan Receivable - Principal' },
+        'agricultural':   { code: '1810', label: 'Loan Receivable - Principal' },
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var loanTypeEl = document.getElementById('id_loan_type');
+        var freqEl     = document.getElementById('id_repayment_frequency');
+        var glCodeEl   = document.getElementById('id_gl_code');
+        var glHintEl   = document.getElementById('glCodeHint');
+
+        if (!loanTypeEl) return;
+
+        loanTypeEl.addEventListener('change', function () {
+            var val = this.value;
+
+            // ── Repayment frequency ───────────────────────────────────────────
+            if (freqEl) {
+                var suggestedFreq = FREQ_DEFAULTS[val];
+                if (suggestedFreq) freqEl.value = suggestedFreq;
+            }
+
+            // ── GL Code ───────────────────────────────────────────────────────
+            if (glCodeEl && glHintEl) {
+                var gl = GL_DEFAULTS[val];
+                if (gl) {
+                    // Only fill if the field is currently empty (don't clobber manual entry)
+                    if (!glCodeEl.value.trim()) {
+                        glCodeEl.value = gl.code;
+                    }
+                    glHintEl.innerHTML =
+                        '<i class="fas fa-magic mr-1 text-primary-500"></i>' +
+                        'Suggested: <strong>' + gl.code + '</strong> — ' + gl.label +
+                        ' &nbsp;<span class="text-gray-400">(you can override)</span>';
+                } else {
+                    glHintEl.innerHTML =
+                        '<i class="fas fa-info-circle mr-1"></i>' +
+                        'Auto-suggested from Loan Type — you can override.';
+                }
+            }
+        });
+
+        // On page load, if a loan type is already selected (edit mode), update the hint
+        if (loanTypeEl.value && glHintEl) {
+            var gl = GL_DEFAULTS[loanTypeEl.value];
+            if (gl && glCodeEl && glCodeEl.value) {
+                glHintEl.innerHTML =
+                    '<i class="fas fa-magic mr-1 text-primary-500"></i>' +
+                    'Suggested: <strong>' + gl.code + '</strong> — ' + gl.label +
+                    ' &nbsp;<span class="text-gray-400">(you can override)</span>';
+            }
+        }
+    });
+}());
+</script>
+{% endblock %}

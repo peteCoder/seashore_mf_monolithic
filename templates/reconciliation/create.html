@@ -1,0 +1,126 @@
+{% extends "layouts/base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="max-w-2xl space-y-6">
+
+    <!-- Header -->
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="{% url 'core:reconciliation_list' %}" class="hover:text-gray-700 dark:hover:text-gray-200">Reconciliations</a>
+            <span>/</span>
+            <span>New</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Create a new bank/cash reconciliation session for a period.</p>
+    </div>
+
+    <!-- Form -->
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+
+            <!-- Non-field errors -->
+            {% if form.non_field_errors %}
+            <div class="px-6 py-4 bg-red-50 dark:bg-red-900/20 rounded-t-xl">
+                {% for error in form.non_field_errors %}
+                <p class="text-sm text-red-600 dark:text-red-400"><i class="fas fa-exclamation-circle mr-1"></i>{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+                <!-- GL Account -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        GL Account <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.gl_account }}
+                    {% if form.gl_account.errors %}
+                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.gl_account.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Branch -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Branch <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.branch }}
+                    {% if form.branch.errors %}
+                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.branch.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Period Start -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Period Start <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.period_start }}
+                    {% if form.period_start.errors %}
+                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.period_start.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Period End -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Period End <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.period_end }}
+                    {% if form.period_end.errors %}
+                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.period_end.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Opening Balance -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {{ form.opening_balance.label }} <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.opening_balance }}
+                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">GL balance at the start of the period</p>
+                    {% if form.opening_balance.errors %}
+                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.opening_balance.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Bank Closing Balance -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {{ form.bank_statement_closing_balance.label }} <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.bank_statement_closing_balance }}
+                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Closing balance per bank statement</p>
+                    {% if form.bank_statement_closing_balance.errors %}
+                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.bank_statement_closing_balance.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="px-6 py-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                {{ form.notes }}
+                {% if form.notes.errors %}
+                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-between pt-4">
+            <a href="{% url 'core:reconciliation_list' %}" class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                <i class="fas fa-arrow-left mr-1"></i>Cancel
+            </a>
+            <button type="submit" class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
+                <i class="fas fa-check mr-2"></i>Create Reconciliation
+            </button>
+        </div>
+    </form>
+
+</div>
+{% endblock %}

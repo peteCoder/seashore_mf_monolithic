@@ -1,0 +1,205 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div>
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <a href="{% url 'core:restructure_list' %}" class="hover:text-primary-600">Restructure Requests</a>
+            <span>/</span>
+            <span>Review</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+    </div>
+
+    <!-- Two Column Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Request Summary -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+                <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Restructure Request</h2>
+            </div>
+            <div class="p-6 space-y-4 text-sm">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Loan</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">
+                            <a href="{% url 'core:loan_detail' loan.id %}" class="text-primary-600 hover:text-primary-700">{{ loan.loan_number }}</a>
+                        </p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Client</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ loan.client.get_full_name }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Type</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ req.get_restructure_type_display }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Requested By</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ req.requested_by.get_full_name }}</p>
+                    </div>
+                    {% if req.proposed_duration %}
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Proposed Duration</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ req.proposed_duration }} months</p>
+                    </div>
+                    {% endif %}
+                    {% if req.proposed_installment %}
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Proposed Installment</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">₦{{ req.proposed_installment|floatformat:2|intcomma }}</p>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Current Duration</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ req.current_duration|default:loan.duration_months }} months</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Current Installment</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">₦{{ req.current_installment|default:loan.installment_amount|floatformat:2|intcomma }}</p>
+                    </div>
+                </div>
+                <div>
+                    <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Reason</span>
+                    <p class="text-gray-700 dark:text-gray-300 mt-1">{{ req.reason }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loan Snapshot -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
+                <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Loan Snapshot</h2>
+            </div>
+            <div class="p-6 space-y-3 text-sm">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Status</span>
+                        <p class="font-semibold mt-0.5
+                            {% if loan.status == 'overdue' %}text-red-600
+                            {% elif loan.status == 'active' %}text-green-600
+                            {% else %}text-gray-700 dark:text-gray-300{% endif %}">
+                            {{ loan.get_status_display }}
+                        </p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Outstanding</span>
+                        <p class="font-bold text-gray-900 dark:text-white mt-0.5">₦{{ loan.outstanding_balance|floatformat:2|intcomma }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Product</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ loan.loan_product.name }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Branch</span>
+                        <p class="font-semibold text-gray-900 dark:text-white mt-0.5">{{ loan.branch.name }}</p>
+                    </div>
+                </div>
+
+                <!-- Projected Impact -->
+                {% if req.restructure_type == 'extend_duration' and req.proposed_duration %}
+                <div class="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-700 dark:text-blue-300">
+                    <p class="font-semibold mb-1">Projected Impact</p>
+                    <p>Duration: {{ req.current_duration }} → {{ req.proposed_duration }} months</p>
+                    {% if req.proposed_duration > 0 %}
+                    <p>New installment: ₦{{ loan.outstanding_balance|floatformat:0 }} ÷ {{ req.proposed_duration }} months</p>
+                    {% endif %}
+                </div>
+                {% elif req.restructure_type == 'reduce_installment' and req.proposed_installment %}
+                <div class="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-700 dark:text-blue-300">
+                    <p class="font-semibold mb-1">Projected Impact</p>
+                    <p>Installment: ₦{{ loan.installment_amount|floatformat:2|intcomma }} → ₦{{ req.proposed_installment|floatformat:2|intcomma }}</p>
+                </div>
+                {% elif req.restructure_type == 'payment_holiday' and req.proposed_duration %}
+                <div class="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-700 dark:text-blue-300">
+                    <p class="font-semibold mb-1">Projected Impact</p>
+                    <p>Next repayment date advanced by {{ req.proposed_duration }} months</p>
+                </div>
+                {% elif req.restructure_type == 'capitalize_arrears' %}
+                <div class="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-700 dark:text-blue-300">
+                    <p class="font-semibold mb-1">Projected Impact</p>
+                    <p>Loan status will be reset from "Overdue" to "Active"</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Form -->
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+
+            <!-- Decision -->
+            <div class="p-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Decision <span class="text-red-500">*</span>
+                </label>
+                <div class="grid grid-cols-2 gap-4">
+                    <label class="flex items-center p-4 border-2 border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-green-400 transition-colors has-[:checked]:border-green-500 has-[:checked]:bg-green-50 dark:has-[:checked]:bg-green-900/20">
+                        <input type="radio" name="{{ form.decision.html_name }}" value="approve"
+                               {% if form.decision.value == 'approve' %}checked{% endif %}
+                               class="w-4 h-4 text-green-600 focus:ring-green-500 mr-3">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">Approve</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Apply restructure to loan</p>
+                        </div>
+                    </label>
+                    <label class="flex items-center p-4 border-2 border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-red-400 transition-colors has-[:checked]:border-red-500 has-[:checked]:bg-red-50 dark:has-[:checked]:bg-red-900/20">
+                        <input type="radio" name="{{ form.decision.html_name }}" value="reject"
+                               {% if form.decision.value == 'reject' %}checked{% endif %}
+                               class="w-4 h-4 text-red-600 focus:ring-red-500 mr-3">
+                        <div>
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">Reject</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Decline the request</p>
+                        </div>
+                    </label>
+                </div>
+                {% if form.decision.errors %}
+                <p class="mt-2 text-xs text-red-600">{{ form.decision.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Review Notes -->
+            <div class="p-6">
+                <label for="{{ form.review_notes.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Review Notes
+                    <span class="text-gray-400 font-normal">(required if rejecting)</span>
+                </label>
+                {{ form.review_notes }}
+                {% if form.review_notes.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.review_notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            {% if form.non_field_errors %}
+            <div class="px-6 py-4 bg-red-50 dark:bg-red-900/20">
+                <ul class="text-sm text-red-600 list-disc list-inside">
+                    {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-between pt-4">
+            <a href="{% url 'core:restructure_detail' req.id %}"
+               class="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+                <i class="fas fa-arrow-left mr-1"></i>Cancel
+            </a>
+            <button type="submit"
+                    class="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-gavel mr-2"></i>Submit Decision
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
