@@ -23,6 +23,12 @@
                class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors">
                 <i class="fas fa-building mr-2"></i>Assign Branch
             </a>
+            {% if request.user.user_role == 'admin' or request.user.user_role == 'director' %}
+            <a href="{% url 'core:user_change_password' staff_user.id %}"
+               class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors">
+                <i class="fas fa-key mr-2"></i>Change Password
+            </a>
+            {% endif %}
             {% if metrics.total_clients == 0 %}
             <a href="{% url 'core:user_delete' staff_user.id %}"
                class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
@@ -50,6 +56,12 @@
 
             <!-- User Details -->
             <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Staff ID</p>
+                    <p class="text-base font-bold text-amber-600 dark:text-amber-400 font-mono tracking-wide">
+                        {{ staff_user.employee_id|default:"—" }}
+                    </p>
+                </div>
                 <div>
                     <p class="text-sm text-gray-600 dark:text-gray-400">Full Name</p>
                     <p class="text-base font-medium text-gray-900 dark:text-white">{{ staff_user.get_full_name }}</p>

@@ -577,15 +577,11 @@ class User(AbstractUser, StatusTrackingMixin):
         return f"{self.get_full_name()} ({self.get_user_role_display()})"
 
     def save(self, *args, **kwargs):
-        # Auto-generate employee_id if not set and user has a staff role
-        if not self.employee_id and self.user_role in ['staff', 'manager', 'director', 'hr', 'admin']:
-            self.employee_id = self.generate_employee_id()
-
         # Auto-set approval permissions for managers and above
         if self.user_role in ['manager', 'director', 'hr', 'admin']:
             self.can_approve_loans = True
             self.can_approve_accounts = True
-        
+
         super().save(*args, **kwargs)
     
     @staticmethod
@@ -2386,7 +2382,7 @@ class SavingsProduct(BaseModel, StatusTrackingMixin):
     PRODUCT_TYPE_CHOICES = [
         ('regular', 'Regular Savings'),
         ('fixed', 'Fixed Deposit'),
-        ('target', 'Target Savings'),
+        ('target', 'Voluntary Savings'),
         ('children', 'Children Savings'),
     ]
     
@@ -2658,7 +2654,7 @@ class SavingsProduct(BaseModel, StatusTrackingMixin):
     
     @property
     def is_target(self):
-        """Check if this is a target savings product"""
+        """Check if this is a voluntary savings product"""
         return self.product_type == 'target'
     
     @property
@@ -3068,7 +3064,7 @@ class SavingsAccount(BaseModel, ApprovalWorkflowMixin):
     
     @property
     def is_target(self):
-        """Check if this is a target savings account"""
+        """Check if this is a voluntary savings account"""
         return self.savings_product and self.savings_product.product_type == 'target'
     
     @property

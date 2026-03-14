@@ -244,7 +244,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTHENTICATION_BACKENDS = [
     # django-axes must be first so lockouts are checked before authentication
     'axes.backends.AxesStandaloneBackend',
-    'django.contrib.auth.backends.ModelBackend',
+    # Staff ID-based authentication (replaces ModelBackend email login)
+    'core.backends.StaffIDBackend',
 ]
 
 
@@ -261,6 +262,7 @@ AXES_LOCKOUT_PARAMETERS     = ['username', 'ip_address'] # lock per username+IP 
 AXES_ENABLE_ACCESS_FAILURE_LOG = True                    # log every failure to DB
 AXES_LOCKOUT_URL            = '/login/'                  # axes appends ?username=... so don't add our own ?params
 AXES_HTTP_RESPONSE_CODE     = 403
+AXES_USERNAME_FORM_FIELD    = 'staff_id'                 # form field axes reads for the "username" lockout param
 
 
 # =============================================================================

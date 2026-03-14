@@ -62,10 +62,14 @@
                     {% endif %}
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label for="{{ form.gl_code.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         GL Code
                     </label>
                     {{ form.gl_code }}
+                    <p id="glCodeHint" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Auto-suggested from Product Type — you can override.
+                    </p>
                     {% if form.gl_code.errors %}
                     <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.gl_code.errors.0 }}</p>
                     {% endif %}
@@ -233,4 +237,57 @@
         </div>
     </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/**
+ * Savings Product Form — Auto-suggest GL code from product type.
+ * The GL code is only suggested when the field is empty — user can always override.
+ */
+(function () {
+    // GL code suggestions per savings product type — matched to Chart of Accounts.
+    var GL_DEFAULTS = {
+        'regular':  { code: '2010', label: 'Savings Deposits - Regular' },
+        'fixed':    { code: '2020', label: 'Savings Deposits - Fixed Deposit' },
+        'target':   { code: '2030', label: 'Savings Deposits - Voluntary' },
+        'children': { code: '2040', label: 'Savings Deposits - Children' },
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var productTypeEl = document.getElementById('id_product_type');
+        var glCodeEl      = document.getElementById('id_gl_code');
+        var glHintEl      = document.getElementById('glCodeHint');
+
+        if (!productTypeEl) return;
+
+        function updateGLHint(val) {
+            if (!glCodeEl || !glHintEl) return;
+            var gl = GL_DEFAULTS[val];
+            if (gl) {
+                if (!glCodeEl.value.trim()) {
+                    glCodeEl.value = gl.code;
+                }
+                glHintEl.innerHTML =
+                    '<i class="fas fa-magic mr-1 text-primary-500"></i>' +
+                    'Suggested: <strong>' + gl.code + '</strong> — ' + gl.label +
+                    ' &nbsp;<span class="text-gray-400">(you can override)</span>';
+            } else {
+                glHintEl.innerHTML =
+                    '<i class="fas fa-info-circle mr-1"></i>' +
+                    'Auto-suggested from Product Type — you can override.';
+            }
+        }
+
+        productTypeEl.addEventListener('change', function () {
+            updateGLHint(this.value);
+        });
+
+        // On page load (edit mode), update hint if a type is already selected.
+        if (productTypeEl.value) {
+            updateGLHint(productTypeEl.value);
+        }
+    });
+}());
+</script>
 {% endblock %}

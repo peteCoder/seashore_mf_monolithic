@@ -38,8 +38,19 @@ TEXTAREA_CLASS = (
 
 class UserCreateForm(forms.ModelForm):
     """
-    Form for admins/directors to create new staff users
+    Form for admins/directors to create new staff users.
+    employee_id (Staff ID) is required and pre-populated with the next
+    auto-generated value; the admin can override it.
     """
+    employee_id = forms.CharField(
+        label='Staff ID',
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': INPUT_CLASS,
+            'placeholder': 'e.g., EMP001',
+        }),
+        help_text='Unique Staff ID used to log in. Auto-generated — you may change it.',
+    )
     password1 = forms.CharField(
         label='Password',
         widget=forms.PasswordInput(attrs={
@@ -58,7 +69,7 @@ class UserCreateForm(forms.ModelForm):
     class Meta:
         model = User
         fields = [
-            'first_name', 'last_name', 'email', 'phone',
+            'employee_id', 'first_name', 'last_name', 'email', 'phone',
             'user_role', 'branch', 'designation', 'department',
             'address',
         ]
@@ -112,6 +123,17 @@ class UserCreateForm(forms.ModelForm):
         self.fields['address'].required = False
         self.fields['branch'].queryset = Branch.objects.filter(is_active=True).order_by('name')
 
+    def clean_employee_id(self):
+        employee_id = self.cleaned_data.get('employee_id', '').strip().upper()
+        if not employee_id:
+            raise forms.ValidationError("Staff ID is required.")
+        qs = User.objects.filter(employee_id=employee_id)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("A user with this Staff ID already exists.")
+        return employee_id
+
     def clean_password2(self):
         password1 = self.cleaned_data.get('password1')
         password2 = self.cleaned_data.get('password2')
@@ -123,7 +145,10 @@ class UserCreateForm(forms.ModelForm):
 
     def clean_email(self):
         email = self.cleaned_data.get('email')
-        if User.objects.filter(email=email).exists():
+        qs = User.objects.filter(email=email)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
             raise forms.ValidationError("A user with this email already exists")
         return email
 
@@ -140,12 +165,14 @@ class UserCreateForm(forms.ModelForm):
 
 class UserUpdateForm(forms.ModelForm):
     """
-    Form for admins/directors to update user information
+    Form for admins/directors to update user information.
+    Includes employee_id (Staff ID) so it can be corrected if needed.
     """
 
     class Meta:
         model = User
         fields = [
+            'employee_id',
             'first_name',
             'last_name',
             'email',
@@ -157,6 +184,10 @@ class UserUpdateForm(forms.ModelForm):
             'profile_picture',
         ]
         widgets = {
+            'employee_id': forms.TextInput(attrs={
+                'class': INPUT_CLASS,
+                'placeholder': 'e.g., EMP001',
+            }),
             'first_name': forms.TextInput(attrs={
                 'class': INPUT_CLASS,
                 'placeholder': 'Enter first name...',
@@ -199,7 +230,9 @@ class UserUpdateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Make all fields required except address and profile_picture
+        self.fields['employee_id'].required = True
+        self.fields['employee_id'].label = 'Staff ID'
+        self.fields['employee_id'].help_text = 'Unique Staff ID used to log in.'
         self.fields['first_name'].required = True
         self.fields['last_name'].required = True
         self.fields['email'].required = True
@@ -208,6 +241,17 @@ class UserUpdateForm(forms.ModelForm):
         self.fields['branch'].required = True
         self.fields['address'].required = False
         self.fields['profile_picture'].required = False
+
+    def clean_employee_id(self):
+        employee_id = self.cleaned_data.get('employee_id', '').strip().upper()
+        if not employee_id:
+            raise forms.ValidationError("Staff ID is required.")
+        qs = User.objects.filter(employee_id=employee_id)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("A user with this Staff ID already exists.")
+        return employee_id
 
 
 # =============================================================================
@@ -295,7 +339,7 @@ class UserSearchForm(forms.Form):
         required=False,
         widget=forms.TextInput(attrs={
             'class': INPUT_CLASS,
-            'placeholder': 'Search by name, email, or phone...',
+            'placeholder': 'Search by name, Staff ID, email, or phone...',
         }),
         label='Search'
     )
@@ -331,3 +375,39 @@ class UserSearchForm(forms.Form):
         }),
         label='Status'
     )
+
+
+# =============================================================================
+# ADMIN CHANGE PASSWORD FORM
+# =============================================================================
+
+class AdminChangePasswordForm(forms.Form):
+    """
+    Allows an admin/director to set a new password for any staff member.
+    No old-password confirmation required — this is an admin override.
+    """
+    password1 = forms.CharField(
+        label='New Password',
+        widget=forms.PasswordInput(attrs={
+            'class': INPUT_CLASS,
+            'placeholder': 'Enter new password...',
+            'autocomplete': 'new-password',
+        })
+    )
+    password2 = forms.CharField(
+        label='Confirm New Password',
+        widget=forms.PasswordInput(attrs={
+            'class': INPUT_CLASS,
+            'placeholder': 'Confirm new password...',
+            'autocomplete': 'new-password',
+        })
+    )
+
+    def clean_password2(self):
+        password1 = self.cleaned_data.get('password1')
+        password2 = self.cleaned_data.get('password2')
+        if password1 and password2 and password1 != password2:
+            raise forms.ValidationError("Passwords don't match.")
+        if password1 and len(password1) < 8:
+            raise forms.ValidationError("Password must be at least 8 characters long.")
+        return password2

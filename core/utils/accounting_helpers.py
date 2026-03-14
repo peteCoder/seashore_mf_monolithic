@@ -76,7 +76,7 @@ def get_savings_liability_account(product_type):
     Map savings product type to liability account
 
     Args:
-        product_type: 'regular', 'fixed', 'target', or 'children'
+        product_type: 'regular', 'fixed', 'target' (voluntary), or 'children'
 
     Returns:
         ChartOfAccounts: Appropriate savings liability account
@@ -86,7 +86,7 @@ def get_savings_liability_account(product_type):
     account_mapping = {
         'regular': '2010',   # Savings Deposits - Regular
         'fixed': '2020',     # Savings Deposits - Fixed
-        'target': '2030',    # Savings Deposits - Target
+        'target': '2030',    # Savings Deposits - Voluntary
         'children': '2040',  # Savings Deposits - Children
     }
 

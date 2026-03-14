@@ -116,7 +116,7 @@ def verify_2fa(request):
             # Success — clear staging keys and log the user in
             request.session.pop(_SESSION_PENDING_UID, None)
             request.session.pop(_SESSION_ATTEMPTS, None)
-            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            login(request, user, backend='core.backends.StaffIDBackend')
             # Record login IP for IP-session locking
             x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
             login_ip = x_forwarded_for.split(',')[0].strip() if x_forwarded_for else request.META.get('REMOTE_ADDR', '')
@@ -188,7 +188,7 @@ def setup_2fa(request):
 
     site_name = 'Seashore Microfinance'
     otp_uri   = pyotp.totp.TOTP(provisional_secret).provisioning_uri(
-        name=user.email,
+        name=user.employee_id or user.email,
         issuer_name=site_name,
     )
     qr_data_uri = _make_qr_data_uri(otp_uri)

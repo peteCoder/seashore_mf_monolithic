@@ -56,9 +56,9 @@ def _branch_filter(queryset, request, field='branch'):
 @extend_schema(tags=['auth'], summary='Obtain authentication token')
 class ObtainTokenView(APIView):
     """
-    Exchange email + password for a DRF auth token.
+    Exchange Staff ID + password for a DRF auth token.
 
-    POST body: ``{"username": "<email>", "password": "<password>"}``
+    POST body: ``{"username": "<staff_id>", "password": "<password>"}``
     Returns:   ``{"token": "<token>", "user_id": "...", "email": "..."}``
     """
     authentication_classes = []

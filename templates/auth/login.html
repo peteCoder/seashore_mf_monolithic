@@ -77,7 +77,7 @@
                             Welcome back
                         </h2>
                         <p class="text-gray-600 dark:text-gray-400 text-base">
-                            Login to your profile.
+                            Enter your Staff ID and password to continue.
                         </p>
                     </div>
                     
@@ -109,26 +109,27 @@
                         </div>
                         {% endif %}
                         
-                        <!-- Email Field with Animated Label -->
+                        <!-- Staff ID Field with Animated Label -->
                         <div class="relative">
-                            <input type="email" 
-                                   name="email" 
-                                   id="id_email"
+                            <input type="text"
+                                   name="staff_id"
+                                   id="id_staff_id"
                                    placeholder=" "
-                                   class="peer w-full px-6 py-4 bg-gray-100 dark:bg-gray-800 border-0 rounded-2xl text-gray-900 dark:text-white placeholder-transparent focus:ring-2 focus:ring-amber-500 focus:bg-white dark:focus:bg-gray-700 transition-all {% if form.email.errors %}ring-2 ring-red-500{% endif %}"
-                                   value="{{ form.email.value|default:'' }}"
+                                   autocomplete="username"
+                                   class="peer w-full px-6 py-4 bg-gray-100 dark:bg-gray-800 border-0 rounded-2xl text-gray-900 dark:text-white placeholder-transparent focus:ring-2 focus:ring-amber-500 focus:bg-white dark:focus:bg-gray-700 transition-all {% if form.staff_id.errors %}ring-2 ring-red-500{% endif %}"
+                                   value="{{ form.staff_id.value|default:'' }}"
                                    required>
-                            <label for="id_email" 
+                            <label for="id_staff_id"
                                    class="absolute left-6 top-4 text-gray-500 dark:text-gray-400 transition-all duration-200 pointer-events-none
                                           peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500
                                           peer-focus:top-1 peer-focus:text-xs peer-focus:text-amber-600 dark:peer-focus:text-amber-500
                                           peer-[:not(:placeholder-shown)]:top-1 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-amber-600 dark:peer-[:not(:placeholder-shown)]:text-amber-500">
-                                Email address
+                                Staff ID
                             </label>
-                            {% if form.email.errors %}
+                            {% if form.staff_id.errors %}
                             <p class="text-sm text-red-500 mt-2 ml-2 flex items-center">
                                 <i class="fas fa-exclamation-circle mr-1"></i>
-                                {{ form.email.errors.0 }}
+                                {{ form.staff_id.errors.0 }}
                             </p>
                             {% endif %}
                         </div>

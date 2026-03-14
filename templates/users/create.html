@@ -44,6 +44,19 @@
         <form method="post">
             {% csrf_token %}
 
+            <!-- Staff ID -->
+            <div class="mb-6 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700 rounded-xl">
+                <label class="block text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1">
+                    {{ form.employee_id.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.employee_id }}
+                {% if form.employee_id.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.employee_id.errors.0 }}</p>
+                {% else %}
+                <p class="mt-1 text-xs text-amber-700 dark:text-amber-400">{{ form.employee_id.help_text }}</p>
+                {% endif %}
+            </div>
+
             <!-- Name Fields -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>

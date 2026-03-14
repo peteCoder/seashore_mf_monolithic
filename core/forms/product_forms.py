@@ -298,10 +298,7 @@ class SavingsProductForm(forms.ModelForm):
                 'rows': 3,
                 'placeholder': 'Product description and features',
             }),
-            'gl_code': forms.TextInput(attrs={
-                'class': TEXT_INPUT_CLASS,
-                'placeholder': 'GL code for accounting',
-            }),
+            # gl_code — overridden as ChoiceField in __init__; no widget entry needed here
             'product_type': forms.Select(attrs={'class': SELECT_CLASS}),
             'interest_rate_annual': forms.NumberInput(attrs={
                 'class': TEXT_INPUT_CLASS,
@@ -343,6 +340,29 @@ class SavingsProductForm(forms.ModelForm):
             }),
             'allows_withdrawal_before_maturity': forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
         }
+
+    # Override gl_code as a ChoiceField so users pick from the Chart of Accounts
+    gl_code = forms.ChoiceField(
+        required=False,
+        widget=forms.Select(attrs={'class': SELECT_CLASS}),
+        label='GL Account',
+        help_text='The general ledger liability account this savings product posts deposits to.',
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Build dropdown choices from active ChartOfAccounts records
+        # Displayed as: "2010 — Savings Deposits - Regular"
+        gl_choices = [('', '— Select GL Account (optional) —')]
+        accounts = (
+            ChartOfAccounts.objects
+            .filter(is_active=True)
+            .order_by('gl_code')
+            .values_list('gl_code', 'account_name')
+        )
+        gl_choices += [(code, f'{code} \u2014 {name}') for code, name in accounts]
+        self.fields['gl_code'].choices = gl_choices
 
     def clean_code(self):
         """Validate code uniqueness"""

@@ -113,6 +113,7 @@ from core.views.user_views import (
     user_assign_branch,
     user_profile,
     user_profile_edit,
+    user_change_password,
 )
 
 from core.views.transaction_views import (
@@ -406,6 +407,7 @@ urlpatterns = [
     path('staff/<uuid:user_id>/edit/', user_edit, name='user_edit'),
     path('staff/<uuid:user_id>/delete/', user_delete, name='user_delete'),
     path('staff/<uuid:user_id>/assign-branch/', user_assign_branch, name='user_assign_branch'),
+    path('staff/<uuid:user_id>/change-password/', user_change_password, name='user_change_password'),
 
     # User Profile (for logged-in user)
     path('profile/', user_profile, name='user_profile'),

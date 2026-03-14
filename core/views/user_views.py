@@ -20,6 +20,7 @@ from core.forms.user_forms import (
     UserProfileUpdateForm,
     AssignBranchForm,
     UserSearchForm,
+    AdminChangePasswordForm,
 )
 from core.permissions import PermissionChecker
 
@@ -96,7 +97,8 @@ def user_list(request):
                 Q(first_name__icontains=search) |
                 Q(last_name__icontains=search) |
                 Q(email__icontains=search) |
-                Q(phone_number__icontains=search)
+                Q(phone_number__icontains=search) |
+                Q(employee_id__icontains=search)
             )
 
         if role:
@@ -442,3 +444,43 @@ def user_profile_edit(request):
     }
 
     return render(request, 'users/profile_edit.html', context)
+
+
+# =============================================================================
+# ADMIN CHANGE PASSWORD VIEW
+# =============================================================================
+
+@login_required
+def user_change_password(request, user_id):
+    """
+    Admin-only: override a staff member's password without knowing the old one.
+
+    Permissions: Admin, Director only.
+    """
+    checker = PermissionChecker(request.user)
+
+    if not checker.is_admin_or_director():
+        messages.error(request, 'You do not have permission to change staff passwords.')
+        raise PermissionDenied
+
+    target_user = get_object_or_404(User, id=user_id)
+
+    if request.method == 'POST':
+        form = AdminChangePasswordForm(request.POST)
+        if form.is_valid():
+            target_user.set_password(form.cleaned_data['password1'])
+            target_user.save(update_fields=['password'])
+            messages.success(
+                request,
+                f'Password for {target_user.get_full_name()} ({target_user.employee_id}) has been updated successfully.'
+            )
+            return redirect('core:user_detail', user_id=target_user.id)
+    else:
+        form = AdminChangePasswordForm()
+
+    context = {
+        'page_title': f'Change Password: {target_user.get_full_name()}',
+        'form': form,
+        'staff_user': target_user,
+    }
+    return render(request, 'users/change_password.html', context)
