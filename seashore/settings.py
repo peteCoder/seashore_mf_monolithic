@@ -52,6 +52,12 @@ ALLOWED_HOSTS = config(
     cast=lambda v: [h.strip() for h in v.split(",") if h.strip()],
 )
 
+CSRF_TRUSTED_ORIGINS = config(
+    "CSRF_TRUSTED_ORIGINS",
+    default="http://localhost,http://127.0.0.1",
+    cast=lambda v: [o.strip() for o in v.split(",") if o.strip()],
+)
+
 
 cloudinary.config(
     cloud_name = config('CLOUDINARY_CLOUD_NAME', default='your-cloud-name'),
@@ -397,11 +403,6 @@ if not DEBUG:
     CSRF_COOKIE_SECURE           = True
     CSRF_COOKIE_HTTPONLY         = True
     CSRF_COOKIE_SAMESITE         = 'Lax'
-    CSRF_TRUSTED_ORIGINS         = config(
-        "CSRF_TRUSTED_ORIGINS",
-        default="https://seashoremicro.com,https://www.seashoremicro.com",
-        cast=lambda v: [o.strip() for o in v.split(",") if o.strip()],
-    )
 
     # Deny framing entirely (clickjacking protection)
     X_FRAME_OPTIONS              = 'DENY'
