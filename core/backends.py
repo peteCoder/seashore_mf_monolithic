@@ -30,9 +30,14 @@ class StaffIDBackend(ModelBackend):
         if not lookup or not password:
             return None
 
-        try:
-            user = User.objects.get(employee_id=lookup)
-        except User.DoesNotExist:
+        # Try employee_id first (web login / DRF token)
+        user = User.objects.filter(employee_id=lookup).first()
+
+        # Fall back to email lookup so Django admin (/admin/) works
+        if user is None:
+            user = User.objects.filter(email=lookup).first()
+
+        if user is None:
             # Run a dummy password hash to mitigate timing attacks
             User().set_password(password)
             return None
