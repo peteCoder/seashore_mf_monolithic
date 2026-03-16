@@ -365,26 +365,24 @@
  */
 (function () {
     var FREQ_DEFAULTS = {
-        'thrift':         'daily',
-        'group':          'weekly',
-        'emergency':      'monthly',
-        'med':            'monthly',
-        'business':       'monthly',
-        'salary_advance': 'monthly',
-        'asset_finance':  'monthly',
-        'agricultural':   'monthly',
+        'regular': 'weekly',
+        'special': 'monthly',
+        'med':     'monthly',
+        'asset':   'monthly',
+        'thrift':  'daily',
+        'midterm': 'weekly',
+        'golden':  'monthly',
     };
 
     // GL code suggestions per loan type — matched to Chart of Accounts.
     var GL_DEFAULTS = {
-        'thrift':         { code: '1810', label: 'Loan Receivable - Principal' },
-        'group':          { code: '1810', label: 'Loan Receivable - Principal' },
-        'med':            { code: '1840', label: 'Loan Receivable - MED Clients' },
-        'business':       { code: '1810', label: 'Loan Receivable - Principal' },
-        'emergency':      { code: '1810', label: 'Loan Receivable - Principal' },
-        'salary_advance': { code: '1810', label: 'Loan Receivable - Principal' },
-        'asset_finance':  { code: '1810', label: 'Loan Receivable - Principal' },
-        'agricultural':   { code: '1810', label: 'Loan Receivable - Principal' },
+        'regular': { code: '1810', label: 'Loan Receivable - Principal' },
+        'special': { code: '1810', label: 'Loan Receivable - Principal' },
+        'med':     { code: '1840', label: 'Loan Receivable - MED Clients' },
+        'asset':   { code: '1810', label: 'Loan Receivable - Principal' },
+        'thrift':  { code: '1810', label: 'Loan Receivable - Principal' },
+        'midterm': { code: '1810', label: 'Loan Receivable - Principal' },
+        'golden':  { code: '1810', label: 'Loan Receivable - Principal' },
     };
 
     document.addEventListener('DOMContentLoaded', function () {

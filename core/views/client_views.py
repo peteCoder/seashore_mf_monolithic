@@ -341,12 +341,17 @@ def client_approve(request, client_id):
 
             if action == 'approve':
                 with transaction.atomic():
+                    # Lock the row so concurrent submissions can't both process the fee
+                    client = Client.objects.select_for_update().get(pk=client.pk)
+
                     client.approval_status = 'approved'
                     client.approved_by = request.user
                     client.approved_at = timezone.now()
-                    client.save()
+                    # Use update_fields to avoid overwriting registration_fee_paid
+                    # with a stale in-memory value from before this request started
+                    client.save(update_fields=['approval_status', 'approved_by', 'approved_at'])
 
-                    # Process registration fee if not already paid
+                    # Re-read from DB (select_for_update already gave us the latest)
                     if not client.registration_fee_paid:
                         payment_method = form.cleaned_data['payment_method']
                         fee_reference = form.cleaned_data.get('fee_reference', '')

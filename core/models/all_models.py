@@ -79,27 +79,25 @@ CLIENT_REGISTRATION_FEE = sum(item['amount'] for item in CLIENT_REGISTRATION_FEE
 # =============================================================================
 
 LOAN_TYPE_CHOICES = [
-    ('thrift',         'Thrift Loan'),
-    ('group',          'Group Loan'),
-    ('med',            'MED Loan'),
-    ('business',       'Business Loan'),
-    ('emergency',      'Emergency Loan'),
-    ('salary_advance', 'Salary Advance'),
-    ('asset_finance',  'Asset Finance Loan'),
-    ('agricultural',   'Agricultural Loan'),
+    ('regular', 'Regular Loan'),
+    ('special', 'Special Loan'),
+    ('med',     'Med Loan'),
+    ('asset',   'Asset Loan'),
+    ('thrift',  'Thrift Loan'),
+    ('midterm', 'Midterm Loan'),
+    ('golden',  'Golden Loan'),
 ]
 
 # Default repayment frequency seeded per loan type when a new product is created.
 # After creation the admin can override via the repayment_frequency field.
 REPAYMENT_FREQUENCY_MAP = {
-    'thrift':         'daily',
-    'group':          'weekly',
-    'med':            'monthly',
-    'business':       'monthly',
-    'emergency':      'monthly',
-    'salary_advance': 'monthly',
-    'asset_finance':  'monthly',
-    'agricultural':   'monthly',
+    'regular': 'weekly',
+    'special': 'monthly',
+    'med':     'monthly',
+    'asset':   'monthly',
+    'thrift':  'daily',
+    'midterm': 'weekly',
+    'golden':  'monthly',
 }
 
 REPAYMENT_FREQUENCY_CHOICES = [
@@ -1823,25 +1821,23 @@ LOAN_FORM_FEE = Decimal('200.00')
 # =============================================================================
 
 LOAN_TYPE_CHOICES = [
-    ('thrift', 'Thrift Loan (Daily Repayment)'),
-    ('group', 'Group Loan (Weekly Repayment)'),
-    ('med', 'MED Loan (Monthly Repayment)'),
-    ('business', 'Business Loan (Monthly Repayment)'),
-    ('emergency', 'Emergency Loan (Weekly Repayment)'),
-    ('salary_advance', 'Salary Advance (Monthly Repayment)'),
-    ('asset_finance', 'Asset Finance Loan'),
-    ('agricultural', 'Agricultural Loan'),
+    ('regular', 'Regular Loan'),
+    ('special', 'Special Loan'),
+    ('med',     'Med Loan'),
+    ('asset',   'Asset Loan'),
+    ('thrift',  'Thrift Loan'),
+    ('midterm', 'Midterm Loan'),
+    ('golden',  'Golden Loan'),
 ]
 
 REPAYMENT_FREQUENCY_MAP = {
-    'thrift': 'daily',
-    'group': 'weekly',
-    'med': 'monthly',
-    'business': 'monthly',
-    'emergency': 'weekly',
-    'salary_advance': 'monthly',
-    'asset_finance': 'monthly',
-    'agricultural': 'monthly',
+    'regular': 'weekly',
+    'special': 'monthly',
+    'med':     'monthly',
+    'asset':   'monthly',
+    'thrift':  'daily',
+    'midterm': 'weekly',
+    'golden':  'monthly',
 }
 
 
