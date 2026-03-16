@@ -68,8 +68,7 @@ LOAN_INSURANCE_RATE = Decimal('0.03')  # 3% of principal
 LOAN_FORM_FEE = Decimal('200.00')  # Fixed N200
 # Registration fee line items (each becomes its own transaction + journal entry)
 CLIENT_REGISTRATION_FEE_BREAKDOWN = [
-    {'key': 'registration_fee',    'label': 'Registration Fee', 'amount': Decimal('1500.00'), 'gl_code': '4110'},
-    {'key': 'id_card_fee',         'label': 'ID Card',          'amount': Decimal('500.00'),  'gl_code': '4112'},
+    {'key': 'registration_fee',    'label': 'Registration Fee', 'amount': Decimal('2000.00'), 'gl_code': '4110'},
     {'key': 'membership_card_fee', 'label': 'Membership Card',  'amount': Decimal('100.00'),  'gl_code': '4114'},
 ]
 CLIENT_REGISTRATION_FEE = sum(item['amount'] for item in CLIENT_REGISTRATION_FEE_BREAKDOWN)  # 2100.00

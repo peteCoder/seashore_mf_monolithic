@@ -60,13 +60,6 @@
                 {% endif %}
             {% endif %}
 
-            {% if not client.registration_fee_paid %}
-            <a href="{% url 'core:client_pay_registration_fee' client.id %}"
-               class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors">
-                <i class="fas fa-money-bill-wave mr-2"></i>Pay Registration Fee
-            </a>
-            {% endif %}
-
             {% if checker.is_admin_or_director or checker.is_manager and client.branch == checker.user.branch %}
                 {% if not client.is_active and client.approval_status == 'approved' %}
                 <button @click="showActivateModal = true"

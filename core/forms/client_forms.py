@@ -451,7 +451,8 @@ class ClientSearchForm(forms.Form):
 
 class ClientApprovalForm(forms.Form):
     """
-    Form for approving/rejecting client applications
+    Form for approving/rejecting client applications.
+    When approving, also collects the registration fee payment details.
     """
 
     action = forms.ChoiceField(
@@ -473,14 +474,47 @@ class ClientApprovalForm(forms.Form):
         })
     )
 
+    # --- Registration fee payment fields (shown only when action = 'approve') ---
+    payment_method = forms.ChoiceField(
+        choices=[
+            ('', '— Select payment method —'),
+            ('cash', 'Cash'),
+            ('bank_transfer', 'Bank Transfer'),
+            ('mobile_money', 'Mobile Money'),
+            ('pos', 'POS'),
+        ],
+        required=False,
+        widget=forms.Select(attrs={'class': SELECT_CLASS}),
+        label='Payment Method',
+    )
+
+    fee_reference = forms.CharField(
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': TEXT_INPUT_CLASS,
+            'placeholder': 'Reference / receipt number (optional)',
+        }),
+        label='Reference Number',
+    )
+
+    def __init__(self, *args, fee_already_paid=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._fee_already_paid = fee_already_paid
+
     def clean(self):
         cleaned_data = super().clean()
         action = cleaned_data.get('action')
         notes = cleaned_data.get('notes')
+        payment_method = cleaned_data.get('payment_method')
 
         # Require notes for rejection
         if action == 'reject' and not notes:
             self.add_error('notes', "Please provide a reason for rejection.")
+
+        # Require payment method when approving and fee not yet paid
+        if action == 'approve' and not self._fee_already_paid and not payment_method:
+            self.add_error('payment_method', 'Please select a payment method for the registration fee.')
 
         return cleaned_data
 

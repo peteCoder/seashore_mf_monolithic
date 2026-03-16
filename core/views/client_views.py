@@ -333,7 +333,7 @@ def client_approve(request, client_id):
         return redirect('core:client_detail', client_id=client.id)
 
     if request.method == 'POST':
-        form = ClientApprovalForm(request.POST)
+        form = ClientApprovalForm(request.POST, fee_already_paid=client.registration_fee_paid)
 
         if form.is_valid():
             action = form.cleaned_data['action']
@@ -345,6 +345,43 @@ def client_approve(request, client_id):
                     client.approved_by = request.user
                     client.approved_at = timezone.now()
                     client.save()
+
+                    # Process registration fee if not already paid
+                    if not client.registration_fee_paid:
+                        payment_method = form.cleaned_data['payment_method']
+                        fee_reference = form.cleaned_data.get('fee_reference', '')
+
+                        payment_details = payment_method.replace('_', ' ').title()
+                        if fee_reference:
+                            payment_details += f' - Ref: {fee_reference}'
+
+                        first_txn = None
+                        for item in CLIENT_REGISTRATION_FEE_BREAKDOWN:
+                            txn = Transaction.objects.create(
+                                client=client,
+                                branch=client.branch,
+                                transaction_type=item['key'],
+                                amount=item['amount'],
+                                payment_details=payment_details,
+                                description=f"{item['label']} — {client.get_full_name()} via {payment_method.replace('_', ' ')}",
+                                processed_by=request.user,
+                                status='completed',
+                                is_income=True,
+                            )
+                            post_fee_collection_journal(
+                                fee_type=item['key'],
+                                amount=item['amount'],
+                                client=client,
+                                branch=client.branch,
+                                processed_by=request.user,
+                                transaction_obj=txn,
+                            )
+                            if first_txn is None:
+                                first_txn = txn
+
+                        client.registration_fee_paid = True
+                        client.registration_fee_transaction = first_txn
+                        client.save(update_fields=['registration_fee_paid', 'registration_fee_transaction'])
 
                     # Auto-create savings accounts for each selected product
                     selected_ids = request.POST.getlist('savings_product_ids')
@@ -418,7 +455,7 @@ def client_approve(request, client_id):
 
             return redirect('core:client_detail', client_id=client.id)
     else:
-        form = ClientApprovalForm()
+        form = ClientApprovalForm(fee_already_paid=client.registration_fee_paid)
 
     savings_products = SavingsProduct.objects.filter(is_active=True).order_by('name')
 
@@ -427,6 +464,8 @@ def client_approve(request, client_id):
         'client': client,
         'form': form,
         'savings_products': savings_products,
+        'fee_breakdown': CLIENT_REGISTRATION_FEE_BREAKDOWN,
+        'registration_fee': CLIENT_REGISTRATION_FEE,
     }
 
     return render(request, 'clients/approve.html', context)
