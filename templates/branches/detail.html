@@ -1,4 +1,5 @@
 {% extends 'layouts/base.html' %}
+{% load humanize %}
 
 {% block title %}{{ branch.name }} - Seashore Microfinance{% endblock %}
 
@@ -53,51 +54,96 @@
     </div>
 
     <!-- Statistics Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-5">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Staff Members</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Staff</p>
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ staff_count }}</p>
                 </div>
-                <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-users text-blue-600 dark:text-blue-400 text-xl"></i>
+                <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-users text-blue-600 dark:text-blue-400"></i>
                 </div>
             </div>
         </div>
-
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-5">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm text-gray-600 dark:text-gray-400">Active Clients</p>
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ client_count }}</p>
                 </div>
-                <div class="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-user-friends text-green-600 dark:text-green-400 text-xl"></i>
+                <div class="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-user-friends text-green-600 dark:text-green-400"></i>
                 </div>
             </div>
         </div>
-
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-5">
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm text-gray-600 dark:text-gray-400">Active Loans</p>
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ active_loans_count }}</p>
                 </div>
-                <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-hand-holding-usd text-yellow-600 dark:text-yellow-400 text-xl"></i>
+                <div class="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-hand-holding-usd text-yellow-600 dark:text-yellow-400"></i>
                 </div>
             </div>
         </div>
-
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-5">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Portfolio</p>
-                    <p class="text-2xl font-bold text-gray-900 dark:text-white">₦{{ portfolio_summary.total_disbursed|floatformat:0|default:"0" }}</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Loan Portfolio</p>
+                    <p class="text-xl font-bold text-gray-900 dark:text-white">₦{{ portfolio_summary.total_disbursed|floatformat:0|intcomma|default:"0" }}</p>
                 </div>
-                <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
-                    <i class="fas fa-chart-line text-purple-600 dark:text-purple-400 text-xl"></i>
+                <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-chart-line text-purple-600 dark:text-purple-400"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Savings Summary Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-5 border-l-4 border-teal-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Active Savings Accounts</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ savings_summary.active_count }}</p>
+                </div>
+                <div class="w-10 h-10 bg-teal-100 dark:bg-teal-900/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-piggy-bank text-teal-600 dark:text-teal-400"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-5 border-l-4 border-teal-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Total Savings Balance</p>
+                    <p class="text-xl font-bold text-teal-600 dark:text-teal-400">₦{{ savings_summary.total_balance|floatformat:0|intcomma }}</p>
+                </div>
+                <div class="w-10 h-10 bg-teal-100 dark:bg-teal-900/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-wallet text-teal-600 dark:text-teal-400"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-5 border-l-4 border-yellow-400">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Pending Savings Accounts</p>
+                    <p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{{ savings_summary.pending_count }}</p>
+                </div>
+                <div class="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-clock text-yellow-600 dark:text-yellow-400"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-5 border-l-4 border-green-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Deposits This Month</p>
+                    <p class="text-xl font-bold text-green-600 dark:text-green-400">₦{{ monthly_deposits|floatformat:0|intcomma }}</p>
+                </div>
+                <div class="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-arrow-down text-green-600 dark:text-green-400"></i>
                 </div>
             </div>
         </div>
@@ -158,6 +204,56 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Savings by Product Type -->
+            {% if savings_by_product %}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-piggy-bank text-teal-500 mr-2"></i>Savings by Product
+                </h2>
+                <div class="space-y-3">
+                    {% for row in savings_by_product %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ row.savings_product__name }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ row.count }} account{{ row.count|pluralize }}</p>
+                        </div>
+                        <p class="text-sm font-bold text-teal-600 dark:text-teal-400">₦{{ row.total_balance|floatformat:0|intcomma }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <a href="{% url 'core:savings_account_list' %}?branch={{ branch.id }}"
+                       class="text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline">
+                        View All Savings Accounts →
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Recent Savings Accounts -->
+            {% if recent_savings %}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">
+                    <i class="fas fa-wallet text-teal-500 mr-2"></i>Recent Savings Accounts
+                </h2>
+                <div class="space-y-3">
+                    {% for acct in recent_savings %}
+                    <div class="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900 dark:text-white font-mono">{{ acct.account_number }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ acct.client.get_full_name }} · {{ acct.savings_product.name }}</p>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <span class="text-sm font-semibold text-teal-600 dark:text-teal-400">₦{{ acct.balance|floatformat:2|intcomma }}</span>
+                            <a href="{% url 'core:savings_account_detail' acct.id %}"
+                               class="text-primary-600 dark:text-primary-400 text-xs hover:underline">View</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Recent Clients -->
             {% if recent_clients %}

@@ -62,6 +62,7 @@ from core.views.savings_views import (
     savings_transaction_list,
     savings_transaction_approve,
     savings_transaction_approve_bulk,
+    savings_transaction_detail,
 )
 
 from core.views.loan_product_views import (
@@ -350,6 +351,7 @@ urlpatterns = [
     # Combined Transaction Views
     path('savings/transactions/', savings_transaction_list, name='savings_transaction_list'),
     path('savings/transactions/approve/bulk/', savings_transaction_approve_bulk, name='savings_transaction_approve_bulk'),
+    path('savings/transactions/<str:posting_type>/<uuid:posting_id>/', savings_transaction_detail, name='savings_transaction_detail'),
 
     # =========================================================================
     # LOAN PRODUCTS

@@ -989,3 +989,36 @@ def savings_transaction_approve_bulk(request):
         return redirect('core:savings_transaction_list')
 
     return redirect('core:savings_transaction_list')
+
+
+# =============================================================================
+# SAVINGS TRANSACTION DETAIL
+# =============================================================================
+
+@login_required
+def savings_transaction_detail(request, posting_type, posting_id):
+    """
+    Read-only detail view for a single savings posting (deposit or withdrawal).
+    Shows all fields including reviewer notes / rejection reason.
+    """
+    checker = PermissionChecker(request.user)
+
+    if posting_type == 'deposit':
+        posting = get_object_or_404(SavingsDepositPosting, id=posting_id)
+    elif posting_type == 'withdrawal':
+        posting = get_object_or_404(SavingsWithdrawalPosting, id=posting_id)
+    else:
+        raise PermissionDenied("Invalid posting type.")
+
+    context = {
+        'page_title': f'Transaction Detail — {posting.posting_ref}',
+        'posting': posting,
+        'posting_type': posting_type,
+        'checker': checker,
+        # URL for approving (if still pending and user has permission)
+        'approve_url': (
+            'core:savings_deposit_approve' if posting_type == 'deposit'
+            else 'core:savings_withdrawal_approve'
+        ),
+    }
+    return render(request, 'savings/transaction_detail.html', context)

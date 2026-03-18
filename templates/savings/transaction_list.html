@@ -221,14 +221,18 @@
                         </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {% if posting.status == 'pending' and checker.can_approve_accounts %}
-                        <a href="{% if posting.posting_type == 'deposit' %}{% url 'core:savings_deposit_approve' posting.id %}{% else %}{% url 'core:savings_withdrawal_approve' posting.id %}{% endif %}"
-                           class="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300">
-                            Review
-                        </a>
-                        {% else %}
-                        <span class="text-gray-400 dark:text-gray-600">-</span>
-                        {% endif %}
+                        <div class="flex items-center justify-end gap-3">
+                            <a href="{% url 'core:savings_transaction_detail' posting.posting_type posting.id %}"
+                               class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 text-xs font-medium">
+                                <i class="fas fa-eye mr-1"></i>View
+                            </a>
+                            {% if posting.status == 'pending' and checker.can_approve_accounts %}
+                            <a href="{% if posting.posting_type == 'deposit' %}{% url 'core:savings_deposit_approve' posting.id %}{% else %}{% url 'core:savings_withdrawal_approve' posting.id %}{% endif %}"
+                               class="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300 text-xs font-medium">
+                                <i class="fas fa-check-circle mr-1"></i>Review
+                            </a>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% empty %}

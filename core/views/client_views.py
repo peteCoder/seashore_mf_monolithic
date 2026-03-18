@@ -623,7 +623,7 @@ def client_delete(request, client_id):
 
     if request.method == 'POST':
         client_name = client.get_full_name()
-        client.delete()  # Soft delete (sets deleted_at)
+        client.delete(hard=True)  # Permanent delete — admin only
 
         messages.success(request, f'Client {client_name} deleted successfully.')
         return redirect('core:client_list')

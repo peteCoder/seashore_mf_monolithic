@@ -10,9 +10,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Sum, Count
+from django.utils import timezone
 
-from core.models import Branch
+from core.models import Branch, SavingsAccount
 from core.forms.branch_forms import (
     BranchCreateForm,
     BranchUpdateForm,
@@ -125,6 +126,42 @@ def branch_detail(request, branch_id):
     # Get recent clients
     recent_clients = branch.clients.filter(is_active=True, approval_status='approved').order_by('-created_at')[:10]
 
+    # ── Savings Analytics ────────────────────────────────────────────────────
+    branch_savings = SavingsAccount.objects.filter(branch=branch)
+
+    active_savings = branch_savings.filter(status='active')
+    savings_summary = {
+        'active_count':    active_savings.count(),
+        'pending_count':   branch_savings.filter(status='pending').count(),
+        'closed_count':    branch_savings.filter(status='closed').count(),
+        'total_balance':   active_savings.aggregate(t=Sum('balance'))['t'] or 0,
+    }
+
+    # Savings by product type — only active accounts
+    savings_by_product = (
+        active_savings
+        .values('savings_product__name', 'savings_product__product_type')
+        .annotate(count=Count('id'), total_balance=Sum('balance'))
+        .order_by('-total_balance')
+    )
+
+    # Current month deposits for this branch
+    now = timezone.now()
+    from core.models import SavingsDepositPosting
+    monthly_deposits = (
+        SavingsDepositPosting.objects
+        .filter(branch=branch, status='approved',
+                submitted_at__year=now.year, submitted_at__month=now.month)
+        .aggregate(t=Sum('amount'))['t'] or 0
+    )
+
+    # Recent savings accounts
+    recent_savings = (
+        active_savings
+        .select_related('client', 'savings_product')
+        .order_by('-created_at')[:8]
+    )
+
     # Context
     context = {
         'page_title': f'Branch: {branch.name}',
@@ -135,6 +172,10 @@ def branch_detail(request, branch_id):
         'portfolio_summary': portfolio_summary,
         'recent_staff': recent_staff,
         'recent_clients': recent_clients,
+        'savings_summary': savings_summary,
+        'savings_by_product': savings_by_product,
+        'monthly_deposits': monthly_deposits,
+        'recent_savings': recent_savings,
         'checker': checker,
     }
 
