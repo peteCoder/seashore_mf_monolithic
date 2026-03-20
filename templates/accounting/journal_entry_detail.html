@@ -25,7 +25,7 @@
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
-                {% if journal.status in 'draft,pending' and user.user_role in 'director,admin,hr' %}
+                {% if journal.status in 'draft,pending' and can_post %}
                 <a href="{% url 'core:journal_entry_post' entry_id=journal.id %}"
                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700">
                     <i class="fas fa-check mr-2"></i>

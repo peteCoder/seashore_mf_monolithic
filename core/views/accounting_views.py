@@ -574,12 +574,19 @@ def journal_entry_detail(request, entry_id):
     total_credits = journal.get_total_credits()
     is_balanced = total_debits == total_credits
 
+    # Managers can post journals in their own branch; directors/HR/admin can post any
+    can_post = (
+        checker.is_admin_or_director()
+        or (checker.is_manager() and journal.branch == request.user.branch)
+    )
+
     context = {
         'page_title': f'Journal Entry: {journal.journal_number}',
         'journal': journal,
         'total_debits': total_debits,
         'total_credits': total_credits,
         'is_balanced': is_balanced,
+        'can_post': can_post,
     }
 
     return render(request, 'accounting/journal_entry_detail.html', context)
@@ -612,6 +619,12 @@ def journal_entry_create(request):
 
     if request.method == 'POST':
         form = JournalEntryForm(request.POST)
+        # Restrict branch choices for managers before validation
+        if checker.is_manager() and request.user.branch:
+            from core.models import Branch as BranchModel
+            form.fields['branch'].queryset = BranchModel.objects.filter(id=request.user.branch.id)
+            form.fields['branch'].empty_label = None
+            form.fields['branch'].required = True
         formset = JournalEntryLineFormSet(request.POST)
 
         if form.is_valid() and formset.is_valid():
@@ -670,7 +683,16 @@ def journal_entry_create(request):
                 'reference_number': source_transaction.transaction_ref,
                 'entry_type': 'correction',
             }
+        if checker.is_manager() and request.user.branch:
+            # Pre-fill manager's branch
+            initial.setdefault('branch', request.user.branch)
         form = JournalEntryForm(initial=initial)
+        # Restrict branch dropdown to manager's own branch
+        if checker.is_manager() and request.user.branch:
+            from core.models import Branch as BranchModel
+            form.fields['branch'].queryset = BranchModel.objects.filter(id=request.user.branch.id)
+            form.fields['branch'].empty_label = None
+            form.fields['branch'].required = True
         formset = JournalEntryLineFormSet()
 
     context = {
@@ -693,11 +715,16 @@ def journal_entry_post(request, entry_id):
     """
     checker = PermissionChecker(request.user)
 
-    if not checker.is_admin_or_director():
-        messages.error(request, 'Only Directors and Administrators can post journal entries.')
+    if not (checker.is_admin_or_director() or checker.is_manager()):
+        messages.error(request, 'You do not have permission to post journal entries.')
         raise PermissionDenied
 
     journal = get_object_or_404(JournalEntry, id=entry_id)
+
+    # Managers may only post journals belonging to their own branch
+    if checker.is_manager() and journal.branch != request.user.branch:
+        messages.error(request, 'You can only post journal entries from your branch.')
+        raise PermissionDenied
 
     if journal.status == 'posted':
         messages.warning(request, 'This journal entry is already posted.')
