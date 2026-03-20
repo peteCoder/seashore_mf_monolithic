@@ -439,6 +439,14 @@ def group_collection_approve(request, session_id):
         decision = request.POST.get('decision')
         review_notes = request.POST.get('notes', '')
 
+        # Parse the manager-confirmed transaction date; fall back to collection_date
+        import datetime as _dt
+        raw_txn_date = request.POST.get('transaction_date', '')
+        try:
+            txn_date = _dt.date.fromisoformat(raw_txn_date) if raw_txn_date else session.collection_date
+        except ValueError:
+            txn_date = session.collection_date
+
         if decision == 'approve':
             items = session.items.select_related('loan', 'loan__client')
             errors = []
@@ -456,7 +464,7 @@ def group_collection_approve(request, session_id):
                         amount=item.amount,
                         processed_by=request.user,
                         description=f'Group collection: {session.group.name} ({session.collection_date})',
-                        transaction_date=session.collection_date,
+                        transaction_date=txn_date,
                     )
                 except Exception as e:
                     errors.append(f'{item.loan.loan_number}: {str(e)}')
@@ -524,6 +532,13 @@ def group_savings_collection_approve(request, session_id):
         decision = request.POST.get('decision')
         review_notes = request.POST.get('notes', '')
 
+        import datetime as _dt
+        raw_txn_date = request.POST.get('transaction_date', '')
+        try:
+            txn_date = _dt.date.fromisoformat(raw_txn_date) if raw_txn_date else session.collection_date
+        except ValueError:
+            txn_date = session.collection_date
+
         if decision == 'approve':
             items = session.items.select_related('savings_account', 'client')
             errors = []
@@ -534,7 +549,7 @@ def group_savings_collection_approve(request, session_id):
                         amount=item.amount,
                         processed_by=request.user,
                         description=f'Group savings collection: {session.group.name} ({session.collection_date})',
-                        transaction_date=session.collection_date,
+                        transaction_date=txn_date,
                     )
                 except Exception as e:
                     errors.append(f'{item.client.get_full_name()}: {str(e)}')
@@ -798,6 +813,13 @@ def group_combined_collection_approve(request, session_id):
         decision = request.POST.get('decision')
         review_notes = request.POST.get('notes', '')
 
+        import datetime as _dt
+        raw_txn_date = request.POST.get('transaction_date', '')
+        try:
+            txn_date = _dt.date.fromisoformat(raw_txn_date) if raw_txn_date else session.collection_date
+        except ValueError:
+            txn_date = session.collection_date
+
         if decision == 'approve':
             loan_items = session.loan_items.select_related('loan', 'client')
             savings_items = session.savings_items.select_related('savings_account', 'client')
@@ -814,7 +836,8 @@ def group_combined_collection_approve(request, session_id):
                     item.loan.record_repayment(
                         amount=item.amount,
                         processed_by=request.user,
-                        description=f'Group combined collection: {session.group.name} ({session.collection_date})'
+                        description=f'Group combined collection: {session.group.name} ({session.collection_date})',
+                        transaction_date=txn_date,
                     )
                 except Exception as e:
                     errors.append(f'Loan {item.loan.loan_number}: {str(e)}')
@@ -824,7 +847,8 @@ def group_combined_collection_approve(request, session_id):
                     item.savings_account.deposit(
                         amount=item.amount,
                         processed_by=request.user,
-                        description=f'Group combined collection: {session.group.name} ({session.collection_date})'
+                        description=f'Group combined collection: {session.group.name} ({session.collection_date})',
+                        transaction_date=txn_date,
                     )
                 except Exception as e:
                     errors.append(f'Savings ({item.client.get_full_name()}): {str(e)}')
