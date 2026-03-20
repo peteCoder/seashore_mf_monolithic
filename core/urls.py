@@ -63,6 +63,8 @@ from core.views.savings_views import (
     savings_transaction_approve,
     savings_transaction_approve_bulk,
     savings_transaction_detail,
+    savings_product_api,
+    savings_products_for_client,
 )
 
 from core.views.loan_product_views import (
@@ -468,8 +470,11 @@ urlpatterns = [
     # Loan Payment Promises
     path('loans/<uuid:loan_id>/payment-promises/add/', loan_add_promise, name='loan_add_promise'),
 
-    # Loan Product API
-    path('api/loan-product/<uuid:product_id>/', loan_product_api, name='loan_product_api'),
+    # Internal product detail endpoints (used by form JS; must NOT start with api/ as
+    # that prefix is claimed by the DRF router in seashore/urls.py)
+    path('internal/loan-product/<uuid:product_id>/', loan_product_api, name='loan_product_api'),
+    path('internal/savings-product/<uuid:product_id>/', savings_product_api, name='savings_product_api'),
+    path('internal/savings-products-for-client/<uuid:client_id>/', savings_products_for_client, name='savings_products_for_client'),
 
     # =========================================================================
     # NOTIFICATIONS

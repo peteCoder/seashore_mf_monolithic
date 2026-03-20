@@ -192,7 +192,11 @@ def savings_account_create(request):
             )
             return redirect('core:savings_account_detail', account_id=account.id)
     else:
-        form = SavingsAccountForm(user=request.user)
+        initial = {}
+        client_id = request.GET.get('client')
+        if client_id:
+            initial['client'] = client_id
+        form = SavingsAccountForm(user=request.user, initial=initial)
 
     context = {
         'page_title': 'Create Savings Account',
@@ -722,8 +726,13 @@ def savings_transaction_list(request):
         # All postings
         postings = list(deposit_postings) + list(withdrawal_postings)
 
-    # Sort by submitted_at
-    postings.sort(key=lambda x: x.submitted_at, reverse=True)
+    # Sort ascending — oldest at top, most recent at bottom
+    postings.sort(key=lambda x: x.submitted_at, reverse=False)
+
+    # Excel export (exports all filtered postings, no pagination limit)
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_savings_transactions_excel
+        return export_savings_transactions_excel(postings)
 
     # Pagination
     paginator = Paginator(postings, 25)
@@ -1022,3 +1031,67 @@ def savings_transaction_detail(request, posting_type, posting_id):
         ),
     }
     return render(request, 'savings/transaction_detail.html', context)
+
+
+@login_required
+def savings_products_for_client(request, client_id):
+    """
+    Return active savings products this client does NOT already hold
+    (status pending or active). Used by the create-account form to
+    dynamically filter the product dropdown when the client changes.
+    """
+    from django.http import JsonResponse
+    from core.models import SavingsAccount
+
+    taken = SavingsAccount.objects.filter(
+        client_id=client_id,
+        status__in=['pending', 'active'],
+        deleted_at__isnull=True,
+    ).values_list('savings_product_id', flat=True)
+
+    products = SavingsProduct.objects.filter(
+        is_active=True
+    ).exclude(id__in=taken).order_by('name')
+
+    return JsonResponse({
+        'products': [{'id': str(p.id), 'name': p.name} for p in products]
+    })
+
+
+@login_required
+def savings_product_api(request, product_id):
+    """
+    JSON endpoint that returns savings product details for the create-account form.
+    Field names intentionally match what the frontend JS template expects.
+    """
+    from django.http import JsonResponse
+
+    try:
+        product = SavingsProduct.objects.get(id=product_id, is_active=True)
+    except SavingsProduct.DoesNotExist:
+        return JsonResponse({'error': 'Product not found'}, status=404)
+
+    data = {
+        'id': str(product.id),
+        'name': product.name,
+        'description': product.description,
+        'product_type': product.product_type,
+        'product_type_display': product.get_product_type_display(),
+        # JS template reads `interest_rate`
+        'interest_rate': float(product.interest_rate_annual),
+        'interest_calculation_method': product.interest_calculation_method,
+        'interest_payment_frequency': product.interest_payment_frequency,
+        # JS template reads `minimum_balance`, `minimum_deposit`, `maximum_withdrawal`
+        'minimum_balance': float(product.minimum_balance),
+        'minimum_opening_balance': float(product.minimum_opening_balance),
+        'minimum_deposit': float(product.min_deposit_amount),
+        'maximum_withdrawal': float(product.max_withdrawal_amount) if product.max_withdrawal_amount is not None else None,
+        'daily_withdrawal_limit': float(product.daily_withdrawal_limit) if product.daily_withdrawal_limit is not None else None,
+        'withdrawal_fee': float(product.withdrawal_fee),
+        'monthly_maintenance_fee': float(product.monthly_maintenance_fee),
+        # Fixed deposit extras
+        'fixed_term_months': product.fixed_term_months,
+        'allows_withdrawal_before_maturity': product.allows_withdrawal_before_maturity,
+        'early_withdrawal_penalty_rate': float(product.early_withdrawal_penalty_rate),
+    }
+    return JsonResponse(data)

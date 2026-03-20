@@ -13,6 +13,11 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
+            <a href="?{% if transaction_type %}type={{ transaction_type }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}export=excel"
+               class="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors flex items-center space-x-2 text-sm">
+                <i class="fas fa-file-excel"></i>
+                <span>Export Excel</span>
+            </a>
             <a href="{% url 'core:savings_deposit_post_bulk' %}"
                class="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors flex items-center space-x-2 text-sm">
                 <i class="fas fa-upload"></i>

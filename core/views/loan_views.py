@@ -294,7 +294,11 @@ def loan_create(request):
                 )
                 return redirect('core:loan_pay_fees', loan_id=loan.id)
     else:
-        form = LoanApplicationForm(user=request.user)
+        initial = {}
+        client_id = request.GET.get('client')
+        if client_id:
+            initial['client'] = client_id
+        form = LoanApplicationForm(user=request.user, initial=initial)
 
     context = {
         'page_title': 'Create Loan Application',

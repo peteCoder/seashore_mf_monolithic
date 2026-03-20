@@ -155,35 +155,28 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const clientSelect  = document.getElementById('{{ form.client.id_for_label }}');
     const productSelect = document.getElementById('{{ form.savings_product.id_for_label }}');
-    let currentProductData = null;
 
-    // Function to format currency
     function formatCurrency(amount) {
         return `₦${parseFloat(amount).toLocaleString('en-NG', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     }
 
-    // Function to fetch and display product details
+    function clearProductDetails() {
+        document.getElementById('productDetails').classList.add('hidden');
+        document.getElementById('productInfo').classList.add('hidden');
+        document.getElementById('productInfoPlaceholder').classList.remove('hidden');
+    }
+
     async function fetchProductDetails(productId) {
-        if (!productId) {
-            document.getElementById('productDetails').classList.add('hidden');
-            document.getElementById('productInfo').classList.add('hidden');
-            document.getElementById('productInfoPlaceholder').classList.remove('hidden');
-            currentProductData = null;
-            return;
-        }
+        if (!productId) { clearProductDetails(); return; }
 
         try {
-            const response = await fetch(`/api/savings-product/${productId}/`);
-            if (!response.ok) {
-                console.error('Failed to fetch product details');
-                return;
-            }
+            const response = await fetch(`/internal/savings-product/${productId}/`);
+            if (!response.ok) { clearProductDetails(); return; }
 
             const data = await response.json();
-            currentProductData = data;
 
-            // Update product details section
             document.getElementById('productName').textContent = data.name;
             document.getElementById('productDescription').textContent = data.description || 'No description available';
             document.getElementById('productInterestRate').textContent = `${data.interest_rate}% per annum`;
@@ -192,30 +185,60 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('productMinDeposit').textContent = formatCurrency(data.minimum_deposit || 0);
             document.getElementById('productMaxWithdrawal').textContent = data.maximum_withdrawal ? formatCurrency(data.maximum_withdrawal) : 'Unlimited';
             document.getElementById('productWithdrawalFee').textContent = data.withdrawal_fee ? formatCurrency(data.withdrawal_fee) : 'None';
-
             document.getElementById('productDetails').classList.remove('hidden');
 
-            // Update right sidebar
             document.getElementById('infoInterestRate').textContent = `${data.interest_rate}% per annum`;
             document.getElementById('infoType').textContent = data.product_type_display || data.product_type;
             document.getElementById('infoMinBalance').textContent = formatCurrency(data.minimum_balance || 0);
             document.getElementById('infoMinDeposit').textContent = formatCurrency(data.minimum_deposit || 0);
             document.getElementById('infoMaxWithdrawal').textContent = data.maximum_withdrawal ? formatCurrency(data.maximum_withdrawal) : 'Unlimited';
-
             document.getElementById('productInfo').classList.remove('hidden');
             document.getElementById('productInfoPlaceholder').classList.add('hidden');
-
-        } catch (error) {
-            console.error('Error fetching product details:', error);
+        } catch (e) {
+            clearProductDetails();
         }
     }
 
-    // Listen for product change
+    // Rebuild the product dropdown to only show products this client doesn't already hold
+    async function refreshProductsForClient(clientId) {
+        // Reset product selection and details panel
+        productSelect.value = '';
+        clearProductDetails();
+
+        // Remove all options except the blank one
+        while (productSelect.options.length > 1) productSelect.remove(1);
+
+        if (!clientId) return;
+
+        try {
+            const response = await fetch(`/internal/savings-products-for-client/${clientId}/`);
+            if (!response.ok) return;
+            const data = await response.json();
+
+            if (data.products.length === 0) {
+                const opt = new Option('— No available products for this client —', '');
+                opt.disabled = true;
+                productSelect.add(opt);
+            } else {
+                data.products.forEach(p => productSelect.add(new Option(p.name, p.id)));
+            }
+        } catch (e) {
+            console.error('Failed to load products for client', e);
+        }
+    }
+
+    // When client changes, reload products
+    clientSelect.addEventListener('change', function() {
+        refreshProductsForClient(this.value);
+    });
+
+    // When product changes, show its details
     productSelect.addEventListener('change', function() {
         fetchProductDetails(this.value);
     });
 
-    // Fetch details if product already selected
+    // On page load: if a client is already selected (e.g. pre-filled from ?client=),
+    // products are already server-filtered — just show details for any pre-selected product
     if (productSelect.value) {
         fetchProductDetails(productSelect.value);
     }

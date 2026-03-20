@@ -205,7 +205,7 @@ def create_journal_entry(
     return journal
 
 
-def post_loan_disbursement_journal(loan, disbursed_by):
+def post_loan_disbursement_journal(loan, disbursed_by, transaction_obj=None):
     """
     Create journal entry for loan disbursement
 
@@ -216,6 +216,7 @@ def post_loan_disbursement_journal(loan, disbursed_by):
     Args:
         loan: Loan object
         disbursed_by: User who disbursed the loan
+        transaction_obj: Related Transaction object (optional)
 
     Returns:
         JournalEntry: Created journal entry
@@ -246,6 +247,7 @@ def post_loan_disbursement_journal(loan, disbursed_by):
         description=f"Loan Disbursement: {loan.loan_number}",
         created_by=disbursed_by,
         lines=lines,
+        transaction_obj=transaction_obj,
         loan=loan,
         reference_number=loan.loan_number,
         auto_post=True

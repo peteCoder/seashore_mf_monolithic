@@ -59,9 +59,24 @@ class ClientCreateForm(forms.ModelForm):
             # Branch & Group Assignment
             'branch', 'group', 'group_role',
 
-            # Origin
+            # Origin & Dates
             'origin_channel',
+            'registration_date',
         ]
+
+        error_messages = {
+            'first_name': {'required': 'First name is required. Please enter the client\'s first name.'},
+            'last_name': {'required': 'Last name is required. Please enter the client\'s last name.'},
+            'phone': {'required': 'Phone number is required. Enter a valid number e.g. 08012345678.'},
+            'date_of_birth': {'required': 'Date of birth is required to verify the client\'s age (must be 18+).'},
+            'gender': {'required': 'Please select the client\'s gender.'},
+            'address': {'required': 'Residential address is required. Enter the client\'s full home address.'},
+            'city': {'required': 'City is required. Enter the name of the client\'s city.'},
+            'state': {'required': 'State is required. Enter the name of the client\'s state.'},
+            'id_type': {'required': 'Please select a valid government-issued ID type.'},
+            'id_number': {'required': 'ID number is required. Enter the number shown on the selected ID document.'},
+            'branch': {'required': 'Please select the branch this client belongs to.'},
+        }
 
         widgets = {
             # Personal Information (Tab 1)
@@ -81,8 +96,7 @@ class ClientCreateForm(forms.ModelForm):
             }),
             'email': forms.EmailInput(attrs={
                 'class': TEXT_INPUT_CLASS,
-                'placeholder': 'Enter email address',
-                'required': True,
+                'placeholder': 'Enter email address (optional)',
             }),
             'phone': forms.TextInput(attrs={
                 'class': TEXT_INPUT_CLASS,
@@ -276,6 +290,12 @@ class ClientCreateForm(forms.ModelForm):
             'origin_channel': forms.Select(attrs={
                 'class': SELECT_CLASS,
             }),
+
+            # Dates
+            'registration_date': forms.DateInput(attrs={
+                'class': TEXT_INPUT_CLASS,
+                'type': 'date',
+            }),
         }
 
     def __init__(self, *args, **kwargs):
@@ -307,8 +327,11 @@ class ClientCreateForm(forms.ModelForm):
             self.fields['signature'].required = True
 
     def clean_email(self):
-        """Validate email uniqueness"""
+        """Validate email uniqueness (email is optional)"""
         email = self.cleaned_data.get('email')
+
+        if not email:
+            return None  # Email is optional
 
         # Check if email already exists (excluding current instance if updating)
         queryset = Client.objects.filter(email=email)
@@ -316,30 +339,42 @@ class ClientCreateForm(forms.ModelForm):
             queryset = queryset.exclude(pk=self.instance.pk)
 
         if queryset.exists():
-            raise ValidationError("A client with this email already exists.")
+            raise ValidationError(
+                "This email address is already registered to another client. "
+                "Please use a different email address or leave it blank."
+            )
 
         return email
 
     def clean_phone(self):
-        """Validate phone number"""
+        """Validate and normalise phone number to E.164 (+234) format"""
         phone = self.cleaned_data.get('phone')
 
         if phone:
-            # Remove spaces and special characters
+            # Remove spaces and common punctuation
             phone = phone.replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
 
-            # Basic validation
             if not phone.startswith('+'):
-                # Add +234 if not present
                 if phone.startswith('0'):
                     phone = '+234' + phone[1:]
-                else:
+                elif phone.isdigit():
                     phone = '+234' + phone
+                else:
+                    raise ValidationError(
+                        "Enter a valid Nigerian phone number, e.g. 08012345678 or +2348012345678."
+                    )
+
+            # Basic length check after normalisation
+            digits = phone.lstrip('+')
+            if not digits.isdigit() or len(digits) < 10 or len(digits) > 15:
+                raise ValidationError(
+                    "Phone number is not valid. It should be 10–15 digits, e.g. 08012345678."
+                )
 
         return phone
 
     def clean_date_of_birth(self):
-        """Validate date of birth - client must be at least 18 years old"""
+        """Validate date of birth — client must be at least 18 years old"""
         dob = self.cleaned_data.get('date_of_birth')
 
         if dob:
@@ -347,24 +382,49 @@ class ClientCreateForm(forms.ModelForm):
             age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
             if age < 18:
-                raise ValidationError("Client must be at least 18 years old.")
+                raise ValidationError(
+                    f"The client must be at least 18 years old to register. "
+                    f"The date you entered gives an age of {age} year(s)."
+                )
 
             if age > 100:
-                raise ValidationError("Please enter a valid date of birth.")
+                raise ValidationError(
+                    "The date of birth entered appears to be incorrect (age exceeds 100 years). "
+                    "Please double-check and re-enter."
+                )
 
         return dob
 
     def clean_bvn(self):
-        """Validate BVN format"""
+        """Validate BVN format — must be exactly 11 numeric digits"""
         bvn = self.cleaned_data.get('bvn')
 
-        if bvn and len(bvn) != 11:
-            raise ValidationError("BVN must be exactly 11 digits.")
-
-        if bvn and not bvn.isdigit():
-            raise ValidationError("BVN must contain only digits.")
+        if bvn:
+            if not bvn.isdigit():
+                raise ValidationError("BVN must contain digits only — no letters or special characters.")
+            if len(bvn) != 11:
+                raise ValidationError(
+                    f"BVN must be exactly 11 digits. You entered {len(bvn)} digit(s)."
+                )
 
         return bvn
+
+    def clean_monthly_income(self):
+        """Strip thousand-separator commas before Django parses as Decimal"""
+        raw = self.data.get('monthly_income', '').strip()
+        if not raw:
+            return None
+        raw = raw.replace(',', '')
+        try:
+            from decimal import Decimal, InvalidOperation
+            value = Decimal(raw)
+        except InvalidOperation:
+            raise ValidationError(
+                "Enter a valid income amount using digits only, e.g. 90000 or 90000.50"
+            )
+        if value < 0:
+            raise ValidationError("Monthly income cannot be negative.")
+        return value
 
     def clean(self):
         """Additional cross-field validation"""
@@ -375,7 +435,11 @@ class ClientCreateForm(forms.ModelForm):
         group_role = cleaned_data.get('group_role')
 
         if group and not group_role:
-            self.add_error('group_role', "Group role is required when a group is selected.")
+            self.add_error(
+                'group_role',
+                "A group role is required when a group is selected. "
+                "Please choose Member, Secretary, or Leader."
+            )
 
         return cleaned_data
 
@@ -398,6 +462,21 @@ class ClientUpdateForm(ClientCreateForm):
             # Don't allow changing the branch of an existing client directly
             # (should use reassignment request)
             self.fields['branch'].disabled = True
+
+    def _post_clean(self):
+        # `assigned_staff` is not part of this form (it's managed via the
+        # separate assign-staff view).  Django's full_clean() still calls
+        # Client.clean() which validates the staff/branch relationship; if that
+        # validation fires it raises a field error for 'assigned_staff' which
+        # _update_errors cannot map back to any form field, causing a ValueError.
+        # Work-around: temporarily clear the FK before running _post_clean, then
+        # restore it afterwards so the saved instance is unchanged.
+        _sa_id = self.instance.assigned_staff_id
+        self.instance.assigned_staff_id = None
+        try:
+            super()._post_clean()
+        finally:
+            self.instance.assigned_staff_id = _sa_id
 
 
 class ClientSearchForm(forms.Form):
@@ -496,6 +575,16 @@ class ClientApprovalForm(forms.Form):
             'placeholder': 'Reference / receipt number (optional)',
         }),
         label='Reference Number',
+    )
+
+    approval_date = forms.DateField(
+        required=True,
+        widget=forms.DateInput(attrs={
+            'class': TEXT_INPUT_CLASS,
+            'type': 'date',
+        }),
+        label='Approval Date',
+        help_text='The official date of approval.',
     )
 
     def __init__(self, *args, fee_already_paid=False, **kwargs):

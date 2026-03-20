@@ -74,8 +74,21 @@ class SavingsAccountForm(forms.ModelForm):
             else:
                 self.fields['branch'].queryset = Branch.objects.filter(is_active=True)
 
-        # Filter savings products to active only
-        self.fields['savings_product'].queryset = SavingsProduct.objects.filter(is_active=True)
+        # Filter savings products to active only, and exclude any product the
+        # selected client already has a pending or active account for.
+        client_id = (
+            self.initial.get('client')
+            or self.data.get('client')
+        )
+        base_qs = SavingsProduct.objects.filter(is_active=True)
+        if client_id:
+            taken = SavingsAccount.objects.filter(
+                client_id=client_id,
+                status__in=['pending', 'active'],
+                deleted_at__isnull=True,
+            ).values_list('savings_product_id', flat=True)
+            base_qs = base_qs.exclude(id__in=taken)
+        self.fields['savings_product'].queryset = base_qs
 
     def clean(self):
         cleaned_data = super().clean()

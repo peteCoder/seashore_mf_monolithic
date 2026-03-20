@@ -5,6 +5,8 @@ Client Views
 All client CRUD operations with role-based permissions
 """
 
+from datetime import date as date_type
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -104,6 +106,11 @@ def client_list(request):
     # Prefetch related data for performance
     clients = clients.select_related('branch', 'group', 'assigned_staff').order_by('-created_at')
 
+    # Excel export (respects all active filters)
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_client_list_excel
+        return export_client_list_excel(clients)
+
     # Pagination (25 per page)
     paginator = Paginator(clients, 25)
     page_number = request.GET.get('page')
@@ -143,7 +150,7 @@ def client_detail(request, client_id):
 
     # Get client with related data
     client = get_object_or_404(
-        Client.objects.select_related('branch', 'group', 'assigned_staff', 'original_officer'),
+        Client.objects.select_related('branch', 'group', 'assigned_staff', 'original_officer', 'approved_by'),
         id=client_id
     )
 
@@ -152,10 +159,18 @@ def client_detail(request, client_id):
         messages.error(request, 'You do not have permission to view this client.')
         raise PermissionDenied
 
+    # Excel export of ALL client transactions (no 15-row cap)
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_client_transactions_excel
+        all_transactions = client.transactions.all().order_by('transaction_date').select_related('processed_by', 'loan', 'savings_account')
+        return export_client_transactions_excel(client, all_transactions)
+
     # Get related data
     loans = client.loans.all().order_by('-created_at')[:10]
     savings_accounts = client.savings_accounts.all().select_related('savings_product')
-    recent_transactions = client.transactions.all().order_by('-transaction_date')[:15]
+    # Fetch 15 most recent then reverse so newest appears at the bottom
+    recent_transactions = list(client.transactions.all().order_by('-transaction_date').select_related('processed_by', 'loan', 'savings_account')[:15])
+    recent_transactions.reverse()
 
     # Calculate financial summary
     total_loans = client.loans.filter(status__in=['active', 'disbursed', 'overdue']).aggregate(
@@ -178,6 +193,7 @@ def client_detail(request, client_id):
         'total_outstanding': total_loans['outstanding'] or Decimal('0.00'),
         'total_savings': total_savings['total'] or Decimal('0.00'),
         'checker': checker,
+        'today': date_type.today(),
     }
 
     return render(request, 'clients/detail.html', context)
@@ -218,10 +234,9 @@ def client_create(request):
             client.approval_status = 'draft'
             client.is_active = False
 
-            # Set assigned staff
-            if request.user.user_role == 'staff':
-                client.assigned_staff = request.user
-                client.original_officer = request.user
+            # Whoever creates the client becomes the assigned staff until reassigned
+            client.assigned_staff = request.user
+            client.original_officer = request.user
 
             client.save()
 
@@ -347,9 +362,10 @@ def client_approve(request, client_id):
                     client.approval_status = 'approved'
                     client.approved_by = request.user
                     client.approved_at = timezone.now()
+                    client.approval_date = form.cleaned_data.get('approval_date')
                     # Use update_fields to avoid overwriting registration_fee_paid
                     # with a stale in-memory value from before this request started
-                    client.save(update_fields=['approval_status', 'approved_by', 'approved_at'])
+                    client.save(update_fields=['approval_status', 'approved_by', 'approved_at', 'approval_date'])
 
                     # Re-read from DB (select_for_update already gave us the latest)
                     if not client.registration_fee_paid:
@@ -404,9 +420,11 @@ def client_approve(request, client_id):
                                     client=client,
                                     savings_product=product,
                                     branch=client.branch,
-                                    status='pending',
+                                    status='active',
+                                    approved_by=request.user,
+                                    approved_at=timezone.now(),
                                     is_auto_created=True,
-                                    notes=f'Auto-created during client approval by {request.user.get_full_name()}.',
+                                    notes=f'Auto-created and activated during client approval by {request.user.get_full_name()}.',
                                 )
                                 accounts_created += 1
                         except SavingsProduct.DoesNotExist:
@@ -514,8 +532,13 @@ def client_activate(request, client_id):
         return redirect('core:client_detail', client_id=client.id)
 
     if request.method == 'POST':
+        activation_date_str = request.POST.get('activation_date', '').strip()
+        try:
+            client.activation_date = date_type.fromisoformat(activation_date_str)
+        except (ValueError, TypeError):
+            client.activation_date = date_type.today()
         client.is_active = True
-        client.save()
+        client.save(update_fields=['is_active', 'activation_date', 'updated_at'])
 
         messages.success(request, f'Client {client.get_full_name()} activated successfully!')
         return redirect('core:client_detail', client_id=client.id)
@@ -847,6 +870,13 @@ def client_statement(request, client_id):
 
     total_out = sum(t.amount for t in transactions if t.transaction_type in _OUTFLOW)
     total_in  = sum(t.amount for t in transactions if t.transaction_type not in _OUTFLOW)
+
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_client_statement_excel
+        return export_client_statement_excel(
+            client, transactions, date_from, date_to,
+            total_in, total_out, total_in - total_out,
+        )
 
     context = {
         'page_title': f'Account Statement — {client.get_full_name()}',

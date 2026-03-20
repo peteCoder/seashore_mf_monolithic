@@ -3,7 +3,7 @@
 
 {% load humanize %}
 {% block content %}
-<div class="p-6">
+<div class="p-6" x-data="coaSearch()" x-init="init()">
     <!-- Page Header -->
     <div class="mb-6 flex items-center justify-between">
         <div>
@@ -23,40 +23,71 @@
 
     <!-- Filters -->
     <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-        <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Account Type</label>
-                <select name="account_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                    <option value="">All Types</option>
-                    {% for value, label in account_types %}
-                    <option value="{{ value }}" {% if request.GET.account_type == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch</label>
-                <select name="branch" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                    <option value="">All Branches</option>
-                    {% for branch in branches %}
-                    <option value="{{ branch.id }}" {% if request.GET.branch == branch.id|stringformat:"s" %}selected{% endif %}>{{ branch.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                <select name="is_active" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                    <option value="">All</option>
-                    <option value="true" {% if request.GET.is_active == 'true' %}selected{% endif %}>Active</option>
-                    <option value="false" {% if request.GET.is_active == 'false' %}selected{% endif %}>Inactive</option>
-                </select>
-            </div>
-
-            <div class="flex items-end">
-                <button type="submit" class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-amber-600 hover:bg-amber-700">
-                    <i class="fas fa-filter mr-2"></i> Filter
+        <form method="get" id="coa-filter-form" class="space-y-4">
+            <!-- Search row -->
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400"></i>
+                </div>
+                <input type="text"
+                       name="q"
+                       id="coa-search"
+                       value="{{ q }}"
+                       placeholder="Search by GL code or account name…"
+                       autocomplete="off"
+                       x-model="searchTerm"
+                       @input="filterRows()"
+                       class="block w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
+                <button type="button"
+                        x-show="searchTerm"
+                        x-cloak
+                        @click="searchTerm = ''; filterRows(); document.getElementById('coa-search').focus()"
+                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <i class="fas fa-times"></i>
                 </button>
+            </div>
+
+            <!-- Other filters row -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Account Type</label>
+                    <select name="account_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="">All Types</option>
+                        {% for value, label in account_types %}
+                        <option value="{{ value }}" {% if request.GET.account_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch</label>
+                    <select name="branch" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="">All Branches</option>
+                        {% for branch in branches %}
+                        <option value="{{ branch.id }}" {% if request.GET.branch == branch.id|stringformat:"s" %}selected{% endif %}>{{ branch.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                    <select name="is_active" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <option value="">All</option>
+                        <option value="true" {% if request.GET.is_active == 'true' %}selected{% endif %}>Active</option>
+                        <option value="false" {% if request.GET.is_active == 'false' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+
+                <div class="flex items-end gap-2">
+                    <button type="submit" class="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-amber-600 hover:bg-amber-700">
+                        <i class="fas fa-filter mr-2"></i> Filter
+                    </button>
+                    {% if q or request.GET.account_type or request.GET.branch or request.GET.is_active %}
+                    <a href="{% url 'core:coa_list' %}" class="inline-flex justify-center items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <i class="fas fa-times"></i>
+                    </a>
+                    {% endif %}
+                </div>
             </div>
         </form>
     </div>
@@ -104,7 +135,8 @@
                 </thead>
                 <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {% for item in accounts %}
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 coa-row"
+                        data-search="{{ item.account.gl_code|lower }} {{ item.account.account_name|lower }}">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm font-mono font-medium text-gray-900 dark:text-white">
                                 {{ item.account.gl_code }}
@@ -170,34 +202,48 @@
                         </td>
                     </tr>
                     {% endfor %}
+                    <!-- live-filter no-match row (hidden by default) -->
+                    <tr id="coa-no-match" style="display:none;">
+                        <td colspan="6" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-search text-3xl mb-2 opacity-40"></i>
+                            <p class="text-sm">No accounts match your search.</p>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
 
-        <!-- Pagination -->
-        {% if accounts.has_other_pages %}
-        <div class="bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
-            <div class="flex items-center justify-between">
-                <div class="text-sm text-gray-700 dark:text-gray-300">
-                    Page {{ accounts.number }} of {{ accounts.paginator.num_pages }}
-                </div>
-                <div class="flex space-x-2">
-                    {% if accounts.has_previous %}
-                    <a href="?page={{ accounts.previous_page_number }}"
-                       class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
-                        Previous
-                    </a>
-                    {% endif %}
-                    {% if accounts.has_next %}
-                    <a href="?page={{ accounts.next_page_number }}"
-                       class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
-                        Next
-                    </a>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function coaSearch() {
+    return {
+        searchTerm: '{{ q|escapejs }}',
+
+        init() {
+            // If server already applied a search, keep UI in sync but don't re-filter
+            // (server already narrowed rows). Live filter only kicks in on further typing.
+        },
+
+        filterRows() {
+            const term = this.searchTerm.toLowerCase().trim();
+            const rows = document.querySelectorAll('tr.coa-row');
+            let visible = 0;
+
+            rows.forEach(row => {
+                const haystack = row.dataset.search || '';
+                const show = !term || haystack.includes(term);
+                row.style.display = show ? '' : 'none';
+                if (show) visible++;
+            });
+
+            document.getElementById('coa-no-match').style.display =
+                (rows.length > 0 && visible === 0) ? '' : 'none';
+        }
+    };
+}
+</script>
 {% endblock %}

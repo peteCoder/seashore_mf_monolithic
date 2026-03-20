@@ -455,7 +455,8 @@ def group_collection_approve(request, session_id):
                     item.loan.record_repayment(
                         amount=item.amount,
                         processed_by=request.user,
-                        description=f'Group collection: {session.group.name} ({session.collection_date})'
+                        description=f'Group collection: {session.group.name} ({session.collection_date})',
+                        transaction_date=session.collection_date,
                     )
                 except Exception as e:
                     errors.append(f'{item.loan.loan_number}: {str(e)}')
@@ -532,7 +533,8 @@ def group_savings_collection_approve(request, session_id):
                     item.savings_account.deposit(
                         amount=item.amount,
                         processed_by=request.user,
-                        description=f'Group savings collection: {session.group.name} ({session.collection_date})'
+                        description=f'Group savings collection: {session.group.name} ({session.collection_date})',
+                        transaction_date=session.collection_date,
                     )
                 except Exception as e:
                     errors.append(f'{item.client.get_full_name()}: {str(e)}')

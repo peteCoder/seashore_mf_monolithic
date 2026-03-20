@@ -25,6 +25,10 @@
                class="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                 <i class="fas fa-file-alt text-xs"></i>Statement
             </a>
+            <a href="?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}{% if account_filter %}&account={{ account_filter }}{% endif %}&export=excel"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-file-excel text-xs"></i>Export Excel
+            </a>
             <a href="{% url 'core:client_detail' client.id %}"
                class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
                 <i class="fas fa-user text-xs"></i>Client Profile

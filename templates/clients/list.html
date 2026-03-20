@@ -60,6 +60,11 @@
                             class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm">
                         Apply Filters
                     </button>
+                    <a id="exportBtn"
+                       href="?export=excel"
+                       class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors">
+                        <i class="fas fa-file-excel"></i> Export to Excel
+                    </a>
                 </div>
             </div>
         </form>
@@ -192,4 +197,23 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const form = document.querySelector('form[action]');
+    const btn  = document.getElementById('exportBtn');
+    if (!form || !btn) return;
+    form.addEventListener('change', sync);
+    form.addEventListener('input', sync);
+    sync();
+    function sync() {
+        const params = new URLSearchParams(new FormData(form));
+        params.set('export', 'excel');
+        params.delete('page');
+        btn.href = '?' + params.toString();
+    }
+})();
+</script>
 {% endblock %}

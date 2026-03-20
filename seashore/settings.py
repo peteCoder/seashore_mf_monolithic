@@ -214,8 +214,6 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='Citadel Markets Pro <
 ADMIN_NOTIFICATION_EMAIL = config('ADMIN_NOTIFICATION_EMAIL', default='support@citadelmarketspro.com')
 
 
-
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
@@ -335,6 +333,7 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+
 # =============================================================================
 # Django REST Framework
 # =============================================================================
@@ -357,6 +356,7 @@ REST_FRAMEWORK = {
         'user': '300/hour',
     },
 }
+
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Seashore Microfinance API',
@@ -403,8 +403,10 @@ if not DEBUG:
     SESSION_COOKIE_SAMESITE      = 'Lax'
 
     CSRF_COOKIE_SECURE           = True
-    CSRF_COOKIE_HTTPONLY         = True
     CSRF_COOKIE_SAMESITE         = 'Lax'
+    # CSRF_COOKIE_HTTPONLY must NOT be True — Django needs the cookie readable
+    # by the browser to embed it in forms. HttpOnly blocks this and causes
+    # "CSRF cookie not set" errors intermittently.
 
     # Deny framing entirely (clickjacking protection)
     X_FRAME_OPTIONS              = 'DENY'

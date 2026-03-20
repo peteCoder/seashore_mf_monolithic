@@ -152,6 +152,12 @@ def chart_of_accounts_list(request):
     ).prefetch_related('journal_lines')
 
     # Filters
+    q = request.GET.get('q', '').strip()
+    if q:
+        accounts = accounts.filter(
+            Q(gl_code__icontains=q) | Q(account_name__icontains=q)
+        )
+
     account_type_filter = request.GET.get('account_type')
     if account_type_filter:
         accounts = accounts.filter(account_type__name=account_type_filter)
@@ -188,17 +194,13 @@ def chart_of_accounts_list(request):
             'balance': balance
         })
 
-    # Pagination
-    paginator = Paginator(accounts_with_balances, 50)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
     context = {
         'page_title': 'Chart of Accounts',
-        'accounts': page_obj,
+        'accounts': accounts_with_balances,
         'account_types': AccountType.TYPE_CHOICES,
         'branches': Branch.objects.filter(is_active=True),
-        'total_accounts': accounts.count(),
+        'total_accounts': len(accounts_with_balances),
+        'q': q,
     }
 
     return render(request, 'accounting/coa_list.html', context)
@@ -1509,6 +1511,10 @@ def report_par_aging(request):
         'selected_branch': branch_id,
     }
 
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_par_aging_excel
+        return export_par_aging_excel(context)
+
     return render(request, 'accounting/report_par_aging.html', context)
 
 
@@ -1630,6 +1636,11 @@ def report_loan_officer_performance(request):
         'branches':        branches,
         'today':           today,
     }
+
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_loan_officer_performance_excel
+        return export_loan_officer_performance_excel(context)
+
     return render(request, 'accounting/report_loan_officer_performance.html', context)
 
 
@@ -1719,6 +1730,11 @@ def report_savings_maturity(request):
         'branches':        branches,
         'today':           today,
     }
+
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_savings_maturity_excel
+        return export_savings_maturity_excel(context)
+
     return render(request, 'accounting/report_savings_maturity.html', context)
 
 
@@ -1963,6 +1979,12 @@ def subsidiary_ledger(request, client_id):
 
     paginator = Paginator(lines_qs, 50)
     page_obj  = paginator.get_page(request.GET.get('page'))
+
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_subsidiary_ledger_excel
+        return export_subsidiary_ledger_excel(
+            client, lines_qs, date_from, date_to, account_summary, totals,
+        )
 
     context = {
         'page_title':      f'Subsidiary Ledger — {client.get_full_name()}',

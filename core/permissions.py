@@ -67,7 +67,7 @@ class Permissions:
 
     # ── client lifecycle  ────────────────────────────────────────────
     # Full-form edit.  Staff excluded deliberately.
-    CAN_EDIT_CLIENT          = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER]
+    CAN_EDIT_CLIENT          = [Roles.ADMIN, Roles.DIRECTOR]
     # Soft-delete.  Admin only, no exceptions.
     CAN_DELETE_CLIENT        = [Roles.ADMIN]
     # Approve / reject a pending client.
@@ -197,17 +197,7 @@ class PermissionChecker:
     def can_edit_client(self, client=None):
         if not self.user or not self.user.is_authenticated:
             return False
-        if self.role not in Permissions.CAN_EDIT_CLIENT:
-            return False
-        if self.is_admin_or_director():
-            return True
-        # manager: own branch only (or True when no client passed – flag check)
-        if self.is_manager():
-            return (
-                True if client is None
-                else (client.branch_id == self.user.branch_id if self.user.branch_id else False)
-            )
-        return False
+        return self.is_admin_or_director()
 
     # -----------------------------------------------------------------
     # DELETE  – admin only

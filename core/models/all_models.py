@@ -1237,8 +1237,8 @@ class Client(BaseModel, StatusTrackingMixin, ApprovalWorkflowMixin):
         blank=True,
         help_text="Client's common name or nickname"
     )
-    email = models.EmailField(unique=True, db_index=True)
-    
+    email = models.EmailField(unique=True, db_index=True, blank=True, null=True)
+
     phone_regex = RegexValidator(regex=r'^\+?1?\d{9,15}$')
     phone = models.CharField(validators=[phone_regex], max_length=17)
     alternate_phone = models.CharField(
@@ -1443,6 +1443,21 @@ class Client(BaseModel, StatusTrackingMixin, ApprovalWorkflowMixin):
     # ============================================
     # REGISTRATION & APPROVAL
     # ============================================
+    registration_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Date the client was physically registered (entered by staff)"
+    )
+    approval_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Official approval date entered by the approving manager/director"
+    )
+    activation_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Date the client account was activated, entered by the activating officer"
+    )
     origin_channel = models.CharField(
         max_length=100,
         choices=ORIGIN_CHANNEL_CHOICES,
@@ -1522,7 +1537,7 @@ class Client(BaseModel, StatusTrackingMixin, ApprovalWorkflowMixin):
             ),
             models.UniqueConstraint(
                 fields=['email'],
-                condition=models.Q(deleted_at__isnull=True),
+                condition=models.Q(deleted_at__isnull=True, email__isnull=False),
                 name='unique_active_client_email'
             ),
             models.UniqueConstraint(
@@ -3092,23 +3107,25 @@ class SavingsAccount(BaseModel, ApprovalWorkflowMixin):
     # =========================================================================
     
     @db_transaction.atomic
-    def deposit(self, amount, processed_by, description=''):
+    def deposit(self, amount, processed_by, description='', transaction_date=None):
         """
         Deposit money into account - THREAD-SAFE VERSION
-        
+
         Args:
             amount (Decimal): Amount to deposit
             processed_by (User): User processing the transaction
             description (str): Transaction description
-        
+            transaction_date: Date of the deposit (date or datetime). Defaults to now.
+
         Returns:
             Transaction: Created transaction object
-        
+
         Raises:
             ValueError: If deposit validation fails
         """
         from core.models import Transaction
         from django.db.models import F
+        import datetime as _dt
         
         amount = Decimal(str(amount))
         
@@ -3153,6 +3170,11 @@ class SavingsAccount(BaseModel, ApprovalWorkflowMixin):
             )
             raise ValueError("Balance update verification failed")
         
+        # Resolve transaction datetime (backdate if payment_date supplied)
+        txn_dt = transaction_date if transaction_date is not None else timezone.now()
+        if isinstance(txn_dt, _dt.date) and not isinstance(txn_dt, _dt.datetime):
+            txn_dt = timezone.make_aware(_dt.datetime.combine(txn_dt, _dt.time.min))
+
         # Create transaction record
         txn = Transaction.objects.create(
             transaction_type='deposit',
@@ -3164,7 +3186,8 @@ class SavingsAccount(BaseModel, ApprovalWorkflowMixin):
             balance_after=account.balance,
             processed_by=processed_by,
             description=description or f"Deposit to {account.account_number}",
-            status='completed'
+            status='completed',
+            transaction_date=txn_dt,
         )
 
         logger.info(
@@ -3189,23 +3212,25 @@ class SavingsAccount(BaseModel, ApprovalWorkflowMixin):
         return txn
     
     @db_transaction.atomic
-    def withdraw(self, amount, processed_by, description=''):
+    def withdraw(self, amount, processed_by, description='', transaction_date=None):
         """
         Withdraw money from account - THREAD-SAFE VERSION
-        
+
         Args:
             amount (Decimal): Amount to withdraw
             processed_by (User): User processing the transaction
             description (str): Transaction description
-        
+            transaction_date: Date of the withdrawal (date or datetime). Defaults to now.
+
         Returns:
             Transaction: Created transaction object
-        
+
         Raises:
             ValueError: If withdrawal validation fails
         """
         from core.models import Transaction
         from django.db.models import F
+        import datetime as _dt
         
         amount = Decimal(str(amount))
         
@@ -3252,6 +3277,11 @@ class SavingsAccount(BaseModel, ApprovalWorkflowMixin):
             )
             raise ValueError("Balance update verification failed")
         
+        # Resolve transaction datetime (backdate if withdrawal_date supplied)
+        txn_dt = transaction_date if transaction_date is not None else timezone.now()
+        if isinstance(txn_dt, _dt.date) and not isinstance(txn_dt, _dt.datetime):
+            txn_dt = timezone.make_aware(_dt.datetime.combine(txn_dt, _dt.time.min))
+
         # Create transaction record
         txn = Transaction.objects.create(
             transaction_type='withdrawal',
@@ -3263,7 +3293,8 @@ class SavingsAccount(BaseModel, ApprovalWorkflowMixin):
             balance_after=account.balance,
             processed_by=processed_by,
             description=description or f"Withdrawal from {account.account_number}",
-            status='completed'
+            status='completed',
+            transaction_date=txn_dt,
         )
 
         logger.info(
@@ -4446,7 +4477,7 @@ class Loan(BaseModel):
 
         # Create journal entry (Dr Loan Receivable, Cr Cash)
         try:
-            post_loan_disbursement_journal(self, disbursed_by)
+            post_loan_disbursement_journal(self, disbursed_by, transaction_obj=txn)
             logger.info(f"Journal entry created for loan disbursement: {self.loan_number}")
         except Exception as e:
             logger.error(f"Failed to create journal entry for loan {self.loan_number}: {str(e)}")
@@ -4454,12 +4485,12 @@ class Loan(BaseModel):
         return True, "Loan disbursed successfully"
 
     @db_transaction.atomic
-    def record_repayment(self, amount, processed_by, description=''):
+    def record_repayment(self, amount, processed_by, description='', transaction_date=None):
         """
         Record a repayment, split into principal + interest,
         update last_payment_* snapshot and timely_repayments_pct.
         """
-                 # adjust import path
+        import datetime as _dt  # adjust import path
 
         if self.status not in ['active', 'overdue']:
             raise ValueError(
@@ -4559,6 +4590,11 @@ class Loan(BaseModel):
 
         self.save()
 
+        # Resolve transaction datetime (backdate if collection_date supplied)
+        txn_dt = transaction_date if transaction_date is not None else timezone.now()
+        if isinstance(txn_dt, _dt.date) and not isinstance(txn_dt, _dt.datetime):
+            txn_dt = timezone.make_aware(_dt.datetime.combine(txn_dt, _dt.time.min))
+
         # --- transaction record ---
         txn = Transaction.objects.create(
             transaction_type='loan_repayment',
@@ -4572,7 +4608,8 @@ class Loan(BaseModel):
             balance_after=self.outstanding_balance,
             processed_by=processed_by,
             description=description or f"Repayment for {self.loan_number}",
-            status='completed'
+            status='completed',
+            transaction_date=txn_dt,
         )
 
         # Create journal entry (Dr Cash, Cr Loan Receivable + Interest accounts)
@@ -5725,7 +5762,8 @@ class SavingsDepositPosting(BaseModel):
             txn = self.savings_account.deposit(
                 amount=self.amount,
                 processed_by=approved_by,
-                description=f"Deposit posting {self.posting_ref}"
+                description=f"Deposit posting {self.posting_ref}",
+                transaction_date=self.payment_date,
             )
         except ValueError as e:
             raise ValidationError(str(e))
@@ -6015,7 +6053,8 @@ class SavingsWithdrawalPosting(BaseModel):
             txn = self.savings_account.withdraw(
                 amount=self.amount,
                 processed_by=approved_by,
-                description=f"Withdrawal posting {self.posting_ref}"
+                description=f"Withdrawal posting {self.posting_ref}",
+                transaction_date=self.withdrawal_date,
             )
         except ValueError as e:
             raise ValidationError(str(e))

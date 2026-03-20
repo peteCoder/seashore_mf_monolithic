@@ -936,20 +936,11 @@ class Command(BaseCommand):
             # OTHER INCOME (42xx)
             # ====================================================================
             {
-                'gl_code': '4210',
-                'account_name': 'First Fruit Income',
+                'gl_code': '4230',
+                'account_name': 'Miscellaneous Income',
                 'account_type': income_type,
                 'account_category': other_income_cat,
-                'description': 'First fruit offerings received from staff and members as voluntary contributions',
-                'is_control_account': False,
-                'allows_manual_entries': True,
-            },
-            {
-                'gl_code': '4220',
-                'account_name': 'Donations & Gifts Received',
-                'account_type': income_type,
-                'account_category': other_income_cat,
-                'description': 'Cash and in-kind donations and gifts received from external parties or well-wishers',
+                'description': 'Sundry income not classifiable under any other income category',
                 'is_control_account': False,
                 'allows_manual_entries': True,
             },
@@ -1254,6 +1245,246 @@ class Command(BaseCommand):
             },
 
             # ====================================================================
+            # OPERATING EXPENSES — Additional (51xx)
+            # ====================================================================
+            {
+                'gl_code': '5115',
+                'account_name': 'Salary to Casual',
+                'account_type': expense_type,
+                'account_category': operating_expense_cat,
+                'description': 'Wages paid to casual/contract workers not on permanent payroll',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5122',
+                'account_name': 'Office Rent Expense',
+                'account_type': expense_type,
+                'account_category': operating_expense_cat,
+                'description': 'Periodic recognition of office rent paid or prepaid',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5124',
+                'account_name': 'Staff Rent Expense',
+                'account_type': expense_type,
+                'account_category': operating_expense_cat,
+                'description': 'Periodic recognition of staff rent advance paid or prepaid on behalf of staff',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+
+            # ====================================================================
+            # STAFF COSTS — Additional (52xx)
+            # ====================================================================
+            {
+                'gl_code': '5255',
+                'account_name': 'Seashore Baby Gift',
+                'account_type': expense_type,
+                'account_category': staff_costs_cat,
+                'description': 'Gifts and allowances given to staff on the birth of a new child',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5257',
+                'account_name': 'Staff Birthday',
+                'account_type': expense_type,
+                'account_category': staff_costs_cat,
+                'description': 'Birthday gifts, cards, and celebrations for staff members',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5280',
+                'account_name': 'Performance Allowance',
+                'account_type': expense_type,
+                'account_category': staff_costs_cat,
+                'description': 'Allowances paid to staff based on individual or team performance targets',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5290',
+                'account_name': 'Staff Allowances',
+                'account_type': expense_type,
+                'account_category': staff_costs_cat,
+                'description': 'General staff allowances not classified under a specific allowance category',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+
+            # ====================================================================
+            # MAINTENANCE — Additional (53xx)
+            # ====================================================================
+            {
+                'gl_code': '5360',
+                'account_name': 'Computer Consumables',
+                'account_type': expense_type,
+                'account_category': maintenance_cat,
+                'description': 'Toner cartridges, printer paper, USB drives, and other consumable items for computer equipment',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+
+            # ====================================================================
+            # ADMINISTRATIVE — Additional (54xx)
+            # ====================================================================
+            {
+                'gl_code': '5441',
+                'account_name': 'Council Meeting Fund',
+                'account_type': expense_type,
+                'account_category': administrative_cat,
+                'description': 'Funds allocated and disbursed for council meeting logistics, refreshments, and related costs',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5443',
+                'account_name': 'Conferences and Seminars',
+                'account_type': expense_type,
+                'account_category': administrative_cat,
+                'description': 'Registration fees, travel, and participation costs for external conferences and seminars',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5445',
+                'account_name': 'Local Training',
+                'account_type': expense_type,
+                'account_category': administrative_cat,
+                'description': 'Fees and costs for staff training programmes conducted locally within the country',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5447',
+                'account_name': 'International Training',
+                'account_type': expense_type,
+                'account_category': administrative_cat,
+                'description': 'Fees and costs for staff training programmes conducted internationally, including travel and accommodation',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5497',
+                'account_name': 'Advertising/Media',
+                'account_type': expense_type,
+                'account_category': administrative_cat,
+                'description': 'Advertising placements, media campaigns, promotional materials, and brand awareness costs',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5498',
+                'account_name': 'CAC Subscription',
+                'account_type': expense_type,
+                'account_category': administrative_cat,
+                'description': 'Corporate Affairs Commission (CAC) annual returns, registration renewals, and filing fees',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+
+            # ====================================================================
+            # OTHER EXPENSES — Additional (55xx)
+            # ====================================================================
+            {
+                'gl_code': '5535',
+                'account_name': 'Transport to Meeting',
+                'account_type': expense_type,
+                'account_category': other_expenses_cat,
+                'description': 'Transport costs specifically for attending internal and external meetings and field visits',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5545',
+                'account_name': 'Equipment Rentals',
+                'account_type': expense_type,
+                'account_category': other_expenses_cat,
+                'description': 'Rental fees for equipment, machinery, and tools used in operations',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5548',
+                'account_name': 'Photocopy',
+                'account_type': expense_type,
+                'account_category': other_expenses_cat,
+                'description': 'Photocopying, scanning, and document reproduction costs',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5558',
+                'account_name': 'Finance & Bank Charges',
+                'account_type': expense_type,
+                'account_category': other_expenses_cat,
+                'description': 'General banking charges, transfer fees, account maintenance fees, and other financial institution charges',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5560',
+                'account_name': 'Environment Development Charge',
+                'account_type': expense_type,
+                'account_category': other_expenses_cat,
+                'description': 'Local government and community environmental development levies and charges',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5565',
+                'account_name': 'Fines and Penalties',
+                'account_type': expense_type,
+                'account_category': other_expenses_cat,
+                'description': 'Regulatory fines, late filing penalties, and statutory penalty charges',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5575',
+                'account_name': 'First Fruit Expense',
+                'account_type': expense_type,
+                'account_category': other_expenses_cat,
+                'description': 'First fruit and voluntary offerings given out on behalf of the organisation',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5578',
+                'account_name': 'Donations & Gifts Expense',
+                'account_type': expense_type,
+                'account_category': other_expenses_cat,
+                'description': 'Cash and in-kind donations and gifts given out by the organisation',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+            {
+                'gl_code': '5580',
+                'account_name': 'Miscellaneous Expense',
+                'account_type': expense_type,
+                'account_category': other_expenses_cat,
+                'description': 'Sundry expenses not classifiable under any other expense category',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+
+            # ====================================================================
+            # ACCUMULATED DEPRECIATION — Additional (13xx)
+            # ====================================================================
+            {
+                'gl_code': '1340',
+                'account_name': 'Accumulated Depreciation - Furnitures and Fittings',
+                'account_type': asset_type,
+                'account_category': accumulated_dep_cat,
+                'description': 'Contra-asset: total depreciation charged to date on furniture and fittings (credit normal balance)',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
+
+            # ====================================================================
             # LOAN LOSS PROVISIONS — PAR Aging Buckets (59xx)
             # Paired with Loan Loss Reserve accounts (16xx) on the Balance Sheet.
             # Debit these when recognising provision; credit the corresponding reserve.
@@ -1314,6 +1545,41 @@ class Command(BaseCommand):
                 self.stdout.write(f'  [+] Created: {account.gl_code} - {account.account_name}')
             else:
                 self.stdout.write(f'  [*] Exists: {account.gl_code} - {account.account_name}')
+
+        # Reclassify accounts whose type/category changed since first creation.
+        # get_or_create does not update existing rows, so we explicitly patch them here.
+        self.stdout.write('\nReclassifying accounts...')
+        reclassifications = [
+            {
+                'gl_code': '4210',
+                'account_name': 'First Fruit Expense',
+                'account_type': expense_type,
+                'account_category': other_expenses_cat,
+                'description': 'First fruit and voluntary offerings given out on behalf of the organisation',
+            },
+            {
+                'gl_code': '4220',
+                'account_name': 'Donations & Gifts Expense',
+                'account_type': expense_type,
+                'account_category': other_expenses_cat,
+                'description': 'Cash and in-kind donations and gifts given out by the organisation',
+            },
+        ]
+        for r in reclassifications:
+            updated = ChartOfAccounts.objects.filter(gl_code=r['gl_code']).update(
+                account_name=r['account_name'],
+                account_type=r['account_type'],
+                account_category=r['account_category'],
+                description=r['description'],
+            )
+            if updated:
+                self.stdout.write(
+                    f'  [R] Reclassified: {r["gl_code"]} -> {r["account_name"]} (now expense)'
+                )
+            else:
+                self.stdout.write(
+                    f'  [-] Not found (already removed or never created): {r["gl_code"]}'
+                )
 
         # Print summary
         self.stdout.write('\n--- Summary ---')

@@ -4,14 +4,17 @@
 {% block title %}{{ client.get_full_name }} - Seashore Microfinance{% endblock %}
 
 {% block content %}
-<div class="space-y-6" x-data="{ showActivateModal: false }">
+<div class="space-y-6" x-data="{ showActivateModal: false, showImageModal: false, modalImageUrl: '', modalImageTitle: '' }">
     <!-- Header with Actions -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div class="flex items-center space-x-3">
             <!-- Profile Picture -->
             <div class="w-14 h-14 rounded-full overflow-hidden shrink-0">
                 {% if client.profile_picture %}
-                <img src="{{ client.profile_picture.url }}" class="w-full h-full object-cover" alt="{{ client.get_full_name }}">
+                <img src="{{ client.profile_picture.url }}"
+                     class="w-full h-full object-cover cursor-zoom-in"
+                     alt="{{ client.get_full_name }}"
+                     @click="showImageModal = true; modalImageUrl = '{{ client.profile_picture.url }}'; modalImageTitle = '{{ client.get_full_name }}'">
                 {% else %}
                 <div class="w-full h-full bg-primary-600 flex items-center justify-center text-white text-lg font-bold">
                     {{ client.first_name.0 }}{{ client.last_name.0 }}
@@ -44,7 +47,7 @@
 
         <!-- Action Buttons -->
         <div class="flex flex-wrap items-center gap-3">
-            {% if checker.is_admin_or_director or checker.is_manager and client.branch == checker.user.branch %}
+            {% if checker.can_edit_client %}
             <a href="{% url 'core:client_update' client.id %}"
                class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                 <i class="fas fa-edit mr-2"></i>Edit
@@ -172,7 +175,7 @@
         <!-- Tab Content -->
         <div class="bg-white dark:bg-gray-800 rounded-b-lg shadow-sm p-6">
             <!-- Personal Information Tab -->
-            <div x-show="activeTab === 'personal'" x-transition x-data="{ showImageModal: false, modalImageUrl: '', modalImageTitle: '' }">
+            <div x-show="activeTab === 'personal'" x-transition>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Contact Information -->
                     <div class="md:col-span-2">
@@ -545,33 +548,108 @@
                         <p class="text-base font-medium text-gray-900 dark:text-white">{{ client.get_origin_channel_display }}</p>
                     </div>
                     {% endif %}
+
+                    <!-- Account Record -->
+                    <div class="md:col-span-2">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 mt-6 border-b border-gray-200 dark:border-gray-700 pb-2">
+                            <i class="fas fa-clipboard-list text-gray-400 mr-2"></i>Account Record
+                        </h3>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Date Created</p>
+                        <p class="text-base font-medium text-gray-900 dark:text-white">{{ client.created_at|date:"Y-m-d H:i" }}</p>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Registration Date</p>
+                        <p class="text-base font-medium text-gray-900 dark:text-white">
+                            {% if client.registration_date %}{{ client.registration_date|date:"Y-m-d" }}{% else %}<span class="text-gray-400 italic">—</span>{% endif %}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Registered By</p>
+                        <p class="text-base font-medium text-gray-900 dark:text-white">
+                            {% if client.original_officer %}{{ client.original_officer.get_full_name }}{% else %}<span class="text-gray-400 italic">—</span>{% endif %}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Approval Status</p>
+                        <p class="text-base font-medium">
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full
+                                {% if client.approval_status == 'approved' %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                                {% elif client.approval_status == 'pending' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300
+                                {% elif client.approval_status == 'rejected' %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300
+                                {% else %}bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300{% endif %}">
+                                {{ client.get_approval_status_display }}
+                            </span>
+                        </p>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Approved By</p>
+                        <p class="text-base font-medium text-gray-900 dark:text-white">
+                            {% if client.approved_by %}{{ client.approved_by.get_full_name }}{% else %}<span class="text-gray-400 italic">Not yet approved</span>{% endif %}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Approval Date & Time</p>
+                        <p class="text-base font-medium text-gray-900 dark:text-white">
+                            {% if client.approved_at %}{{ client.approved_at|date:"Y-m-d H:i" }}{% else %}<span class="text-gray-400 italic">—</span>{% endif %}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Official Approval Date</p>
+                        <p class="text-base font-medium text-gray-900 dark:text-white">
+                            {% if client.approval_date %}{{ client.approval_date|date:"Y-m-d" }}{% else %}<span class="text-gray-400 italic">—</span>{% endif %}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Activation Date</p>
+                        <p class="text-base font-medium text-gray-900 dark:text-white">
+                            {% if client.activation_date %}{{ client.activation_date|date:"Y-m-d" }}{% else %}<span class="text-gray-400 italic">—</span>{% endif %}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Registration Fee</p>
+                        <p class="text-base font-medium">
+                            {% if client.registration_fee_paid %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                                <i class="fas fa-check mr-1"></i>Paid
+                            </span>
+                            {% else %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300">
+                                <i class="fas fa-times mr-1"></i>Not Paid
+                            </span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    {% if client.rejection_reason %}
+                    <div class="md:col-span-2">
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Rejection Reason</p>
+                        <p class="text-base font-medium text-gray-900 dark:text-white">{{ client.rejection_reason }}</p>
+                    </div>
+                    {% endif %}
                 </div>
 
-                <!-- Image Modal -->
-                <div x-show="showImageModal"
-                     x-cloak
-                     @click.self="showImageModal = false"
-                     class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
-                    <div class="relative max-w-5xl max-h-screen bg-white dark:bg-gray-800 rounded-lg shadow-2xl overflow-hidden">
-                        <!-- Modal Header -->
-                        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white" x-text="modalImageTitle"></h3>
-                            <button @click="showImageModal = false"
-                                    class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                                <i class="fas fa-times text-xl"></i>
-                            </button>
-                        </div>
-                        <!-- Modal Body -->
-                        <div class="p-4 max-h-[80vh] overflow-auto">
-                            <img :src="modalImageUrl" :alt="modalImageTitle" class="w-full h-auto">
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- Loans Tab -->
             <div x-show="activeTab === 'loans'" x-transition>
                 {% if loans %}
+                <div class="flex justify-end mb-3">
+                    <a href="{% url 'core:loan_create' %}?client={{ client.id }}"
+                       class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
+                        <i class="fas fa-plus"></i> Apply for Another Loan
+                    </a>
+                </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-900">
@@ -586,8 +664,15 @@
                         </thead>
                         <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                             {% for loan in loans %}
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ loan.loan_id }}</td>
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                                onclick="window.location='{% url 'core:loan_detail' loan_id=loan.id %}'">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <a href="{% url 'core:loan_detail' loan_id=loan.id %}"
+                                       class="text-primary-600 dark:text-primary-400 hover:underline"
+                                       onclick="event.stopPropagation()">
+                                        {{ loan.loan_number }}
+                                    </a>
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ loan.loan_product.name }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">₦{{ loan.principal_amount|floatformat:2|intcomma }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">₦{{ loan.outstanding_balance|floatformat:2|intcomma }}</td>
@@ -607,8 +692,12 @@
                 </div>
                 {% else %}
                 <div class="text-center py-12">
-                    <i class="fas fa-money-bill-wave text-4xl text-gray-400 mb-2"></i>
-                    <p class="text-gray-500 dark:text-gray-400">No loans found</p>
+                    <i class="fas fa-money-bill-wave text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-500 dark:text-gray-400 mb-4">This client has no loans yet.</p>
+                    <a href="{% url 'core:loan_create' %}?client={{ client.id }}"
+                       class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
+                        <i class="fas fa-plus"></i> Apply for a Loan
+                    </a>
                 </div>
                 {% endif %}
             </div>
@@ -616,6 +705,12 @@
             <!-- Savings Tab -->
             <div x-show="activeTab === 'savings'" x-transition>
                 {% if savings_accounts %}
+                <div class="flex justify-end mb-3">
+                    <a href="{% url 'core:savings_account_create' %}?client={{ client.id }}"
+                       class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
+                        <i class="fas fa-plus"></i> Open Another Savings Account
+                    </a>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {% for account in savings_accounts %}
                     <a href="{% url 'core:savings_account_detail' account_id=account.id %}"
@@ -638,8 +733,12 @@
                 </div>
                 {% else %}
                 <div class="text-center py-12">
-                    <i class="fas fa-piggy-bank text-4xl text-gray-400 mb-2"></i>
-                    <p class="text-gray-500 dark:text-gray-400">No savings accounts found</p>
+                    <i class="fas fa-piggy-bank text-4xl text-gray-400 mb-4"></i>
+                    <p class="text-gray-500 dark:text-gray-400 mb-4">This client has no savings accounts yet.</p>
+                    <a href="{% url 'core:savings_account_create' %}?client={{ client.id }}"
+                       class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
+                        <i class="fas fa-plus"></i> Open a Savings Account
+                    </a>
                 </div>
                 {% endif %}
             </div>
@@ -647,13 +746,21 @@
             <!-- Transactions Tab -->
             <div x-show="activeTab === 'transactions'" x-transition>
                 {% if recent_transactions %}
+                <div class="flex justify-between items-center mb-3">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Showing last 15 transactions. Export to see all.</p>
+                    <a href="?export=excel"
+                       class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors">
+                        <i class="fas fa-file-excel"></i> Export All to Excel
+                    </a>
+                </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead class="bg-gray-50 dark:bg-gray-900">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date & Time</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Description</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Processed By</th>
                                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Amount</th>
                             </tr>
                         </thead>
@@ -661,9 +768,12 @@
                             {% for transaction in recent_transactions %}
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
                                 onclick="window.location='{% url 'core:transaction_detail' transaction.id %}'">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ transaction.transaction_date|date:"Y-m-d" }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ transaction.transaction_date|date:"Y-m-d H:i" }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ transaction.get_transaction_type_display }}</td>
                                 <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">{{ transaction.description }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                    {% if transaction.processed_by %}{{ transaction.processed_by.get_full_name }}{% else %}—{% endif %}
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium
                                            {% if transaction.transaction_type == 'debit' %}text-red-600 dark:text-red-400
                                            {% else %}text-green-600 dark:text-green-400{% endif %}">
@@ -680,6 +790,25 @@
                     <p class="text-gray-500 dark:text-gray-400">No transactions found</p>
                 </div>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Zoom Modal -->
+    <div x-show="showImageModal"
+         x-cloak
+         @click.self="showImageModal = false"
+         @keydown.escape.window="showImageModal = false"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
+        <div class="relative max-w-5xl max-h-screen bg-white dark:bg-gray-800 rounded-lg shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white" x-text="modalImageTitle"></h3>
+                <button @click="showImageModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-4 max-h-[80vh] overflow-auto">
+                <img :src="modalImageUrl" :alt="modalImageTitle" class="w-full h-auto">
             </div>
         </div>
     </div>
@@ -704,39 +833,53 @@
                 </button>
             </div>
 
-            <!-- Modal Body -->
-            <div class="p-6">
-                <p class="text-gray-700 dark:text-gray-300 mb-4">
-                    Are you sure you want to activate <strong class="text-gray-900 dark:text-white">{{ client.get_full_name }}</strong>?
-                </p>
-                <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-4">
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-info-circle text-blue-400"></i>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm text-blue-700 dark:text-blue-300">
-                                This will allow the client to access all services and make transactions.
-                            </p>
+            <form method="post" action="{% url 'core:client_activate' client.id %}">
+                {% csrf_token %}
+
+                <!-- Modal Body -->
+                <div class="p-6">
+                    <p class="text-gray-700 dark:text-gray-300 mb-4">
+                        Are you sure you want to activate <strong class="text-gray-900 dark:text-white">{{ client.get_full_name }}</strong>?
+                    </p>
+                    <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-info-circle text-blue-400"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-blue-700 dark:text-blue-300">
+                                    This will allow the client to access all services and make transactions.
+                                </p>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Modal Footer -->
-            <div class="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-700">
-                <button @click="showActivateModal = false"
-                        class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    Cancel
-                </button>
-                <form method="post" action="{% url 'core:client_activate' client.id %}" class="inline">
-                    {% csrf_token %}
+                    <!-- Activation Date -->
+                    <div>
+                        <label for="activation_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Activation Date <span class="text-red-500">*</span>
+                        </label>
+                        <input type="date"
+                               id="activation_date"
+                               name="activation_date"
+                               required
+                               value="{{ today|date:'Y-m-d' }}"
+                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-700">
+                    <button type="button" @click="showActivateModal = false"
+                            class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        Cancel
+                    </button>
                     <button type="submit"
                             class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
                         <i class="fas fa-power-off mr-2"></i>Activate Client
                     </button>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>

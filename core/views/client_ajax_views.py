@@ -128,9 +128,8 @@ def client_create_ajax(request):
         client = form.save(commit=False)
         client.approval_status = 'draft'
         client.is_active = False
-        if request.user.user_role == 'staff':
-            client.assigned_staff = request.user
-            client.original_officer = request.user
+        client.assigned_staff = request.user
+        client.original_officer = request.user
         try:
             client.save()
         except Exception as exc:

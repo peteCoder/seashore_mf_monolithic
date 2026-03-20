@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            const response = await fetch(`/api/loan-product/${productId}/`);
+            const response = await fetch(`/internal/loan-product/${productId}/`);
             if (!response.ok) {
                 console.error('Failed to fetch product details');
                 return;

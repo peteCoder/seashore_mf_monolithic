@@ -37,6 +37,10 @@
             <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-sm font-medium">
                 <i class="fas fa-filter mr-2"></i>Filter
             </button>
+            <a href="?months={{ months_out }}{% if selected_branch %}&branch={{ selected_branch }}{% endif %}&export=excel"
+               class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium transition-colors">
+                <i class="fas fa-file-excel"></i> Export Excel
+            </a>
         </form>
     </div>
 
