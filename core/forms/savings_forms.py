@@ -32,12 +32,16 @@ class SavingsAccountForm(forms.ModelForm):
     class Meta:
         model = SavingsAccount
         fields = [
-            'client', 'savings_product', 'branch', 'notes'
+            'client', 'savings_product', 'branch', 'date_opened', 'notes'
         ]
         widgets = {
             'client': forms.Select(attrs={'class': SELECT_CLASS}),
             'savings_product': forms.Select(attrs={'class': SELECT_CLASS}),
             'branch': forms.Select(attrs={'class': SELECT_CLASS}),
+            'date_opened': forms.DateInput(attrs={
+                'class': TEXT_INPUT_CLASS,
+                'type': 'date',
+            }),
             'notes': forms.Textarea(attrs={
                 'class': TEXTAREA_CLASS,
                 'rows': 3,
@@ -181,6 +185,17 @@ class SavingsAccountApprovalForm(forms.Form):
         widget=forms.RadioSelect(attrs={'class': CHECKBOX_CLASS})
     )
 
+    approval_date = forms.DateField(
+        required=True,
+        initial=date.today,
+        widget=forms.DateInput(attrs={
+            'class': TEXT_INPUT_CLASS,
+            'type': 'date',
+        }),
+        label='Approval Date',
+        help_text='The official date this decision is recorded'
+    )
+
     notes = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={
@@ -193,6 +208,8 @@ class SavingsAccountApprovalForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.account = kwargs.pop('account', None)
         super().__init__(*args, **kwargs)
+        if not self.data:  # GET request — set default
+            self.initial.setdefault('approval_date', date.today())
 
     def clean(self):
         cleaned_data = super().clean()

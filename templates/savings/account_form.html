@@ -61,6 +61,18 @@
                         </div>
                     </div>
 
+                    <!-- Date Opened -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.date_opened.label }} <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.date_opened }}
+                        {% if form.date_opened.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.date_opened.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Defaults to today — change only for backdated records</p>
+                    </div>
+
                     <!-- Branch -->
                     <div class="mb-6">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

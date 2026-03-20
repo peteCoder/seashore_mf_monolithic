@@ -53,6 +53,7 @@ class LoanProductForm(forms.ModelForm):
             'min_duration_months', 'max_duration_months',
             'allow_early_repayment', 'early_repayment_penalty_rate', 'grace_period_days',
             'repayment_frequency',
+            'required_guarantors',
         ]
 
         widgets = {
@@ -132,6 +133,11 @@ class LoanProductForm(forms.ModelForm):
                 'class': TEXT_INPUT_CLASS,
             }),
             'repayment_frequency': forms.Select(attrs={'class': SELECT_CLASS}),
+            'required_guarantors': forms.NumberInput(attrs={
+                'class': TEXT_INPUT_CLASS,
+                'min': '0',
+                'step': '1',
+            }),
         }
 
     # Override gl_code as a ChoiceField so users pick from the Chart of Accounts

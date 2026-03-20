@@ -2893,8 +2893,14 @@ class SavingsAccount(BaseModel, ApprovalWorkflowMixin):
     # =========================================================================
     
     date_opened = models.DateField(
-        auto_now_add=True,
-        help_text="Date account was opened"
+        default=date.today,
+        help_text="Date account was opened (editable — defaults to today)"
+    )
+
+    approval_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Official date the account was approved (entered by the approver)"
     )
     
     date_closed = models.DateField(
@@ -3902,8 +3908,8 @@ class Loan(BaseModel):
     # DATES
     # =========================================================================
 
-    application_date      = models.DateTimeField(auto_now_add=True)
-    approval_date         = models.DateTimeField(null=True, blank=True)
+    application_date      = models.DateField(default=date.today, help_text="Date the loan application was submitted")
+    approval_date         = models.DateField(null=True, blank=True, help_text="Official date the loan was approved or rejected")
     disbursement_date     = models.DateTimeField(null=True, blank=True)
     completion_date       = models.DateTimeField(null=True, blank=True)
 
@@ -4321,7 +4327,8 @@ class Loan(BaseModel):
                 errors['principal_amount'] = message
 
         if self.disbursement_date and self.approval_date:
-            if self.disbursement_date < self.approval_date:
+            disburse_date = self.disbursement_date.date() if hasattr(self.disbursement_date, 'date') else self.disbursement_date
+            if disburse_date < self.approval_date:
                 errors['disbursement_date'] = "Disbursement date cannot be before approval date"
 
         # linked_account must belong to the same client
@@ -4391,7 +4398,7 @@ class Loan(BaseModel):
 
 
     @db_transaction.atomic
-    def approve(self, approved_by):
+    def approve(self, approved_by, approval_date=None):
         if self.status != 'pending_approval':
             return False, f"Cannot approve loan with status: {self.get_status_display()}"
         if not self.fees_paid:
@@ -4399,18 +4406,18 @@ class Loan(BaseModel):
 
         self.status      = 'approved'
         self.approved_by = approved_by
-        self.approval_date = timezone.now()
+        self.approval_date = approval_date if approval_date else timezone.now().date()
         self.save(update_fields=['status', 'approved_by', 'approval_date', 'updated_at'])
         return True, "Loan approved successfully"
 
     @db_transaction.atomic
-    def reject(self, rejected_by, reason=''):
+    def reject(self, rejected_by, reason='', approval_date=None):
         if self.status not in ['pending_fees', 'pending_approval']:
             return False, f"Cannot reject loan with status: {self.get_status_display()}"
 
         self.status           = 'rejected'
         self.approved_by      = rejected_by
-        self.approval_date    = timezone.now()
+        self.approval_date    = approval_date if approval_date else timezone.now().date()
         self.rejection_reason = reason
         self.save(update_fields=[
             'status', 'approved_by', 'approval_date', 'rejection_reason', 'updated_at'

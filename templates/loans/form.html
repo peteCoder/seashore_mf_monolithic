@@ -62,6 +62,18 @@
                         </div>
                     </div>
 
+                    <!-- Guarantors Notice (populated by JS when product is selected) -->
+                    <div id="guarantorsNotice" class="hidden mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg">
+                        <h4 class="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-2 flex items-center gap-2">
+                            <i class="fas fa-user-shield"></i>
+                            Guarantors Required: <span id="guarantorCount" class="ml-1 text-base font-bold">0</span>
+                        </h4>
+                        <p class="text-xs text-amber-700 dark:text-amber-400 mb-3">
+                            This loan product requires the number of guarantors shown above. You will add them after submitting the application.
+                        </p>
+                        <div id="guarantorSlots" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                    </div>
+
                     <!-- Principal Amount -->
                     <div class="mb-6">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -142,6 +154,18 @@
                         {% if form.branch.errors %}
                         <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.branch.errors.0 }}</p>
                         {% endif %}
+                    </div>
+
+                    <!-- Application Date -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.application_date.label }} <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.application_date }}
+                        {% if form.application_date.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.application_date.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Defaults to today — change only for backdated applications</p>
                     </div>
 
                     <!-- Client Signature -->
@@ -333,6 +357,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function fetchProductDetails(productId) {
         if (!productId) {
             document.getElementById('productDetails').classList.add('hidden');
+            document.getElementById('guarantorsNotice').classList.add('hidden');
             currentProductData = null;
             return;
         }
@@ -373,6 +398,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 reqElement.innerHTML = '<strong>Requirements:</strong> ' + requirements.join(' | ');
             } else {
                 reqElement.innerHTML = '';
+            }
+
+            // Guarantors notice
+            const numGuarantors = data.requires_guarantors || 0;
+            const guarantorsNotice = document.getElementById('guarantorsNotice');
+            const guarantorSlots  = document.getElementById('guarantorSlots');
+            document.getElementById('guarantorCount').textContent = numGuarantors;
+            guarantorSlots.innerHTML = '';
+            if (numGuarantors > 0) {
+                for (let i = 1; i <= numGuarantors; i++) {
+                    const slot = document.createElement('div');
+                    slot.className = 'flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-700 rounded-md text-xs text-amber-700 dark:text-amber-300';
+                    slot.innerHTML = `<i class="fas fa-user text-amber-400"></i> Guarantor ${i} — to be added after submission`;
+                    guarantorSlots.appendChild(slot);
+                }
+                guarantorsNotice.classList.remove('hidden');
+            } else {
+                guarantorsNotice.classList.add('hidden');
             }
 
             document.getElementById('productDetails').classList.remove('hidden');

@@ -117,8 +117,8 @@
                     <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.branch.name }}</p>
                 </div>
                 <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Opening Date</p>
-                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.created_at|date:"F d, Y" }}</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Date Opened</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.date_opened|date:"F d, Y" }}</p>
                 </div>
                 {% if account.activated_at %}
                 <div>
@@ -170,8 +170,14 @@
                 <div>
                     <p class="text-sm text-gray-600 dark:text-gray-400">Approved By</p>
                     <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.approved_by.get_full_name }}</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ account.approved_at|date:"F d, Y g:i A" }}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">System timestamp: {{ account.approved_at|date:"F d, Y g:i A" }}</p>
                 </div>
+                {% if account.approval_date %}
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Approval Date</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ account.approval_date|date:"F d, Y" }}</p>
+                </div>
+                {% endif %}
             </div>
         </div>
         {% endif %}

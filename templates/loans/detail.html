@@ -239,6 +239,16 @@
                     <p class="text-sm text-gray-600 dark:text-gray-400">Branch</p>
                     <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.branch.name }}</p>
                 </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Application Date</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.application_date|date:"F d, Y" }}</p>
+                </div>
+                {% if loan.approval_date %}
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">{% if loan.status == 'rejected' %}Rejection Date{% else %}Approval Date{% endif %}</p>
+                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.approval_date|date:"F d, Y" }}</p>
+                </div>
+                {% endif %}
                 {% if loan.purpose %}
                 <div class="md:col-span-2">
                     <p class="text-sm text-gray-600 dark:text-gray-400">Purpose</p>
@@ -283,9 +293,11 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {% if loan.approved_by %}
                 <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Approved By</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">{% if loan.status == 'rejected' %}Rejected By{% else %}Approved By{% endif %}</p>
                     <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.approved_by.get_full_name }}</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ loan.approved_at|date:"F d, Y g:i A" }}</p>
+                    {% if loan.approval_date %}
+                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ loan.approval_date|date:"F d, Y" }}</p>
+                    {% endif %}
                 </div>
                 {% endif %}
                 {% if loan.disbursed_by %}

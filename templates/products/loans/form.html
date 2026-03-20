@@ -336,6 +336,26 @@
             </div>
         </div>
 
+        <!-- Requirements -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                <i class="fas fa-user-shield mr-2 text-primary-600"></i>
+                Requirements
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Number of Guarantors Required <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.required_guarantors }}
+                    {% if form.required_guarantors.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.required_guarantors.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Set to 0 if no guarantors are needed for this product.</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Form Actions -->
         <div class="flex items-center justify-end space-x-4 pt-6">
             <a href="{% url 'core:loan_product_list' %}"

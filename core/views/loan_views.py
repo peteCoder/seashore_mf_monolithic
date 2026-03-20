@@ -513,7 +513,8 @@ def loan_approve(request, loan_id):
             notes = form.cleaned_data.get('notes', '')
 
             if decision == 'approve':
-                success, message = loan.approve(approved_by=request.user)
+                approval_date = form.cleaned_data.get('approval_date')
+                success, message = loan.approve(approved_by=request.user, approval_date=approval_date)
                 if success:
                     messages.success(request, f"Loan approved successfully. {message}")
                     notify(
@@ -538,7 +539,7 @@ def loan_approve(request, loan_id):
                 else:
                     messages.error(request, f"Failed to approve loan: {message}")
             else:
-                success, message = loan.reject(rejected_by=request.user, reason=notes)
+                success, message = loan.reject(rejected_by=request.user, reason=notes, approval_date=approval_date)
                 if success:
                     messages.success(request, f"Loan rejected. {message}")
                     notify(

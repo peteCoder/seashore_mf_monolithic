@@ -34,13 +34,17 @@ class LoanApplicationForm(forms.ModelForm):
     class Meta:
         model = Loan
         fields = [
-            'client', 'loan_product', 'principal_amount', 'duration_months',
+            'client', 'loan_product', 'application_date', 'principal_amount', 'duration_months',
             'purpose', 'purpose_details', 'loan_sector', 'linked_account',
             'branch', 'client_signature',
         ]
         widgets = {
             'client': forms.Select(attrs={'class': SELECT_CLASS}),
             'loan_product': forms.Select(attrs={'class': SELECT_CLASS}),
+            'application_date': forms.DateInput(attrs={
+                'class': TEXT_INPUT_CLASS,
+                'type': 'date',
+            }),
             'principal_amount': forms.TextInput(attrs={
                 'class': TEXT_INPUT_CLASS,
                 'placeholder': '₦ 10,000.00',
@@ -298,6 +302,17 @@ class LoanApprovalForm(forms.Form):
         widget=forms.RadioSelect(attrs={'class': CHECKBOX_CLASS})
     )
 
+    approval_date = forms.DateField(
+        required=True,
+        initial=date.today,
+        widget=forms.DateInput(attrs={
+            'class': TEXT_INPUT_CLASS,
+            'type': 'date',
+        }),
+        label='Decision Date',
+        help_text='The official date this decision is recorded'
+    )
+
     notes = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={
@@ -310,6 +325,8 @@ class LoanApprovalForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.loan = kwargs.pop('loan', None)
         super().__init__(*args, **kwargs)
+        if not self.data:
+            self.initial.setdefault('approval_date', date.today())
 
     def clean(self):
         cleaned_data = super().clean()

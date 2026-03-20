@@ -243,7 +243,8 @@ def savings_account_approve(request, account_id):
                 account.status = 'active'
                 account.approved_by = request.user
                 account.approved_at = timezone.now()
-                account.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+                account.approval_date = form.cleaned_data.get('approval_date')
+                account.save(update_fields=['status', 'approved_by', 'approved_at', 'approval_date', 'updated_at'])
 
                 messages.success(
                     request,
