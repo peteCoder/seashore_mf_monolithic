@@ -243,12 +243,6 @@
                     <p class="text-sm text-gray-600 dark:text-gray-400">Application Date</p>
                     <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.application_date|date:"F d, Y" }}</p>
                 </div>
-                {% if loan.approval_date %}
-                <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">{% if loan.status == 'rejected' %}Rejection Date{% else %}Approval Date{% endif %}</p>
-                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.approval_date|date:"F d, Y" }}</p>
-                </div>
-                {% endif %}
                 {% if loan.purpose %}
                 <div class="md:col-span-2">
                     <p class="text-sm text-gray-600 dark:text-gray-400">Purpose</p>
@@ -286,30 +280,123 @@
         </div>
         {% endif %}
 
-        <!-- Approval/Disbursement Information -->
-        {% if loan.approved_by or loan.disbursed_by %}
+        <!-- Loan Timeline -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Approval & Disbursement</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {% if loan.approved_by %}
-                <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">{% if loan.status == 'rejected' %}Rejected By{% else %}Approved By{% endif %}</p>
-                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.approved_by.get_full_name }}</p>
-                    {% if loan.approval_date %}
-                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ loan.approval_date|date:"F d, Y" }}</p>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-5">
+                <i class="fas fa-calendar-alt text-primary-600 dark:text-primary-400 mr-2"></i>Loan Timeline
+            </h2>
+            <div class="flow-root">
+                <ul class="space-y-0">
+
+                    <!-- Application -->
+                    <li class="relative flex gap-4 pb-6">
+                        <div class="absolute left-4 top-8 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
+                        <div class="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40 ring-2 ring-white dark:ring-gray-800">
+                            <i class="fas fa-file-alt text-blue-600 dark:text-blue-400 text-xs"></i>
+                        </div>
+                        <div class="min-w-0 flex-1 pt-1">
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">Application Submitted</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ loan.application_date|date:"F d, Y" }}</p>
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">By {{ loan.created_by.get_full_name }}</p>
+                        </div>
+                    </li>
+
+                    <!-- Fees Paid -->
+                    {% if loan.fees_paid and loan.fees_paid_date %}
+                    <li class="relative flex gap-4 pb-6">
+                        <div class="absolute left-4 top-8 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
+                        <div class="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/40 ring-2 ring-white dark:ring-gray-800">
+                            <i class="fas fa-money-bill text-yellow-600 dark:text-yellow-400 text-xs"></i>
+                        </div>
+                        <div class="min-w-0 flex-1 pt-1">
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">Application Fees Paid</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ loan.fees_paid_date|date:"F d, Y" }}</p>
+                        </div>
+                    </li>
                     {% endif %}
+
+                    <!-- Approval / Rejection -->
+                    {% if loan.approval_date %}
+                    <li class="relative flex gap-4 {% if loan.disbursement_date or loan.completion_date %}pb-6{% endif %}">
+                        {% if loan.disbursement_date or loan.completion_date %}
+                        <div class="absolute left-4 top-8 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
+                        {% endif %}
+                        <div class="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-2 ring-white dark:ring-gray-800
+                                    {% if loan.status == 'rejected' %}bg-red-100 dark:bg-red-900/40{% else %}bg-green-100 dark:bg-green-900/40{% endif %}">
+                            <i class="{% if loan.status == 'rejected' %}fas fa-times text-red-600 dark:text-red-400{% else %}fas fa-check text-green-600 dark:text-green-400{% endif %} text-xs"></i>
+                        </div>
+                        <div class="min-w-0 flex-1 pt-1">
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                                {% if loan.status == 'rejected' %}Loan Rejected{% else %}Loan Approved{% endif %}
+                            </p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ loan.approval_date|date:"F d, Y" }}</p>
+                            {% if loan.approved_by %}
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">By {{ loan.approved_by.get_full_name }}</p>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endif %}
+
+                    <!-- Disbursement -->
+                    {% if loan.disbursement_date %}
+                    <li class="relative flex gap-4 {% if loan.completion_date %}pb-6{% endif %}">
+                        {% if loan.completion_date %}
+                        <div class="absolute left-4 top-8 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
+                        {% endif %}
+                        <div class="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/40 ring-2 ring-white dark:ring-gray-800">
+                            <i class="fas fa-hand-holding-usd text-purple-600 dark:text-purple-400 text-xs"></i>
+                        </div>
+                        <div class="min-w-0 flex-1 pt-1">
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">Loan Disbursed</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ loan.disbursement_date|date:"F d, Y" }}</p>
+                            {% if loan.disbursed_by %}
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">By {{ loan.disbursed_by.get_full_name }}</p>
+                            {% endif %}
+                            {% if loan.first_repayment_date %}
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">First repayment due: {{ loan.first_repayment_date|date:"F d, Y" }}</p>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endif %}
+
+                    <!-- Completion -->
+                    {% if loan.completion_date %}
+                    <li class="relative flex gap-4">
+                        <div class="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 ring-2 ring-white dark:ring-gray-800">
+                            <i class="fas fa-trophy text-emerald-600 dark:text-emerald-400 text-xs"></i>
+                        </div>
+                        <div class="min-w-0 flex-1 pt-1">
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">Loan Fully Repaid</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ loan.completion_date|date:"F d, Y" }}</p>
+                        </div>
+                    </li>
+                    {% endif %}
+
+                </ul>
+            </div>
+
+            <!-- Upcoming dates (active/overdue loans) -->
+            {% if loan.status == 'active' or loan.status == 'overdue' %}{% if loan.next_repayment_date %}
+            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Next Repayment Due</p>
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">{{ loan.next_repayment_date|date:"F d, Y" }}</p>
+                </div>
+                {% if loan.final_repayment_date %}
+                <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Final Repayment Due</p>
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">{{ loan.final_repayment_date|date:"F d, Y" }}</p>
                 </div>
                 {% endif %}
-                {% if loan.disbursed_by %}
+                {% if loan.last_payment_date %}
                 <div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">Disbursed By</p>
-                    <p class="text-base font-medium text-gray-900 dark:text-white">{{ loan.disbursed_by.get_full_name }}</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ loan.disbursed_at|date:"F d, Y g:i A" }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Last Payment Received</p>
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">{{ loan.last_payment_date|date:"F d, Y" }}</p>
                 </div>
                 {% endif %}
             </div>
+            {% endif %}{% endif %}
         </div>
-        {% endif %}
 
         <!-- Rejection Information -->
         {% if loan.status == 'rejected' and loan.rejection_reason %}

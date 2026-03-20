@@ -4611,7 +4611,16 @@ class Loan(BaseModel):
         else:
             self.status = 'active'
 
-        self.save()
+        update_fields = [
+            'amount_paid', 'outstanding_balance', 'accrued_interest_balance',
+            'last_payment_amount', 'last_payment_date', 'timely_repayments_pct',
+            'status', 'updated_at',
+        ]
+        if self.next_repayment_date is not None:
+            update_fields.append('next_repayment_date')
+        if self.status == 'completed':
+            update_fields.append('completion_date')
+        self.save(update_fields=update_fields)
 
         # Resolve transaction datetime (backdate if collection_date supplied)
         txn_dt = transaction_date if transaction_date is not None else timezone.now()

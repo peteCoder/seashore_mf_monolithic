@@ -10,6 +10,7 @@ Every financial transaction MUST create a corresponding journal entry to ensure:
 - Balance sheet integrity
 """
 
+import datetime as _dt
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -142,6 +143,14 @@ def create_journal_entry(
     """
     from core.models import ChartOfAccounts, JournalEntry, JournalEntryLine
 
+    # Normalise transaction_date: always store a date (not a datetime) in DateFields.
+    # timezone.localdate() converts aware datetimes using the configured TIME_ZONE,
+    # so we always record the *local* date even if the server runs in UTC.
+    if isinstance(transaction_date, _dt.datetime):
+        transaction_date = timezone.localdate(transaction_date)
+    elif not isinstance(transaction_date, _dt.date):
+        transaction_date = timezone.localdate()
+
     # Validate minimum lines
     if len(lines) < 2:
         raise ValidationError("Journal entry must have at least 2 lines")
@@ -240,9 +249,16 @@ def post_loan_disbursement_journal(loan, disbursed_by, transaction_obj=None):
         }
     ]
 
+    # Prefer the Transaction's date (already set to the manually-entered disbursement
+    # date); fall back to loan.disbursement_date then today.
+    if transaction_obj is not None:
+        entry_date = transaction_obj.transaction_date
+    else:
+        entry_date = loan.disbursement_date or timezone.now()
+
     return create_journal_entry(
         entry_type='loan_disbursement',
-        transaction_date=loan.disbursement_date or timezone.now().date(),
+        transaction_date=entry_date,
         branch=loan.branch,
         description=f"Loan Disbursement: {loan.loan_number}",
         created_by=disbursed_by,
