@@ -80,11 +80,14 @@ class IPSessionLockMiddleware:
                         request.user.email, stored_ip, current_ip,
                     )
                     logout(request)
-                    messages.warning(
-                        request,
-                        'Your session was terminated because your network address changed. '
-                        'Please log in again to continue.',
-                    )
+                    try:
+                        messages.warning(
+                            request,
+                            'Your session was terminated because your network address changed. '
+                            'Please log in again to continue.',
+                        )
+                    except Exception:
+                        pass  # MessageMiddleware not available (e.g. API request)
                     return redirect('core:login')
 
         response = self.get_response(request)

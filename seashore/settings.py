@@ -119,9 +119,9 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'axes.middleware.AxesMiddleware',               # must be after AuthenticationMiddleware
-    'core.middleware.IPSessionLockMiddleware',      # terminates sessions on IP change
     'auditlog.middleware.AuditlogMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'core.middleware.IPSessionLockMiddleware',      # must be after MessageMiddleware
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
