@@ -12,6 +12,8 @@ Workflow:
 5. Manager/Director/Admin approves → processes all individual payments
 """
 
+import datetime as _dt
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -440,7 +442,6 @@ def group_collection_approve(request, session_id):
         review_notes = request.POST.get('notes', '')
 
         # Parse the manager-confirmed transaction date; fall back to collection_date
-        import datetime as _dt
         raw_txn_date = request.POST.get('transaction_date', '')
         try:
             txn_date = _dt.date.fromisoformat(raw_txn_date) if raw_txn_date else session.collection_date
@@ -532,7 +533,6 @@ def group_savings_collection_approve(request, session_id):
         decision = request.POST.get('decision')
         review_notes = request.POST.get('notes', '')
 
-        import datetime as _dt
         raw_txn_date = request.POST.get('transaction_date', '')
         try:
             txn_date = _dt.date.fromisoformat(raw_txn_date) if raw_txn_date else session.collection_date
@@ -813,7 +813,6 @@ def group_combined_collection_approve(request, session_id):
         decision = request.POST.get('decision')
         review_notes = request.POST.get('notes', '')
 
-        import datetime as _dt
         raw_txn_date = request.POST.get('transaction_date', '')
         try:
             txn_date = _dt.date.fromisoformat(raw_txn_date) if raw_txn_date else session.collection_date
