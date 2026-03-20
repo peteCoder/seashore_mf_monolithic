@@ -626,7 +626,8 @@ def loan_disburse(request, loan_id):
             success, message = loan.disburse(
                 disbursed_by=request.user,
                 method=form.cleaned_data['disbursement_method'],
-                reference=form.cleaned_data.get('disbursement_reference', '')
+                reference=form.cleaned_data.get('disbursement_reference', ''),
+                disbursement_date=form.cleaned_data.get('disbursement_date'),
             )
 
             if success:
@@ -1018,7 +1019,10 @@ def loan_repayment_approve(request, posting_id):
 
             try:
                 if decision == 'approve':
-                    posting.approve(approved_by=request.user)
+                    posting.approve(
+                        approved_by=request.user,
+                        transaction_date=form.cleaned_data.get('transaction_date'),
+                    )
                     messages.success(
                         request,
                         f'Repayment posting {posting.posting_ref} approved successfully. '

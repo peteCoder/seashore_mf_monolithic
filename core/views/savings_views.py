@@ -840,7 +840,10 @@ def savings_transaction_approve(request, posting_type, posting_id):
 
             try:
                 if decision == 'approve':
-                    posting.approve(approved_by=request.user)
+                    posting.approve(
+                        approved_by=request.user,
+                        transaction_date=form.cleaned_data.get('transaction_date'),
+                    )
                     messages.success(
                         request,
                         f'{posting_type.capitalize()} posting {posting.posting_ref} approved successfully. '

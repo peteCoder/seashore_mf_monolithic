@@ -4425,20 +4425,29 @@ class Loan(BaseModel):
         return True, "Loan rejected"
 
     @db_transaction.atomic
-    def disburse(self, disbursed_by, method='cash', reference=''):
+    def disburse(self, disbursed_by, method='cash', reference='', disbursement_date=None):
         if self.status != 'approved':
             return False, f"Cannot disburse loan with status: {self.get_status_display()}"
 
+        import datetime as _dt_mod
+        if disbursement_date is not None:
+            if isinstance(disbursement_date, _dt_mod.date) and not isinstance(disbursement_date, _dt_mod.datetime):
+                disburse_dt = timezone.make_aware(_dt_mod.datetime.combine(disbursement_date, _dt_mod.time.min))
+            else:
+                disburse_dt = disbursement_date
+        else:
+            disburse_dt = timezone.now()
+
         self.status               = 'active'
         self.disbursed_by         = disbursed_by
-        self.disbursement_date    = timezone.now()
+        self.disbursement_date    = disburse_dt
         self.disbursement_method  = method
         self.disbursement_reference = reference
         self.amount_disbursed     = self.principal_amount
         self.outstanding_balance  = self.total_repayment
 
         if not self.first_repayment_date:
-            self.first_repayment_date = self.calculate_next_payment_date(timezone.now().date())
+            self.first_repayment_date = self.calculate_next_payment_date(disburse_dt.date())
             self.next_repayment_date  = self.first_repayment_date
 
         self.save()
@@ -4455,7 +4464,8 @@ class Loan(BaseModel):
             balance_after=self.outstanding_balance,
             processed_by=disbursed_by,
             description=f"Loan disbursement: {self.loan_number}",
-            status='completed'
+            status='completed',
+            transaction_date=disburse_dt,
         )
 
         # Persist repayment schedule rows (only if not already created)
@@ -5434,7 +5444,7 @@ class LoanRepaymentPosting(BaseModel):
         return posting_ref
 
     @db_transaction.atomic
-    def approve(self, approved_by):
+    def approve(self, approved_by, transaction_date=None):
         """
         Approve the repayment posting and update the loan
 
@@ -5504,10 +5514,12 @@ class LoanRepaymentPosting(BaseModel):
         self.interest_amount = interest_portion
 
         # Record repayment on the loan (updates balances, schedule, creates transaction & journal)
+        effective_date = transaction_date if transaction_date is not None else self.payment_date
         txn = self.loan.record_repayment(
             amount=self.amount,
             processed_by=approved_by,
-            description=f"Repayment posting {self.posting_ref}"
+            description=f"Repayment posting {self.posting_ref}",
+            transaction_date=effective_date,
         )
 
         # Update posting status and link the transaction created by record_repayment
@@ -5743,7 +5755,7 @@ class SavingsDepositPosting(BaseModel):
         return posting_ref
 
     @db_transaction.atomic
-    def approve(self, approved_by):
+    def approve(self, approved_by, transaction_date=None):
         """
         Approve the deposit posting and update the account
 
@@ -5752,6 +5764,11 @@ class SavingsDepositPosting(BaseModel):
         2. Calls savings_account.deposit() to update balance
         3. Creates a transaction record (done inside deposit())
         4. Updates posting status and links transaction
+
+        Args:
+            approved_by: User approving the posting
+            transaction_date: Date to record on the Transaction and JournalEntry.
+                              Defaults to self.payment_date if not provided.
         """
         if self.status != 'pending':
             raise ValidationError("Only pending postings can be approved")
@@ -5770,13 +5787,15 @@ class SavingsDepositPosting(BaseModel):
                     f"(₦{self.savings_account.savings_product.min_deposit_amount:,.2f})"
                 )
 
+        effective_date = transaction_date if transaction_date is not None else self.payment_date
+
         # Call account's deposit method (creates transaction internally)
         try:
             txn = self.savings_account.deposit(
                 amount=self.amount,
                 processed_by=approved_by,
                 description=f"Deposit posting {self.posting_ref}",
-                transaction_date=self.payment_date,
+                transaction_date=effective_date,
             )
         except ValueError as e:
             raise ValidationError(str(e))
@@ -6025,7 +6044,7 @@ class SavingsWithdrawalPosting(BaseModel):
         return posting_ref
 
     @db_transaction.atomic
-    def approve(self, approved_by):
+    def approve(self, approved_by, transaction_date=None):
         """
         Approve the withdrawal posting and update the account
 
@@ -6035,6 +6054,11 @@ class SavingsWithdrawalPosting(BaseModel):
         3. Calls savings_account.withdraw() to update balance
         4. Creates a transaction record (done inside withdraw())
         5. Updates posting status and links transaction
+
+        Args:
+            approved_by: User approving the posting
+            transaction_date: Date to record on the Transaction and JournalEntry.
+                              Defaults to self.withdrawal_date if not provided.
         """
         if self.status != 'pending':
             raise ValidationError("Only pending postings can be approved")
@@ -6061,13 +6085,15 @@ class SavingsWithdrawalPosting(BaseModel):
                 penalty_rate = self.savings_account.savings_product.early_withdrawal_penalty_rate
                 self.penalty_amount = self.amount * (penalty_rate / Decimal('100'))
 
+        effective_date = transaction_date if transaction_date is not None else self.withdrawal_date
+
         # Call account's withdraw method (creates transaction internally)
         try:
             txn = self.savings_account.withdraw(
                 amount=self.amount,
                 processed_by=approved_by,
                 description=f"Withdrawal posting {self.posting_ref}",
-                transaction_date=self.withdrawal_date,
+                transaction_date=effective_date,
             )
         except ValueError as e:
             raise ValidationError(str(e))

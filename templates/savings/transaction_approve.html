@@ -218,6 +218,18 @@
                 {% endif %}
             </div>
 
+            <!-- Transaction Date -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.transaction_date.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.transaction_date }}
+                {% if form.transaction_date.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.transaction_date.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.transaction_date.help_text }}</p>
+            </div>
+
             <!-- Review Notes -->
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

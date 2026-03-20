@@ -84,6 +84,18 @@
         <form method="post">
             {% csrf_token %}
 
+            <!-- Disbursement Date -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.disbursement_date.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.disbursement_date }}
+                {% if form.disbursement_date.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.disbursement_date.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.disbursement_date.help_text }}</p>
+            </div>
+
             <!-- Disbursement Method -->
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

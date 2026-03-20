@@ -32,13 +32,17 @@ class SavingsAccountForm(forms.ModelForm):
     class Meta:
         model = SavingsAccount
         fields = [
-            'client', 'savings_product', 'branch', 'date_opened', 'notes'
+            'client', 'savings_product', 'branch', 'date_opened', 'approval_date', 'notes'
         ]
         widgets = {
             'client': forms.Select(attrs={'class': SELECT_CLASS}),
             'savings_product': forms.Select(attrs={'class': SELECT_CLASS}),
             'branch': forms.Select(attrs={'class': SELECT_CLASS}),
             'date_opened': forms.DateInput(attrs={
+                'class': TEXT_INPUT_CLASS,
+                'type': 'date',
+            }),
+            'approval_date': forms.DateInput(attrs={
                 'class': TEXT_INPUT_CLASS,
                 'type': 'date',
             }),
@@ -501,6 +505,16 @@ class ApproveSavingsTransactionForm(forms.Form):
         widget=forms.RadioSelect(attrs={'class': CHECKBOX_CLASS})
     )
 
+    transaction_date = forms.DateField(
+        required=True,
+        widget=forms.DateInput(attrs={
+            'class': TEXT_INPUT_CLASS,
+            'type': 'date',
+        }),
+        label='Transaction Date',
+        help_text='The date this transaction will be recorded in the ledger',
+    )
+
     notes = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={
@@ -513,6 +527,12 @@ class ApproveSavingsTransactionForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.posting = kwargs.pop('posting', None)
         super().__init__(*args, **kwargs)
+        # Pre-fill transaction_date with the date entered on the original posting
+        if self.posting and not self.data:
+            if hasattr(self.posting, 'payment_date'):
+                self.fields['transaction_date'].initial = self.posting.payment_date
+            elif hasattr(self.posting, 'withdrawal_date'):
+                self.fields['transaction_date'].initial = self.posting.withdrawal_date
 
     def clean(self):
         cleaned_data = super().clean()

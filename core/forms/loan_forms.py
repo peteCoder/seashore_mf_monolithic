@@ -355,6 +355,13 @@ class LoanApprovalForm(forms.Form):
 class LoanDisbursementForm(forms.Form):
     """Form for disbursing approved loans"""
 
+    disbursement_date = forms.DateField(
+        required=True,
+        widget=forms.DateInput(attrs={'class': TEXT_INPUT_CLASS, 'type': 'date'}),
+        label='Disbursement Date',
+        help_text='The official date this loan is disbursed',
+    )
+
     disbursement_method = forms.ChoiceField(
         choices=Loan.DISBURSEMENT_METHOD_CHOICES,
         widget=forms.Select(attrs={'class': SELECT_CLASS})
@@ -404,6 +411,9 @@ class LoanDisbursementForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.loan = kwargs.pop('loan', None)
         super().__init__(*args, **kwargs)
+        from datetime import date
+        if not self.data:
+            self.fields['disbursement_date'].initial = date.today()
 
     def clean(self):
         cleaned_data = super().clean()
@@ -650,6 +660,13 @@ class ApproveRepaymentPostingForm(forms.Form):
         widget=forms.RadioSelect(attrs={'class': CHECKBOX_CLASS})
     )
 
+    transaction_date = forms.DateField(
+        required=True,
+        widget=forms.DateInput(attrs={'class': TEXT_INPUT_CLASS, 'type': 'date'}),
+        label='Transaction Date',
+        help_text='The date this repayment will be recorded in the ledger',
+    )
+
     notes = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={
@@ -662,6 +679,8 @@ class ApproveRepaymentPostingForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.posting = kwargs.pop('posting', None)
         super().__init__(*args, **kwargs)
+        if self.posting and not self.data:
+            self.fields['transaction_date'].initial = self.posting.payment_date
 
     def clean(self):
         cleaned_data = super().clean()

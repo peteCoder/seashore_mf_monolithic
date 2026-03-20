@@ -73,6 +73,18 @@
                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Defaults to today — change only for backdated records</p>
                     </div>
 
+                    <!-- Approval Date -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            {{ form.approval_date.label }}
+                        </label>
+                        {{ form.approval_date }}
+                        {% if form.approval_date.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.approval_date.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Optional — pre-fill the approval date for backdated accounts</p>
+                    </div>
+
                     <!-- Branch -->
                     <div class="mb-6">
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
