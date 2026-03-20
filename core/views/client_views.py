@@ -5,6 +5,7 @@ Client Views
 All client CRUD operations with role-based permissions
 """
 
+import datetime
 from datetime import date as date_type
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -376,6 +377,10 @@ def client_approve(request, client_id):
                         if fee_reference:
                             payment_details += f' - Ref: {fee_reference}'
 
+                        reg_txn_date = (
+                            timezone.make_aware(datetime.datetime.combine(client.registration_date, datetime.time.min))
+                            if client.registration_date else timezone.now()
+                        )
                         first_txn = None
                         for item in CLIENT_REGISTRATION_FEE_BREAKDOWN:
                             txn = Transaction.objects.create(
@@ -388,6 +393,7 @@ def client_approve(request, client_id):
                                 processed_by=request.user,
                                 status='completed',
                                 is_income=True,
+                                transaction_date=reg_txn_date,
                             )
                             post_fee_collection_journal(
                                 fee_type=item['key'],
@@ -753,6 +759,10 @@ def client_pay_registration_fee(request, client_id):
                 payment_details += f" - Ref: {reference_number}"
 
             # Create one transaction + one journal entry per fee line item
+            reg_txn_date = (
+                timezone.make_aware(datetime.datetime.combine(client.registration_date, datetime.time.min))
+                if client.registration_date else timezone.now()
+            )
             first_transaction = None
             with transaction.atomic():
                 for item in CLIENT_REGISTRATION_FEE_BREAKDOWN:
@@ -767,6 +777,7 @@ def client_pay_registration_fee(request, client_id):
                         processed_by=request.user,
                         status='completed',
                         is_income=True,
+                        transaction_date=reg_txn_date,
                     )
                     post_fee_collection_journal(
                         fee_type=item['key'],
