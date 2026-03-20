@@ -2394,6 +2394,7 @@ class SavingsProduct(BaseModel, StatusTrackingMixin):
         ('fixed', 'Fixed Deposit'),
         ('target', 'Voluntary Savings'),
         ('children', 'Children Savings'),
+        ('thrift', 'Thrift Savings'),
     ]
     
     product_type = models.CharField(
@@ -2671,6 +2672,11 @@ class SavingsProduct(BaseModel, StatusTrackingMixin):
     def is_children(self):
         """Check if this is a children savings product"""
         return self.product_type == 'children'
+
+    @property
+    def is_thrift(self):
+        """Check if this is a thrift savings product"""
+        return self.product_type == 'thrift'
     
     def calculate_interest(self, balance, months):
         """
