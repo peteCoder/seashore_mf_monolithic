@@ -96,16 +96,20 @@ class TrialBalanceForm(DateRangeForm):
         )
     )
 
-    show_zero_balances = forms.BooleanField(
+    show_zero_balances = forms.ChoiceField(
+        choices=[('no', 'No'), ('yes', 'Yes')],
         required=False,
-        initial=False,
+        initial='no',
         label='Show Zero Balances',
-        widget=forms.CheckboxInput(
+        widget=forms.Select(
             attrs={
-                'class': 'rounded border-gray-300 text-amber-600 shadow-sm focus:border-amber-500 focus:ring-amber-500'
+                'class': 'block w-full px-3 py-2 rounded-md border border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white'
             }
         )
     )
+
+    def clean_show_zero_balances(self):
+        return self.cleaned_data.get('show_zero_balances') == 'yes'
 
 
 # =============================================================================
@@ -445,13 +449,11 @@ JournalEntryLineFormSet = inlineformset_factory(
     JournalEntry,
     JournalEntryLine,
     form=JournalEntryLineForm,
-    extra=4,  # Show 4 blank lines by default
+    extra=2,
     min_num=2,
-    validate_min=False,  # validate_min breaks for new-object inline formsets: all forms
-                         # count as "extra", making the check always fail (0 < min_num).
-                         # Minimum-lines enforcement is handled by the view balance check
-                         # and the JS remove-row guard instead.
-    can_delete=True
+    max_num=2,
+    validate_min=False,
+    can_delete=False,
 )
 
 

@@ -4,29 +4,7 @@
 
 {% block content %}
 <style>
-/* ── DR/CR toggle button states ──────────────────────────────────── */
-.dr-btn, .cr-btn {
-    padding: 0.375rem 0.75rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-    line-height: 1.25;
-    transition: background-color 0.15s, color 0.15s;
-    white-space: nowrap;
-    user-select: none;
-}
-/* light – active */
-.dr-btn[data-active="true"]  { background: #d1fae5; color: #065f46; }
-.cr-btn[data-active="true"]  { background: #fee2e2; color: #991b1b; }
-/* light – inactive */
-.dr-btn[data-active="false"], .cr-btn[data-active="false"] { background: #f9fafb; color: #9ca3af; }
-/* dark – active */
-.dark .dr-btn[data-active="true"]  { background: rgba(52,211,153,.18); color: #6ee7b7; }
-.dark .cr-btn[data-active="true"]  { background: rgba(248,113,113,.18); color: #fca5a5; }
-/* dark – inactive */
-.dark .dr-btn[data-active="false"], .dark .cr-btn[data-active="false"] { background: #374151; color: #6b7280; }
-
 /* ── Line-row accent border ──────────────────────────────────────── */
-.line-row { transition: border-color 0.15s; }
 .line-row.is-dr { border-color: #a7f3d0; }
 .line-row.is-cr { border-color: #fecaca; }
 .dark .line-row.is-dr { border-color: rgba(52,211,153,.35); }
@@ -132,10 +110,17 @@
                 </div>
 
                 <div>
+                    {% if is_manager %}
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch <span class="text-red-500">*</span></label>
+                    {{ form.branch }}
+                    {% if form.branch.errors %}<p class="mt-1 text-xs text-red-600">{{ form.branch.errors.0 }}</p>{% endif %}
+                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Your branch is pre-selected</p>
+                    {% else %}
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch <span class="text-xs font-normal text-gray-400">(optional)</span></label>
                     {{ form.branch }}
                     {% if form.branch.errors %}<p class="mt-1 text-xs text-red-600">{{ form.branch.errors.0 }}</p>{% endif %}
                     <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Leave blank to apply across all branches</p>
+                    {% endif %}
                 </div>
 
                 <div class="sm:col-span-2">
@@ -200,7 +185,7 @@
                     <span class="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">2</span>
                     <div>
                         <h2 class="text-base font-semibold text-gray-900 dark:text-white">Journal Lines</h2>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Minimum 2 lines — at least one DR and one CR</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Exactly 2 lines — one Debit and one Credit. They must balance.</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-3 flex-wrap text-xs">
@@ -213,16 +198,34 @@
 
             {{ formset.management_form }}
 
-            <!-- Line Rows -->
+            <!-- Balance warning (shown when credit amount exceeds account balance) -->
+            <div id="balance-warning" class="hidden mx-4 mt-4 flex items-start gap-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg text-sm text-yellow-800 dark:text-yellow-300">
+                <i class="fas fa-exclamation-triangle mt-0.5 flex-shrink-0 text-yellow-500"></i>
+                <div>
+                    <p class="font-semibold">Possible overdraft — please review</p>
+                    <p id="balance-warning-text" class="mt-0.5"></p>
+                    <p class="mt-1 text-xs text-yellow-700 dark:text-yellow-400">You can still save this entry if the amount is intentional (e.g. a correction or accrual).</p>
+                </div>
+            </div>
+
+            <!-- Line Rows — fixed: row 1 = Debit, row 2 = Credit -->
             <div id="lines-container" class="p-4 space-y-3">
                 {% for line_form in formset %}
-                <div class="line-row flex flex-wrap items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div class="line-row {% if forloop.first %}is-dr{% else %}is-cr{% endif %} flex flex-wrap items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-200 dark:border-gray-600"
+                     data-default-type="{% if forloop.first %}dr{% else %}cr{% endif %}">
                     {{ line_form.id }}
-                    <div style="display:none">{{ line_form.DELETE }}</div>
 
-                    <!-- Row number -->
-                    <div class="mt-6 flex-shrink-0">
-                        <span class="line-number inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 text-xs font-bold">{{ forloop.counter }}</span>
+                    <!-- Row label -->
+                    <div class="w-full mb-1">
+                        {% if forloop.first %}
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                            <i class="fas fa-arrow-right"></i> Debit (DR)
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
+                            <i class="fas fa-arrow-left"></i> Credit (CR)
+                        </span>
+                        {% endif %}
                     </div>
 
                     <!-- Account -->
@@ -232,19 +235,18 @@
                         {% if line_form.account.errors %}<p class="mt-0.5 text-xs text-red-600">{{ line_form.account.errors.0 }}</p>{% endif %}
                     </div>
 
-                    <!-- DR/CR Toggle + Amount -->
+                    <!-- Fixed type badge + Amount -->
                     <div class="flex-shrink-0">
-                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Type &amp; Amount <span class="text-red-500">*</span></label>
+                        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Amount <span class="text-red-500">*</span></label>
                         <div class="flex items-stretch">
-                            <!-- Toggle pill -->
-                            <div class="flex border border-gray-300 dark:border-gray-600 rounded-l-md overflow-hidden border-r-0 flex-shrink-0">
-                                <button type="button" class="dr-btn" data-active="false">DR</button>
-                                <button type="button" class="cr-btn border-l border-gray-300 dark:border-gray-600" data-active="false">CR</button>
-                            </div>
-                            <!-- Visible amount — type="text" so browser locale never adds commas to value -->
-                            <input type="text" inputmode="decimal" class="amount-proxy w-32 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-r-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500" placeholder="0.00" autocomplete="off">
+                            {% if forloop.first %}
+                            <span class="inline-flex items-center px-3 py-2 text-xs font-bold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-300 dark:border-green-700 rounded-l-md border-r-0 select-none">DR</span>
+                            {% else %}
+                            <span class="inline-flex items-center px-3 py-2 text-xs font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-700 rounded-l-md border-r-0 select-none">CR</span>
+                            {% endif %}
+                            <input type="text" inputmode="decimal" class="amount-proxy w-32 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-r-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500" placeholder="0.00" autocomplete="off"
+                                   data-line-type="{% if forloop.first %}dr{% else %}cr{% endif %}">
                         </div>
-                        <!-- Hidden debit/credit fields — synced by JS before submit -->
                         <div style="display:none">
                             {{ line_form.debit_amount }}
                             {{ line_form.credit_amount }}
@@ -259,23 +261,8 @@
                         <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Note <span class="text-gray-400 dark:text-gray-500 font-normal">(optional)</span></label>
                         {{ line_form.description }}
                     </div>
-
-                    <!-- Remove -->
-                    <div class="mt-6 flex-shrink-0">
-                        <button type="button" class="remove-line-btn p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors" title="Remove line">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
                 </div>
                 {% endfor %}
-            </div>
-
-            <!-- Add Line -->
-            <div class="px-4 pb-4">
-                <button type="button" id="add-line-btn"
-                        class="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border-2 border-dashed border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors">
-                    <i class="fas fa-plus-circle"></i> Add Another Line
-                </button>
             </div>
 
             <!-- Balance Summary -->
@@ -338,31 +325,22 @@ function parseAmount(s) {
     return isFinite(n) && n > 0 ? n : 0;
 }
 
-// Toggle DR/CR visual state via data-active + CSS rules in <style>
-function setToggle(row, type) {
-    const dr = row.querySelector('.dr-btn');
-    const cr = row.querySelector('.cr-btn');
-    dr.dataset.active = type === 'dr' ? 'true' : 'false';
-    cr.dataset.active = type === 'cr' ? 'true' : 'false';
-    row.classList.toggle('is-dr', type === 'dr');
-    row.classList.toggle('is-cr', type === 'cr');
-}
-
-// Sync visible amount-proxy → correct hidden debit/credit field
+// Sync visible amount-proxy → correct hidden debit/credit field based on fixed data-line-type
 function syncRow(row) {
-    const isDr   = row.querySelector('.dr-btn')?.dataset.active === 'true';
-    const amount = parseAmount(row.querySelector('.amount-proxy')?.value);
-    const debit  = row.querySelector('input[name*="debit_amount"]');
-    const credit = row.querySelector('input[name*="credit_amount"]');
+    const amountEl = row.querySelector('.amount-proxy');
+    const amount   = parseAmount(amountEl?.value);
+    const debit    = row.querySelector('input[name*="debit_amount"]');
+    const credit   = row.querySelector('input[name*="credit_amount"]');
     if (!debit || !credit) return;
+    const isDr = amountEl?.dataset.lineType === 'dr';
     if (isDr) { debit.value = amount > 0 ? amount.toFixed(2) : ''; credit.value = ''; }
-    else       { credit.value = amount > 0 ? amount.toFixed(2) : ''; debit.value = ''; }
+    else      { credit.value = amount > 0 ? amount.toFixed(2) : ''; debit.value = ''; }
 }
 
 // Recalculate totals and update balance indicator
 function updateTotals() {
     let dr = 0, cr = 0;
-    document.querySelectorAll('.line-row:not([data-deleted="true"])').forEach(row => {
+    document.querySelectorAll('.line-row').forEach(row => {
         dr += parseAmount(row.querySelector('input[name*="debit_amount"]')?.value);
         cr += parseAmount(row.querySelector('input[name*="credit_amount"]')?.value);
     });
@@ -398,128 +376,91 @@ function updateTotals() {
     }
 }
 
-// Attach all events to a row + restore toggle state from hidden values
+// Restore visible amount after a failed POST, then wire up the input event.
 function initRow(row) {
-    const drBtn     = row.querySelector('.dr-btn');
-    const crBtn     = row.querySelector('.cr-btn');
     const amountEl  = row.querySelector('.amount-proxy');
     const debitHid  = row.querySelector('input[name*="debit_amount"]');
     const creditHid = row.querySelector('input[name*="credit_amount"]');
 
-    // Clear Django's default "0" so blank extra rows submit as empty
+    // Clear Django's default "0" so blank rows submit as empty
     if (debitHid  && parseFloat(debitHid.value)  === 0) debitHid.value  = '';
     if (creditHid && parseFloat(creditHid.value) === 0) creditHid.value = '';
 
-    // Restore toggle + visible amount after a failed POST
-    const drVal = parseAmount(debitHid?.value);
-    const crVal = parseAmount(creditHid?.value);
-    if (crVal > 0) {
-        setToggle(row, 'cr');
-        if (amountEl) amountEl.value = crVal.toFixed(2);
-    } else if (drVal > 0) {
-        setToggle(row, 'dr');
-        if (amountEl) amountEl.value = drVal.toFixed(2);
-    } else {
-        setToggle(row, 'dr'); // default new rows to DR
-    }
+    // Restore visible amount after a failed POST
+    const existingVal = parseAmount(debitHid?.value) || parseAmount(creditHid?.value);
+    if (existingVal > 0 && amountEl) amountEl.value = existingVal.toFixed(2);
 
-    // Allow only numeric input characters (digits, dot, comma)
     amountEl?.addEventListener('keypress', e => {
         if (!/[\d.,]/.test(e.key) && !e.ctrlKey && e.key !== 'Backspace') e.preventDefault();
     });
-
-    drBtn?.addEventListener('click',  () => { setToggle(row, 'dr'); syncRow(row); updateTotals(); });
-    crBtn?.addEventListener('click',  () => { setToggle(row, 'cr'); syncRow(row); updateTotals(); });
     amountEl?.addEventListener('input', () => { syncRow(row); updateTotals(); });
-    row.querySelector('.remove-line-btn')?.addEventListener('click', () => removeRow(row));
 }
 
-function removeRow(row) {
-    if (document.querySelectorAll('.line-row:not([data-deleted="true"])').length <= 2) {
-        alert('A journal entry requires at least 2 lines.');
-        return;
+// ── Balance warning (credit row only) ────────────────────────────────────────
+const BALANCE_API = '{% url "core:account_balance_api" %}';
+let _balanceCache = {};   // account_id → { balance, normal_balance, name, gl_code }
+
+async function fetchBalance(accountId) {
+    if (_balanceCache[accountId]) return _balanceCache[accountId];
+    try {
+        const res  = await fetch(`${BALANCE_API}?account_id=${encodeURIComponent(accountId)}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        _balanceCache[accountId] = data;
+        return data;
+    } catch { return null; }
+}
+
+async function checkBalanceWarning() {
+    const warning     = document.getElementById('balance-warning');
+    const warningText = document.getElementById('balance-warning-text');
+
+    // The credit row is always the second .line-row
+    const crRow    = document.querySelectorAll('.line-row')[1];
+    if (!crRow) { warning.classList.add('hidden'); return; }
+
+    const accountSel = crRow.querySelector('select[name*="-account"]');
+    const amountEl   = crRow.querySelector('.amount-proxy');
+    const accountId  = accountSel?.value;
+    const amount     = parseAmount(amountEl?.value);
+
+    if (!accountId || amount <= 0) { warning.classList.add('hidden'); return; }
+
+    const data = await fetchBalance(accountId);
+    if (!data) { warning.classList.add('hidden'); return; }
+
+    // Only warn for debit-normal accounts (assets) — crediting them reduces balance
+    if (data.normal_balance !== 'debit') { warning.classList.add('hidden'); return; }
+
+    if (amount > data.balance) {
+        const fmt = n => '₦' + parseFloat(n).toLocaleString('en-NG', {minimumFractionDigits: 2});
+        warningText.textContent =
+            `${data.name} (${data.gl_code}) current balance is ${fmt(data.balance)}, ` +
+            `but you are crediting ${fmt(amount)}. ` +
+            `This would leave the account at ${fmt(data.balance - amount)}.`;
+        warning.classList.remove('hidden');
+    } else {
+        warning.classList.add('hidden');
     }
-    const del = row.querySelector('input[name*="-DELETE"]');
-    if (del) del.checked = true;
-    row.dataset.deleted = 'true';
-    row.style.display = 'none';
-    renumberRows();
-    updateTotals();
-}
-
-function renumberRows() {
-    let n = 1;
-    document.querySelectorAll('.line-row:not([data-deleted="true"])').forEach(r => {
-        const el = r.querySelector('.line-number');
-        if (el) el.textContent = n++;
-    });
-}
-
-function addRow() {
-    const totalInput = document.getElementById('id_form-TOTAL_FORMS');
-    const idx = parseInt(totalInput.value);
-
-    // Clone account options from the first visible select
-    const firstSel = document.querySelector('#lines-container select[name*="-account"]');
-    if (!firstSel) return;
-    const opts = Array.from(firstSel.options).map(o =>
-        `<option value="${o.value}"${o.value === '' ? ' selected' : ''}>${o.textContent}</option>`
-    ).join('');
-
-    const row = document.createElement('div');
-    row.className = 'line-row flex flex-wrap items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-200 dark:border-gray-600';
-    row.innerHTML = `
-        <input type="hidden" name="form-${idx}-id" value="">
-        <div style="display:none"><input type="checkbox" name="form-${idx}-DELETE" id="id_form-${idx}-DELETE"></div>
-        <div class="mt-6 flex-shrink-0">
-            <span class="line-number inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 text-xs font-bold">${idx + 1}</span>
-        </div>
-        <div class="flex-1" style="min-width:190px">
-            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Account <span class="text-red-500">*</span></label>
-            <select name="form-${idx}-account" class="account-select block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white">${opts}</select>
-        </div>
-        <div class="flex-shrink-0">
-            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Type &amp; Amount <span class="text-red-500">*</span></label>
-            <div class="flex items-stretch">
-                <div class="flex border border-gray-300 dark:border-gray-600 rounded-l-md overflow-hidden border-r-0 flex-shrink-0">
-                    <button type="button" class="dr-btn" data-active="false">DR</button>
-                    <button type="button" class="cr-btn border-l border-gray-300 dark:border-gray-600" data-active="false">CR</button>
-                </div>
-                <input type="text" inputmode="decimal" class="amount-proxy w-32 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-r-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500" placeholder="0.00" autocomplete="off">
-            </div>
-            <div style="display:none">
-                <input type="number" name="form-${idx}-debit_amount"  id="id_form-${idx}-debit_amount"  class="debit-input"  step="0.01" min="0" value="">
-                <input type="number" name="form-${idx}-credit_amount" id="id_form-${idx}-credit_amount" class="credit-input" step="0.01" min="0" value="">
-            </div>
-        </div>
-        <div class="flex-1" style="min-width:140px">
-            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Note <span class="text-gray-400 dark:text-gray-500 font-normal">(optional)</span></label>
-            <input type="text" name="form-${idx}-description" id="id_form-${idx}-description"
-                   class="block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                   placeholder="Line description (optional)">
-        </div>
-        <div class="mt-6 flex-shrink-0">
-            <button type="button" class="remove-line-btn p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors" title="Remove line">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>`;
-
-    document.getElementById('lines-container').appendChild(row);
-    totalInput.value = idx + 1;
-    initRow(row);
-    renumberRows();
-    row.querySelector('.amount-proxy')?.focus();
 }
 
 // Boot
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.line-row').forEach(row => initRow(row));
     updateTotals();
-    document.getElementById('add-line-btn').addEventListener('click', addRow);
+
+    // Wire balance warning to credit row's account + amount changes
+    const crRow = document.querySelectorAll('.line-row')[1];
+    if (crRow) {
+        crRow.querySelector('select[name*="-account"]')
+             ?.addEventListener('change', checkBalanceWarning);
+        crRow.querySelector('.amount-proxy')
+             ?.addEventListener('input', checkBalanceWarning);
+    }
 
     // Final sync of all rows before submit
     document.getElementById('journalForm').addEventListener('submit', () => {
-        document.querySelectorAll('.line-row:not([data-deleted="true"])').forEach(row => syncRow(row));
+        document.querySelectorAll('.line-row').forEach(row => syncRow(row));
     });
 });
 </script>

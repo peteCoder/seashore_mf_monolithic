@@ -126,7 +126,7 @@
                 </span>
             </div>
             <div class="flex items-center space-x-3">
-                <a href="{% url 'core:savings_transaction_approve_bulk' %}" @click="$event.preventDefault(); submitBulkAction($event.target.href)"
+                <a href="{% url 'core:savings_transaction_approve_bulk' %}" @click="$event.preventDefault(); submitBulkAction($event.currentTarget.href)"
                    class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors">
                     <i class="fas fa-check mr-1"></i>Approve Selected
                 </a>
@@ -310,44 +310,13 @@ function selectAll(event) {
 }
 
 function submitBulkAction(url) {
-    const selectedPostings = Alpine.$data(document.querySelector('[x-data]')).selectedPostings;
-    if (selectedPostings.length === 0) {
+    const checked = document.querySelectorAll('tbody input[type="checkbox"]:checked');
+    if (checked.length === 0) {
         alert('Please select at least one posting');
         return;
     }
-
-    // Build a POST form so the bulk-approve view receives the correct fields
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = url;
-
-    // CSRF token
-    const csrfValue = document.querySelector('#csrf-holder input[name="csrfmiddlewaretoken"]').value;
-    const csrfInput = document.createElement('input');
-    csrfInput.type = 'hidden';
-    csrfInput.name = 'csrfmiddlewaretoken';
-    csrfInput.value = csrfValue;
-    form.appendChild(csrfInput);
-
-    // Action = approve
-    const actionInput = document.createElement('input');
-    actionInput.type = 'hidden';
-    actionInput.name = 'action';
-    actionInput.value = 'approve';
-    form.appendChild(actionInput);
-
-    // Add each selected posting — value is "type:uuid"
-    for (const entry of selectedPostings) {
-        const [type, postingId] = entry.split(':');
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = type + '_' + postingId;  // e.g. deposit_UUID or withdrawal_UUID
-        input.value = postingId;
-        form.appendChild(input);
-    }
-
-    document.body.appendChild(form);
-    form.submit();
+    const ids = Array.from(checked).map(cb => cb.value).join(',');
+    window.location.href = url + '?ids=' + encodeURIComponent(ids);
 }
 </script>
 {% endblock %}

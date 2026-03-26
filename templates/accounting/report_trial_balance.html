@@ -43,11 +43,11 @@
                 {{ form.account_type }}
             </div>
 
-            <div class="flex items-center">
-                {{ form.show_zero_balances }}
-                <label for="{{ form.show_zero_balances.id_for_label }}" class="ml-2 text-sm text-gray-700 dark:text-gray-300">
+            <div>
+                <label for="{{ form.show_zero_balances.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     {{ form.show_zero_balances.label }}
                 </label>
+                {{ form.show_zero_balances }}
             </div>
 
             <div>

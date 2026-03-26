@@ -138,6 +138,7 @@ from core.views.accounting_views import (
     journal_entry_create,
     journal_entry_post,
     journal_entry_reverse,
+    account_balance_api,
     # Financial Reports
     report_trial_balance,
     report_profit_loss,
@@ -534,6 +535,7 @@ urlpatterns = [
     # Journal Entries
     path('accounting/journals/', journal_entry_list, name='journal_entry_list'),
     path('accounting/journals/create/', journal_entry_create, name='journal_entry_create'),
+    path('accounting/journals/api/account-balance/', account_balance_api, name='account_balance_api'),
     path('accounting/journals/<uuid:entry_id>/', journal_entry_detail, name='journal_entry_detail'),
     path('accounting/journals/<uuid:entry_id>/post/', journal_entry_post, name='journal_entry_post'),
     path('accounting/journals/<uuid:entry_id>/reverse/', journal_entry_reverse, name='journal_entry_reverse'),

@@ -920,86 +920,114 @@ def savings_transaction_approve(request, posting_type, posting_id):
 
 
 @login_required
-@transaction.atomic
 def savings_transaction_approve_bulk(request):
     """
-    Approve multiple transaction postings at once
+    Bulk approve savings transaction postings.
 
-    Permissions:
-    - Manager/Director/Admin only
+    GET  ?ids=deposit:uuid,withdrawal:uuid,...
+         → Review page: shows each posting with an editable transaction date.
+    POST → Approve each posting with its individually specified date.
     """
-    checker = PermissionChecker(request.user)
+    import datetime as _dt
+    from django.db import transaction as db_tx
 
+    checker = PermissionChecker(request.user)
     if not checker.can_approve_accounts():
         raise PermissionDenied("You don't have permission to approve transactions")
 
-    if request.method == 'POST':
-        action = request.POST.get('action')  # approve or reject
-        notes = request.POST.get('notes', '')
+    # ------------------------------------------------------------------ GET --
+    if request.method == 'GET':
+        ids_param = request.GET.get('ids', '')
+        postings = []
 
-        approved_count = 0
-        rejected_count = 0
-        error_count = 0
+        for entry in ids_param.split(','):
+            entry = entry.strip()
+            if ':' not in entry:
+                continue
+            ptype, pid = entry.split(':', 1)
+            try:
+                if ptype == 'deposit':
+                    p = SavingsDepositPosting.objects.select_related(
+                        'savings_account__client', 'savings_account__savings_product', 'submitted_by'
+                    ).get(id=pid, status='pending')
+                    default_date = p.payment_date
+                elif ptype == 'withdrawal':
+                    p = SavingsWithdrawalPosting.objects.select_related(
+                        'savings_account__client', 'savings_account__savings_product', 'submitted_by'
+                    ).get(id=pid, status='pending')
+                    default_date = p.withdrawal_date
+                else:
+                    continue
 
-        # Process deposits
-        for key, value in request.POST.items():
-            if key.startswith('deposit_'):
-                posting_id = value
-                try:
-                    posting = SavingsDepositPosting.objects.get(id=posting_id, status='pending')
+                if checker.is_manager() and p.branch != request.user.branch:
+                    continue
 
-                    # Branch check for managers
-                    if checker.is_manager() and posting.branch != request.user.branch:
-                        error_count += 1
-                        continue
+                postings.append({
+                    'type': ptype,
+                    'posting': p,
+                    'default_date': default_date,
+                    'balance_after': (
+                        p.savings_account.balance + p.amount if ptype == 'deposit'
+                        else p.savings_account.balance - p.amount
+                    ),
+                })
+            except (SavingsDepositPosting.DoesNotExist, SavingsWithdrawalPosting.DoesNotExist):
+                continue
 
-                    if action == 'approve':
-                        posting.approve(approved_by=request.user)
-                        approved_count += 1
-                    else:
-                        posting.reject(rejected_by=request.user, reason=notes)
-                        rejected_count += 1
+        if not postings:
+            messages.error(request, 'No valid pending postings found.')
+            return redirect('core:savings_transaction_list')
 
-                except SavingsDepositPosting.DoesNotExist:
-                    error_count += 1
-                except ValidationError:
-                    error_count += 1
+        return render(request, 'savings/transaction_approve_bulk.html', {
+            'page_title': f'Bulk Approve {len(postings)} Posting(s)',
+            'postings': postings,
+            'checker': checker,
+        })
 
-        # Process withdrawals
-        for key, value in request.POST.items():
-            if key.startswith('withdrawal_'):
-                posting_id = value
-                try:
-                    posting = SavingsWithdrawalPosting.objects.get(id=posting_id, status='pending')
+    # ----------------------------------------------------------------- POST --
+    approved_count = 0
+    error_messages = []
 
-                    # Branch check for managers
-                    if checker.is_manager() and posting.branch != request.user.branch:
-                        error_count += 1
-                        continue
+    for key, raw_date in request.POST.items():
+        if key.startswith('txn_date_deposit_'):
+            pid = key[len('txn_date_deposit_'):]
+            ptype = 'deposit'
+            Model = SavingsDepositPosting
+        elif key.startswith('txn_date_withdrawal_'):
+            pid = key[len('txn_date_withdrawal_'):]
+            ptype = 'withdrawal'
+            Model = SavingsWithdrawalPosting
+        else:
+            continue
 
-                    if action == 'approve':
-                        posting.approve(approved_by=request.user)
-                        approved_count += 1
-                    else:
-                        posting.reject(rejected_by=request.user, reason=notes)
-                        rejected_count += 1
+        try:
+            txn_date = _dt.date.fromisoformat(raw_date) if raw_date else None
+        except ValueError:
+            txn_date = None
 
-                except SavingsWithdrawalPosting.DoesNotExist:
-                    error_count += 1
-                except ValidationError:
-                    error_count += 1
+        try:
+            posting = Model.objects.select_related('savings_account__client', 'branch').get(
+                id=pid, status='pending'
+            )
+        except Model.DoesNotExist:
+            error_messages.append(f'Posting {pid} not found or already processed.')
+            continue
 
-        # Messages
-        if approved_count > 0:
-            messages.success(request, f'Successfully approved {approved_count} posting(s).')
+        if checker.is_manager() and posting.branch != request.user.branch:
+            error_messages.append(f'{posting.posting_ref}: branch permission denied.')
+            continue
 
-        if rejected_count > 0:
-            messages.warning(request, f'Rejected {rejected_count} posting(s).')
+        try:
+            with db_tx.atomic():
+                posting.approve(approved_by=request.user, transaction_date=txn_date)
+            approved_count += 1
+        except (ValidationError, Exception) as e:
+            error_messages.append(f'{posting.posting_ref}: {e}')
 
-        if error_count > 0:
-            messages.error(request, f'Failed to process {error_count} posting(s).')
-
-        return redirect('core:savings_transaction_list')
+    if approved_count:
+        messages.success(request, f'Successfully approved {approved_count} posting(s).')
+    for msg in error_messages:
+        messages.error(request, msg)
 
     return redirect('core:savings_transaction_list')
 

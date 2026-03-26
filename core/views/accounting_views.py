@@ -172,16 +172,13 @@ def chart_of_accounts_list(request):
     if branch_filter:
         accounts = accounts.filter(Q(branch_id=branch_filter) | Q(branch__isnull=True))
 
-    # Calculate balances for each account
+    # Calculate balances for each account (posted entries only)
     accounts_with_balances = []
     for account in accounts.order_by('gl_code'):
-        # Calculate balance from journal lines
-        debit_total = account.journal_lines.aggregate(
-            total=Sum('debit_amount'))['total'] or Decimal('0')
-        credit_total = account.journal_lines.aggregate(
-            total=Sum('credit_amount'))['total'] or Decimal('0')
+        posted_lines = account.journal_lines.filter(journal_entry__status='posted')
+        debit_total = posted_lines.aggregate(total=Sum('debit_amount'))['total'] or Decimal('0')
+        credit_total = posted_lines.aggregate(total=Sum('credit_amount'))['total'] or Decimal('0')
 
-        # Balance depends on account type normal balance
         if account.account_type.normal_balance == 'debit':
             balance = debit_total - credit_total
         else:
@@ -224,14 +221,17 @@ def chart_of_accounts_detail(request, account_id):
         id=account_id
     )
 
-    # Get recent journal lines
-    journal_lines = account.journal_lines.select_related(
+    # Get recent posted journal lines
+    journal_lines = account.journal_lines.filter(
+        journal_entry__status='posted'
+    ).select_related(
         'journal_entry', 'journal_entry__branch', 'journal_entry__created_by', 'client'
     ).order_by('-journal_entry__transaction_date', '-journal_entry__created_at')[:100]
 
-    # Calculate balances
-    debit_total = account.journal_lines.aggregate(total=Sum('debit_amount'))['total'] or Decimal('0')
-    credit_total = account.journal_lines.aggregate(total=Sum('credit_amount'))['total'] or Decimal('0')
+    # Calculate balances (posted entries only — consistent with all reports)
+    posted_lines = account.journal_lines.filter(journal_entry__status='posted')
+    debit_total = posted_lines.aggregate(total=Sum('debit_amount'))['total'] or Decimal('0')
+    credit_total = posted_lines.aggregate(total=Sum('credit_amount'))['total'] or Decimal('0')
 
     if account.account_type.normal_balance == 'debit':
         balance = debit_total - credit_total
@@ -479,6 +479,47 @@ def coa_post_opening_balance(request, account_id):
 # =============================================================================
 
 @login_required
+def account_balance_api(request):
+    """
+    JSON endpoint: return the current cumulative balance for a ChartOfAccounts entry.
+    Used by the manual journal entry form to show a soft warning when the credit
+    amount would exceed the account's current balance.
+
+    GET ?account_id=<uuid>
+    Returns: { balance, normal_balance, gl_code, name }
+    """
+    from django.http import JsonResponse
+
+    account_id = request.GET.get('account_id', '')
+    if not account_id:
+        return JsonResponse({'error': 'account_id required'}, status=400)
+
+    try:
+        account = ChartOfAccounts.objects.select_related('account_type').get(pk=account_id)
+    except (ChartOfAccounts.DoesNotExist, ValueError):
+        return JsonResponse({'error': 'Account not found'}, status=404)
+
+    lines = JournalEntryLine.objects.filter(
+        account=account,
+        journal_entry__status='posted',
+    )
+    debit_sum  = lines.aggregate(t=Sum('debit_amount'))['t']  or Decimal('0')
+    credit_sum = lines.aggregate(t=Sum('credit_amount'))['t'] or Decimal('0')
+
+    if account.account_type.normal_balance == 'debit':
+        balance = debit_sum - credit_sum
+    else:
+        balance = credit_sum - debit_sum
+
+    return JsonResponse({
+        'balance':        float(balance),
+        'normal_balance': account.account_type.normal_balance,
+        'gl_code':        account.gl_code,
+        'name':           account.name,
+    })
+
+
+@login_required
 def journal_entry_list(request):
     """
     Display list of all journal entries with filters
@@ -647,10 +688,14 @@ def journal_entry_create(request):
                         f'Journal entry not balanced! Debits: ₦{total_debits:,.2f} != Credits: ₦{total_credits:,.2f}'
                     )
                 else:
-                    # Create journal entry
+                    # Create journal entry — auto-post immediately so it
+                    # takes effect in all ledger balances and reports.
                     journal = form.save(commit=False)
                     journal.created_by = request.user
-                    journal.status = 'draft'
+                    journal.status = 'posted'
+                    journal.posted_by = request.user
+                    journal.posted_at = timezone.now()
+                    journal.posting_date = form.cleaned_data.get('transaction_date') or timezone.now().date()
                     if source_transaction:
                         journal.transaction = source_transaction
                     journal.save()
@@ -661,7 +706,7 @@ def journal_entry_create(request):
 
                     messages.success(
                         request,
-                        f'Journal entry {journal.journal_number} created successfully! Status: Draft'
+                        f'Journal entry {journal.journal_number} created and posted successfully!'
                     )
                     return redirect('core:journal_entry_detail', entry_id=journal.id)
             except ValidationError as e:
@@ -700,6 +745,7 @@ def journal_entry_create(request):
         'form': form,
         'formset': formset,
         'source_transaction': source_transaction,
+        'is_manager': checker.is_manager(),
     }
 
     return render(request, 'accounting/journal_entry_form.html', context)
@@ -875,40 +921,55 @@ def report_trial_balance(request):
         if account_type:
             accounts = accounts.filter(account_type__name=account_type)
 
-        # Calculate balances for each account
+        # Calculate balances for each account.
+        # The trial balance shows CUMULATIVE account balances as of date_to,
+        # which is consistent with the balance sheet. date_from is used only
+        # to determine which accounts had activity in the period (so accounts
+        # with no movement in the period are hidden unless show_zero_balances).
         trial_balance = []
         total_debits = Decimal('0')
         total_credits = Decimal('0')
 
         for account in accounts.order_by('gl_code'):
-            # Filter journal lines by date range and branch
-            journal_lines = account.journal_lines.filter(
+            # Cumulative balance as of date_to (all posted entries up to and including date_to)
+            cumulative_lines = account.journal_lines.filter(
                 journal_entry__status='posted',
-                journal_entry__transaction_date__range=[date_from, date_to]
+                journal_entry__transaction_date__lte=date_to,
             )
-
             if branch:
-                journal_lines = journal_lines.filter(journal_entry__branch=branch)
+                cumulative_lines = cumulative_lines.filter(journal_entry__branch=branch)
 
-            debit_sum = journal_lines.aggregate(total=Sum('debit_amount'))['total'] or Decimal('0')
-            credit_sum = journal_lines.aggregate(total=Sum('credit_amount'))['total'] or Decimal('0')
+            debit_sum = cumulative_lines.aggregate(total=Sum('debit_amount'))['total'] or Decimal('0')
+            credit_sum = cumulative_lines.aggregate(total=Sum('credit_amount'))['total'] or Decimal('0')
 
-            # Calculate net balance
+            # When show_zero_balances is off, skip accounts that had no activity
+            # in the selected period (date_from → date_to) AND have a zero balance.
+            if not show_zero_balances:
+                period_lines = account.journal_lines.filter(
+                    journal_entry__status='posted',
+                    journal_entry__transaction_date__range=[date_from, date_to],
+                )
+                if branch:
+                    period_lines = period_lines.filter(journal_entry__branch=branch)
+                if not period_lines.exists() and debit_sum == credit_sum:
+                    continue
+
+            # Net balance in the normal-balance column
             if account.account_type.normal_balance == 'debit':
-                net_debit = debit_sum - credit_sum if debit_sum > credit_sum else Decimal('0')
+                net_debit = debit_sum - credit_sum if debit_sum >= credit_sum else Decimal('0')
                 net_credit = credit_sum - debit_sum if credit_sum > debit_sum else Decimal('0')
             else:
-                net_credit = credit_sum - debit_sum if credit_sum > debit_sum else Decimal('0')
+                net_credit = credit_sum - debit_sum if credit_sum >= debit_sum else Decimal('0')
                 net_debit = debit_sum - credit_sum if debit_sum > credit_sum else Decimal('0')
 
-            # Skip zero balances if requested
+            # Skip zero-balance accounts when not requested
             if not show_zero_balances and net_debit == 0 and net_credit == 0:
                 continue
 
             trial_balance.append({
                 'account': account,
                 'debit': net_debit,
-                'credit': net_credit
+                'credit': net_credit,
             })
 
             total_debits += net_debit
