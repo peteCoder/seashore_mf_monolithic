@@ -241,6 +241,17 @@ class LoanApplicationForm(forms.ModelForm):
 class LoanFeePaymentForm(forms.Form):
     """Form for paying loan application fees"""
 
+    payment_date = forms.DateField(
+        required=True,
+        initial=date.today,
+        widget=forms.DateInput(attrs={
+            'class': TEXT_INPUT_CLASS,
+            'type': 'date',
+        }),
+        label='Payment Date',
+        help_text='Date the payment was received (can be backdated)'
+    )
+
     payment_method = forms.ChoiceField(
         choices=[
             ('cash', 'Cash'),

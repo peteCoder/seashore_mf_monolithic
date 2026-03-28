@@ -112,16 +112,26 @@ def generate_repayment_schedule(loan):
 
     remaining_balance = total_amount
 
-    # First due date
+    # First due date — always one period after disbursement (set by disburse())
     if loan.disbursement_date:
-        first_due = loan.first_repayment_date or loan.disbursement_date.date()
+        if loan.first_repayment_date:
+            first_due = loan.first_repayment_date
+        else:
+            # Fallback: derive from disbursement date + grace period + 1 period
+            grace_days = 0
+            try:
+                if loan.loan_product_id and loan.loan_product:
+                    grace_days = loan.loan_product.grace_period_days or 0
+            except Exception:
+                pass
+            schedule_start = loan.disbursement_date.date() + timedelta(days=grace_days)
+            first_due = loan.calculate_next_payment_date(schedule_start)
     else:
         # Approved but not yet disbursed — use a placeholder
         first_due = timezone.now().date() + timedelta(days=7)
 
-    # For daily loans ensure the first date is itself a business day
-    if loan.repayment_frequency == 'daily':
-        first_due = next_business_day(first_due)
+    # Ensure the first due date never falls on a weekend
+    first_due = next_business_day(first_due)
 
     today = timezone.now().date()
     total_installments_paid = (
@@ -149,17 +159,17 @@ def generate_repayment_schedule(loan):
         if i == 0:
             due_date = current_due
         else:
-            # Advance by one period
+            # Advance by one period, then shift to Monday if it lands on a weekend
             if loan.repayment_frequency == 'daily':
                 due_date = add_one_business_day(current_due)
             elif loan.repayment_frequency == 'weekly':
-                due_date = current_due + timedelta(weeks=1)
+                due_date = next_business_day(current_due + timedelta(weeks=1))
             elif loan.repayment_frequency == 'fortnightly':
-                due_date = current_due + timedelta(weeks=2)
+                due_date = next_business_day(current_due + timedelta(weeks=2))
             elif loan.repayment_frequency == 'yearly':
-                due_date = current_due + relativedelta(years=1)
+                due_date = next_business_day(current_due + relativedelta(years=1))
             else:  # monthly
-                due_date = current_due + relativedelta(months=1)
+                due_date = next_business_day(current_due + relativedelta(months=1))
 
         current_due = due_date
 

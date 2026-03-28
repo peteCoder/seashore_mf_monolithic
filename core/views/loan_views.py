@@ -372,7 +372,8 @@ def loan_pay_fees(request, loan_id):
 
             success, message = loan.pay_fees(
                 processed_by=request.user,
-                payment_details=payment_details
+                payment_details=payment_details,
+                transaction_date=form.cleaned_data['payment_date'],
             )
 
             if success:

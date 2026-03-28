@@ -4244,28 +4244,37 @@ class Loan(BaseModel):
             self.loan_form_fee      = fees['loan_form_fee']
             self.total_upfront_fees = fees['total_upfront_fees']
 
-        # — repayment dates
+        # — repayment dates (preview only — disburse() recalculates from actual date)
         if not self.first_repayment_date:
             start = self.disbursement_date.date() if self.disbursement_date else timezone.now().date()
+            # Apply grace period offset
+            grace_days = 0
+            try:
+                if self.loan_product_id and self.loan_product:
+                    grace_days = self.loan_product.grace_period_days or 0
+            except Exception:
+                pass
+            if grace_days:
+                import datetime as _dt_preview
+                start = start + _dt_preview.timedelta(days=grace_days)
             self.first_repayment_date = self.calculate_next_payment_date(start)
             self.next_repayment_date  = self.first_repayment_date
 
             from dateutil.relativedelta import relativedelta
             freq = self.repayment_frequency
             if freq == 'daily':
-                # Advance n business days from start to find the final due date
                 d = self.first_repayment_date
                 for _ in range(n - 1):
                     d = add_one_business_day(d)
                 self.final_repayment_date = d
             elif freq == 'weekly':
-                self.final_repayment_date = start + timezone.timedelta(weeks=n)
+                self.final_repayment_date = self.first_repayment_date + timezone.timedelta(weeks=n - 1)
             elif freq == 'fortnightly':
-                self.final_repayment_date = start + timezone.timedelta(weeks=n * 2)
+                self.final_repayment_date = self.first_repayment_date + timezone.timedelta(weeks=(n - 1) * 2)
             elif freq == 'yearly':
-                self.final_repayment_date = start + relativedelta(years=n)
+                self.final_repayment_date = self.first_repayment_date + relativedelta(years=n - 1)
             else:
-                self.final_repayment_date = start + relativedelta(months=n)
+                self.final_repayment_date = self.first_repayment_date + relativedelta(months=n - 1)
 
     def calculate_next_payment_date(self, from_date):
         from dateutil.relativedelta import relativedelta
@@ -4274,12 +4283,12 @@ class Loan(BaseModel):
             # Move to the next Mon–Fri business day (skip Sat/Sun)
             return add_one_business_day(from_date)
         elif freq == 'weekly':
-            return from_date + timezone.timedelta(weeks=1)
+            return next_business_day(from_date + timezone.timedelta(weeks=1))
         elif freq == 'fortnightly':
-            return from_date + timezone.timedelta(weeks=2)
+            return next_business_day(from_date + timezone.timedelta(weeks=2))
         elif freq == 'yearly':
-            return from_date + relativedelta(years=1)
-        return from_date + relativedelta(months=1)
+            return next_business_day(from_date + relativedelta(years=1))
+        return next_business_day(from_date + relativedelta(months=1))
 
     def get_repayment_schedule(self):
         return generate_repayment_schedule(self)
@@ -4344,11 +4353,20 @@ class Loan(BaseModel):
     # =========================================================================
 
     @db_transaction.atomic
-    def pay_fees(self, processed_by, payment_details=''):
+    def pay_fees(self, processed_by, payment_details='', transaction_date=None):
         """
         Collect upfront fees and record a single 'charges_at_disbursement'
         transaction linked to this loan.
         """
+        import datetime as _dt_mod
+        if transaction_date is not None:
+            if isinstance(transaction_date, _dt_mod.date) and not isinstance(transaction_date, _dt_mod.datetime):
+                txn_dt = timezone.make_aware(_dt_mod.datetime.combine(transaction_date, _dt_mod.time.min))
+            else:
+                txn_dt = transaction_date
+        else:
+            txn_dt = timezone.now()
+
         if self.fees_paid:
             return False, "Fees already paid"
         if self.status != 'pending_fees':
@@ -4356,7 +4374,7 @@ class Loan(BaseModel):
         if self.total_upfront_fees <= Decimal('0.00'):
             # nothing to collect — just advance status
             self.fees_paid      = True
-            self.fees_paid_date = timezone.now()
+            self.fees_paid_date = txn_dt
             self.status         = 'pending_approval'
             self.save(update_fields=[
                 'fees_paid', 'fees_paid_date', 'status', 'updated_at'
@@ -4376,10 +4394,11 @@ class Loan(BaseModel):
             description       = f"Upfront fees for {self.loan_number}",
             payment_details   = payment_details,
             status            = 'completed',
+            transaction_date  = txn_dt,
         )
 
         self.fees_paid          = True
-        self.fees_paid_date     = timezone.now()
+        self.fees_paid_date     = txn_dt
         self.fees_transaction   = txn
         self.status             = 'pending_approval'
         self.save(update_fields=[
@@ -4446,9 +4465,38 @@ class Loan(BaseModel):
         self.amount_disbursed     = self.principal_amount
         self.outstanding_balance  = self.total_repayment
 
-        if not self.first_repayment_date:
-            self.first_repayment_date = self.calculate_next_payment_date(disburse_dt.date())
-            self.next_repayment_date  = self.first_repayment_date
+        # Always recalculate from the actual disbursement date.
+        # calculate_loan_details() runs at loan creation when disbursement_date
+        # is still None, so any previously stored first_repayment_date is wrong.
+        grace_days = 0
+        try:
+            if self.loan_product_id and self.loan_product:
+                grace_days = self.loan_product.grace_period_days or 0
+        except Exception:
+            pass
+
+        schedule_start = disburse_dt.date() + _dt_mod.timedelta(days=grace_days)
+        self.first_repayment_date = self.calculate_next_payment_date(schedule_start)
+        self.next_repayment_date  = self.first_repayment_date
+
+        # Recalculate final repayment date anchored to first_repayment_date
+        from dateutil.relativedelta import relativedelta as _rd_disburse
+        n_inst = self.number_of_installments
+        freq   = self.repayment_frequency
+        if n_inst and n_inst > 0:
+            if freq == 'daily':
+                _d = self.first_repayment_date
+                for _ in range(n_inst - 1):
+                    _d = add_one_business_day(_d)
+                self.final_repayment_date = _d
+            elif freq == 'weekly':
+                self.final_repayment_date = self.first_repayment_date + _dt_mod.timedelta(weeks=n_inst - 1)
+            elif freq == 'fortnightly':
+                self.final_repayment_date = self.first_repayment_date + _dt_mod.timedelta(weeks=(n_inst - 1) * 2)
+            elif freq == 'yearly':
+                self.final_repayment_date = self.first_repayment_date + _rd_disburse(years=n_inst - 1)
+            else:  # monthly
+                self.final_repayment_date = self.first_repayment_date + _rd_disburse(months=n_inst - 1)
 
         self.save()
 
@@ -6517,20 +6565,26 @@ class JournalEntry(BaseModel):
 
     def save(self, *args, **kwargs):
         if not self.journal_number:
-            self.journal_number = self.generate_journal_number()
+            self.journal_number = self._generate_journal_number()
         super().save(*args, **kwargs)
 
-    @staticmethod
-    def generate_journal_number():
-        """Generate unique journal number: JE-YYYYMMDD-XXXXXX"""
-        timestamp = timezone.now().strftime('%Y%m%d')
+    def _generate_journal_number(self):
+        """Generate unique journal number: JE-YYYYMMDD-XXXXXX using transaction_date"""
+        if self.transaction_date:
+            import datetime as _dt_mod
+            if isinstance(self.transaction_date, _dt_mod.datetime):
+                date_str = timezone.localdate(self.transaction_date).strftime('%Y%m%d')
+            else:
+                date_str = self.transaction_date.strftime('%Y%m%d')
+        else:
+            date_str = timezone.now().strftime('%Y%m%d')
         random_suffix = get_random_string(6, '0123456789')
-        journal_number = f"JE-{timestamp}-{random_suffix}"
-        
+        journal_number = f"JE-{date_str}-{random_suffix}"
+
         while JournalEntry.objects.filter(journal_number=journal_number).exists():
             random_suffix = get_random_string(6, '0123456789')
-            journal_number = f"JE-{timestamp}-{random_suffix}"
-        
+            journal_number = f"JE-{date_str}-{random_suffix}"
+
         return journal_number
 
     def get_total_debits(self):

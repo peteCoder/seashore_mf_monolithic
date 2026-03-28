@@ -114,6 +114,18 @@
                 </div>
             </div>
 
+            <!-- Payment Date -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {{ form.payment_date.label }} <span class="text-red-500">*</span>
+                </label>
+                {{ form.payment_date }}
+                {% if form.payment_date.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.payment_date.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.payment_date.help_text }}</p>
+            </div>
+
             <!-- Payment Method -->
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

@@ -418,7 +418,6 @@ def coa_post_opening_balance(request, account_id):
 
             # Build the 2-line balanced journal entry
             journal = JournalEntry(
-                journal_number=JournalEntry.generate_journal_number(),
                 entry_type='adjustment',
                 status='posted',
                 transaction_date=as_of_date,
