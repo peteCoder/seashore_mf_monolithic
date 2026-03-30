@@ -1994,7 +1994,16 @@ class LoanProduct(BaseModel, StatusTrackingMixin):
         default=LOAN_FORM_FEE,
         validators=[MinValueValidator(Decimal('0.00'))]
     )
-    
+
+    # Loan Maintenance Fee (flat amount only)
+    loan_maintenance_fee_enabled = models.BooleanField(default=False)
+    loan_maintenance_fee_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('200.00'),
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
+
     # =========================================================================
     # LOAN LIMITS
     # =========================================================================
@@ -2071,7 +2080,7 @@ class LoanProduct(BaseModel, StatusTrackingMixin):
         validators=[MinValueValidator(18)]
     )
     max_client_age = models.IntegerField(
-        default=65,
+        default=120,
         validators=[MinValueValidator(18)]
     )
     requires_business = models.BooleanField(default=False)
@@ -2229,13 +2238,20 @@ class LoanProduct(BaseModel, StatusTrackingMixin):
             fees['loan_form_fee'] = self.loan_form_fee_amount
         else:
             fees['loan_form_fee'] = Decimal('0.00')
-        
+
+        # Loan Maintenance Fee
+        if self.loan_maintenance_fee_enabled:
+            fees['loan_maintenance_fee'] = self.loan_maintenance_fee_amount
+        else:
+            fees['loan_maintenance_fee'] = Decimal('0.00')
+
         # Total
         fees['total_upfront_fees'] = MoneyCalculator.sum_amounts(
             fees['risk_premium_fee'],
             fees['rp_income_fee'],
             fees['tech_fee'],
-            fees['loan_form_fee']
+            fees['loan_form_fee'],
+            fees['loan_maintenance_fee'],
         )
         
         return fees
@@ -2329,7 +2345,10 @@ class LoanProduct(BaseModel, StatusTrackingMixin):
         
         if self.loan_form_fee_enabled:
             fees_text.append(f"Form Fee: ₦{self.loan_form_fee_amount:,.2f}")
-        
+
+        if self.loan_maintenance_fee_enabled:
+            fees_text.append(f"Maintenance Fee: ₦{self.loan_maintenance_fee_amount:,.2f}")
+
         return ", ".join(fees_text) if fees_text else "No fees"
 
 
@@ -3831,6 +3850,9 @@ class Loan(BaseModel):
     loan_form_fee = models.DecimalField(
         max_digits=15, decimal_places=2, default=Decimal('200.00')
     )
+    loan_maintenance_fee = models.DecimalField(
+        max_digits=15, decimal_places=2, default=Decimal('0.00')
+    )
     total_upfront_fees = models.DecimalField(
         max_digits=15, decimal_places=2, default=Decimal('0.00')
     )
@@ -4238,11 +4260,12 @@ class Loan(BaseModel):
         # — fees from product
         if product:
             fees = product.calculate_fees(self.principal_amount)
-            self.risk_premium_fee   = fees['risk_premium_fee']
-            self.rp_income_fee      = fees['rp_income_fee']
-            self.tech_fee           = fees['tech_fee']
-            self.loan_form_fee      = fees['loan_form_fee']
-            self.total_upfront_fees = fees['total_upfront_fees']
+            self.risk_premium_fee     = fees['risk_premium_fee']
+            self.rp_income_fee        = fees['rp_income_fee']
+            self.tech_fee             = fees['tech_fee']
+            self.loan_form_fee        = fees['loan_form_fee']
+            self.loan_maintenance_fee = fees['loan_maintenance_fee']
+            self.total_upfront_fees   = fees['total_upfront_fees']
 
         # — repayment dates (preview only — disburse() recalculates from actual date)
         if not self.first_repayment_date:

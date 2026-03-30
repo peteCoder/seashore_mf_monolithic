@@ -509,6 +509,15 @@ class Command(BaseCommand):
                 'allows_manual_entries': False,
             },
             {
+                'gl_code': '4165',
+                'account_name': 'Loan Maintenance Fee Income',
+                'account_type': income_type,
+                'account_category': fee_income_cat,
+                'description': 'Flat maintenance fee charged at loan disbursement',
+                'is_control_account': False,
+                'allows_manual_entries': False,
+            },
+            {
                 'gl_code': '4170',
                 'account_name': 'Late Payment Fee Income',
                 'account_type': income_type,

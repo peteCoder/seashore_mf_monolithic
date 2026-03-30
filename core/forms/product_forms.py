@@ -54,6 +54,8 @@ class LoanProductForm(forms.ModelForm):
             'allow_early_repayment', 'early_repayment_penalty_rate', 'grace_period_days',
             'repayment_frequency',
             'required_guarantors',
+            'min_client_age', 'max_client_age',
+            'loan_maintenance_fee_enabled', 'loan_maintenance_fee_amount',
         ]
 
         widgets = {
@@ -137,6 +139,22 @@ class LoanProductForm(forms.ModelForm):
                 'class': TEXT_INPUT_CLASS,
                 'min': '0',
                 'step': '1',
+            }),
+            'min_client_age': forms.NumberInput(attrs={
+                'class': TEXT_INPUT_CLASS,
+                'min': '18',
+                'step': '1',
+            }),
+            'max_client_age': forms.NumberInput(attrs={
+                'class': TEXT_INPUT_CLASS,
+                'min': '18',
+                'step': '1',
+            }),
+            'loan_maintenance_fee_enabled': forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
+            'loan_maintenance_fee_amount': forms.NumberInput(attrs={
+                'class': TEXT_INPUT_CLASS,
+                'step': '0.01',
+                'placeholder': '200.00',
             }),
         }
 

@@ -222,7 +222,7 @@
             </div>
 
             <!-- Loan Form Fee -->
-            <div>
+            <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
                 <div class="flex items-center mb-3">
                     <label class="flex items-center cursor-pointer">
                         {{ form.loan_form_fee_enabled }}
@@ -238,6 +238,28 @@
                         {% if form.loan_form_fee_amount.errors %}
                         <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.loan_form_fee_amount.errors.0 }}</p>
                         {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loan Maintenance Fee -->
+            <div>
+                <div class="flex items-center mb-3">
+                    <label class="flex items-center cursor-pointer">
+                        {{ form.loan_maintenance_fee_enabled }}
+                        <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Enable Loan Maintenance Fee</span>
+                    </label>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Loan Maintenance Fee Amount (&#8358;)
+                        </label>
+                        {{ form.loan_maintenance_fee_amount }}
+                        {% if form.loan_maintenance_fee_amount.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.loan_maintenance_fee_amount.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Flat fee charged at disbursement. Posts to GL 4165 — Loan Maintenance Fee Income.</p>
                     </div>
                 </div>
             </div>
@@ -352,6 +374,26 @@
                     <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.required_guarantors.errors.0 }}</p>
                     {% endif %}
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Set to 0 if no guarantors are needed for this product.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Minimum Client Age <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.min_client_age }}
+                    {% if form.min_client_age.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.min_client_age.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Minimum age a client must be to qualify (default: 18).</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Maximum Client Age <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.max_client_age }}
+                    {% if form.max_client_age.errors %}
+                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.max_client_age.errors.0 }}</p>
+                    {% endif %}
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Maximum age allowed. Set to 120 for no practical upper limit.</p>
                 </div>
             </div>
         </div>

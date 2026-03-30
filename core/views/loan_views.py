@@ -1259,6 +1259,10 @@ def loan_product_api(request, product_id):
                 'enabled': product.loan_form_fee_enabled,
                 'amount': float(product.loan_form_fee_amount) if product.loan_form_fee_enabled else 0,
             },
+            'loan_maintenance_fee': {
+                'enabled': product.loan_maintenance_fee_enabled,
+                'amount': float(product.loan_maintenance_fee_amount) if product.loan_maintenance_fee_enabled else 0,
+            },
         },
 
         # Requirements

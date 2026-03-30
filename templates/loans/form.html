@@ -567,6 +567,16 @@ document.addEventListener('DOMContentLoaded', function() {
             totalFees += fees.loan_form_fee.amount;
         }
 
+        // Loan Maintenance Fee
+        if (fees.loan_maintenance_fee && fees.loan_maintenance_fee.enabled) {
+            feeItems.push({
+                name: 'Loan Maintenance Fee',
+                percentage: 'Flat',
+                amount: fees.loan_maintenance_fee.amount
+            });
+            totalFees += fees.loan_maintenance_fee.amount;
+        }
+
         // Update calculator display
         document.getElementById('calculatorResults').classList.remove('hidden');
         document.getElementById('calculatorPlaceholder').classList.add('hidden');
