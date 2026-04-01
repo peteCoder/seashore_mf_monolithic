@@ -51,6 +51,10 @@ from .notification_views import (
     notification_mark_all_read,
 )
 
+from .tracker_views import (
+    loan_repayment_tracker,
+)
+
 from .collateral_views import (
     loan_collaterals,
     loan_add_collateral,
@@ -140,6 +144,8 @@ __all__ = [
     "notification_data",
     "notification_mark_read",
     "notification_mark_all_read",
+    # Tracker Views
+    "loan_repayment_tracker",
     # Collateral Views
     "loan_collaterals",
     "loan_add_collateral",

@@ -153,6 +153,8 @@ from core.views.accounting_views import (
     subsidiary_ledger,
 )
 
+from core.views.tracker_views import loan_repayment_tracker
+
 from core.views.loan_views import (
     loan_list,
     loan_detail,
@@ -439,6 +441,9 @@ urlpatterns = [
     path('loans/<uuid:loan_id>/guarantors/add/', loan_add_guarantor, name='loan_add_guarantor'),
     path('loans/<uuid:loan_id>/guarantors/<uuid:guarantor_id>/edit/', loan_edit_guarantor, name='loan_edit_guarantor'),
     path('loans/<uuid:loan_id>/guarantors/<uuid:guarantor_id>/delete/', loan_delete_guarantor, name='loan_delete_guarantor'),
+
+    # Repayment Tracker
+    path('loans/repayment-tracker/', loan_repayment_tracker, name='loan_repayment_tracker'),
 
     # Loan Repayments
     path('loans/repayments/', loan_repayment_list, name='loan_repayment_list'),

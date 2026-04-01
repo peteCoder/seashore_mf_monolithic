@@ -155,7 +155,15 @@ class Command(BaseCommand):
         overdue_threshold = loan.next_repayment_date + timezone.timedelta(days=grace_days)
 
         if overdue_threshold >= today:
-            # Not yet overdue — nothing to do
+            # Next due date is in the future — if loan was marked overdue, reset it
+            if loan.status == "overdue":
+                if not dry_run:
+                    loan.status = "active"
+                    loan.save(update_fields=["status", "updated_at"])
+                self.stdout.write(
+                    f"  {loan.loan_number} → status reset to ACTIVE "
+                    f"(next due: {loan.next_repayment_date}, threshold: {overdue_threshold})"
+                )
             return "skipped"
 
         # 2. Mark loan as overdue if not already

@@ -1,0 +1,25 @@
+{% comment %}
+Partial: a single tab pill for the repayment tracker.
+Variables: key, label, count, color (red|amber|blue|green)
+{% endcomment %}
+<a href="?tab={{ key }}"
+   class="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 whitespace-nowrap transition
+   {% if tab == key %}
+     {% if color == 'red' %}border-red-500 text-red-600 dark:text-red-400
+     {% elif color == 'amber' %}border-amber-500 text-amber-600 dark:text-amber-400
+     {% elif color == 'blue' %}border-blue-500 text-blue-600 dark:text-blue-400
+     {% else %}border-green-500 text-green-600 dark:text-green-400{% endif %}
+   {% else %}
+     border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600
+   {% endif %}">
+  {{ label }}
+  {% if count > 0 %}
+  <span class="ml-1 text-xs font-bold px-1.5 py-0.5 rounded-full
+    {% if color == 'red' %}bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400
+    {% elif color == 'amber' %}bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400
+    {% elif color == 'blue' %}bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400
+    {% else %}bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400{% endif %}">
+    {{ count }}
+  </span>
+  {% endif %}
+</a>

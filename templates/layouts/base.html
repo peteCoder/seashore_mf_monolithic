@@ -323,6 +323,10 @@
                                     <a href="{% url 'core:loan_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">All Loans</a>
                                     <a href="{% url 'core:loan_create' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">New Application</a>
                                     <a href="{% url 'core:loan_repayment_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Repayments</a>
+                                    <a href="{% url 'core:loan_repayment_tracker' %}" class="flex items-center justify-between px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                                        <span>Repayment Tracker</span>
+                                        {% if overdue_installments_count > 0 %}<span class="bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">{{ overdue_installments_count }}</span>{% endif %}
+                                    </a>
                                     {% if user.user_role == 'manager' or user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
                                     <a href="{% url 'core:restructure_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Restructure Requests</a>
                                     <a href="{% url 'core:insurance_claim_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Insurance Claims</a>
@@ -772,6 +776,10 @@
                     <a href="{% url 'core:loan_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">All Loans</a>
                     <a href="{% url 'core:loan_create' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">New Application</a>
                     <a href="{% url 'core:loan_repayment_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Repayments</a>
+                    <a href="{% url 'core:loan_repayment_tracker' %}" @click="mobileMenuOpen = false" class="flex items-center justify-between px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        <span>Repayment Tracker</span>
+                        {% if overdue_installments_count > 0 %}<span class="bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center">{{ overdue_installments_count }}</span>{% endif %}
+                    </a>
                     {% if user.user_role == 'manager' or user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
                     <a href="{% url 'core:restructure_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Restructure Requests</a>
                     <a href="{% url 'core:insurance_claim_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Insurance Claims</a>

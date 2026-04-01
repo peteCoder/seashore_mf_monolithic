@@ -20,7 +20,7 @@ from decimal import Decimal
 
 from core.models import (
     Client, Loan, SavingsAccount, Transaction,
-    Branch, ClientGroup, User
+    Branch, ClientGroup, User, LoanRepaymentSchedule,
 )
 from core.permissions import PermissionChecker
 
@@ -211,14 +211,37 @@ def dashboard_view(request):
     
     alerts = []
     
-    # Overdue loans alert
-    if loan_stats['overdue'] > 0:
+    # Repayment tracker counts (schedule-based, always fresh)
+    today_date = timezone.localdate()
+    tracker_base = LoanRepaymentSchedule.objects.filter(
+        status__in=['pending', 'partial', 'overdue'],
+        outstanding_amount__gt=0,
+        loan__status__in=['active', 'overdue', 'disbursed'],
+        loan__outstanding_balance__gt=0,
+    )
+    if not checker.can_view_all_branches() and hasattr(user, 'branch') and user.branch:
+        tracker_base = tracker_base.filter(loan__branch=user.branch)
+
+    overdue_installments = tracker_base.filter(due_date__lt=today_date).count()
+    due_today_installments = tracker_base.filter(due_date=today_date).count()
+
+    # Overdue loans alert (schedule-based)
+    if overdue_installments > 0:
         alerts.append({
             'type': 'warning',
             'icon': '⚠️',
-            'message': f"{loan_stats['overdue']} overdue loan(s) requiring attention",
-            'action_url': reverse('core:loan_list') + '?status=overdue',
-            'action_text': 'View Overdue Loans'
+            'message': f"{overdue_installments} overdue instalment(s) across {loan_stats['overdue']} loan(s)",
+            'action_url': reverse('core:loan_repayment_tracker') + '?tab=overdue',
+            'action_text': 'View Repayment Tracker',
+        })
+
+    if due_today_installments > 0:
+        alerts.append({
+            'type': 'info',
+            'icon': '📅',
+            'message': f"{due_today_installments} repayment(s) due today",
+            'action_url': reverse('core:loan_repayment_tracker') + '?tab=today',
+            'action_text': 'View Due Today',
         })
 
     # Pending approvals alert
@@ -265,6 +288,10 @@ def dashboard_view(request):
         'savings_stats': savings_stats,
         'transaction_stats': transaction_stats,
         'branch_stats': branch_stats,
+
+        # Repayment tracker quick stats
+        'overdue_installments': overdue_installments,
+        'due_today_installments': due_today_installments,
         
         # Recent activities
         'recent_clients': recent_clients,

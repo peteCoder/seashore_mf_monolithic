@@ -4616,6 +4616,7 @@ class Loan(BaseModel):
                     break
                 row_int_owed  = row.interest_amount  - min(row.amount_paid, row.interest_amount)
                 row_prin_owed = row.principal_amount - max(row.amount_paid - row.interest_amount, Decimal('0.00'))
+                row_total_owed = row_int_owed + row_prin_owed
 
                 int_taken  = min(remaining, row_int_owed)
                 interest_portion += int_taken
@@ -4624,6 +4625,19 @@ class Loan(BaseModel):
                 prin_taken = min(remaining, row_prin_owed)
                 principal_portion += prin_taken
                 remaining -= prin_taken
+
+                row_applied = int_taken + prin_taken
+                if row_applied > 0:
+                    row.amount_paid += row_applied
+                    if row_applied >= row_total_owed:
+                        import datetime as _row_dt
+                        if isinstance(transaction_date, _row_dt.datetime):
+                            row.paid_date = transaction_date.date()
+                        elif isinstance(transaction_date, _row_dt.date):
+                            row.paid_date = transaction_date
+                        else:
+                            row.paid_date = timezone.now().date()
+                    row.save(update_fields=['amount_paid', 'paid_date', 'outstanding_amount', 'status', 'updated_at'])
 
             principal_portion += remaining          # any leftover → principal
         else:

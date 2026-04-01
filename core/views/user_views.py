@@ -97,7 +97,7 @@ def user_list(request):
                 Q(first_name__icontains=search) |
                 Q(last_name__icontains=search) |
                 Q(email__icontains=search) |
-                Q(phone_number__icontains=search) |
+                Q(phone__icontains=search) |
                 Q(employee_id__icontains=search)
             )
 

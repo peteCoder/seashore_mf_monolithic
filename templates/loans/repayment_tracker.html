@@ -1,0 +1,291 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- ── Page Header ──────────────────────────────────────────────────── -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Repayment Tracker</h1>
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        Live schedule-based view of overdue and upcoming loan repayments &mdash; {{ today|date:"D, d M Y" }}
+      </p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{% url 'core:report_par_aging' %}"
+         class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition">
+        <i class="fas fa-chart-pie mr-2"></i>Full PAR Report
+      </a>
+      <a href="{% url 'core:loan_list' %}?status=overdue"
+         class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition">
+        <i class="fas fa-list mr-2"></i>Overdue Loans
+      </a>
+    </div>
+  </div>
+
+  <!-- ── Summary Cards ─────────────────────────────────────────────────── -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+
+    <!-- Overdue -->
+    <a href="?tab=overdue"
+       class="relative bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border-l-4
+              {% if tab == 'overdue' %}border-red-500{% else %}border-red-200 dark:border-red-800{% endif %}
+              hover:shadow-md transition group">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Overdue</p>
+          <p class="mt-1 text-3xl font-bold text-red-600 dark:text-red-400">{{ overdue_summary.count|intcomma }}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ overdue_loan_count }} loan{{ overdue_loan_count|pluralize }}</p>
+        </div>
+        <span class="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+          <i class="fas fa-exclamation-circle text-red-500 dark:text-red-400 text-lg"></i>
+        </span>
+      </div>
+      <p class="mt-3 text-sm font-semibold text-red-600 dark:text-red-400">
+        ₦{{ overdue_summary.outstanding|intcomma }}
+      </p>
+    </a>
+
+    <!-- Due Today -->
+    <a href="?tab=today"
+       class="relative bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border-l-4
+              {% if tab == 'today' %}border-amber-500{% else %}border-amber-200 dark:border-amber-800{% endif %}
+              hover:shadow-md transition group">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Due Today</p>
+          <p class="mt-1 text-3xl font-bold text-amber-600 dark:text-amber-400">{{ today_summary.count|intcomma }}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ today_loan_count }} loan{{ today_loan_count|pluralize }}</p>
+        </div>
+        <span class="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+          <i class="fas fa-clock text-amber-500 dark:text-amber-400 text-lg"></i>
+        </span>
+      </div>
+      <p class="mt-3 text-sm font-semibold text-amber-600 dark:text-amber-400">
+        ₦{{ today_summary.outstanding|intcomma }}
+      </p>
+    </a>
+
+    <!-- This Week -->
+    <a href="?tab=week"
+       class="relative bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border-l-4
+              {% if tab == 'week' %}border-blue-500{% else %}border-blue-200 dark:border-blue-800{% endif %}
+              hover:shadow-md transition group">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Next 7 Days</p>
+          <p class="mt-1 text-3xl font-bold text-blue-600 dark:text-blue-400">{{ week_summary.count|intcomma }}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">installments</p>
+        </div>
+        <span class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+          <i class="fas fa-calendar-week text-blue-500 dark:text-blue-400 text-lg"></i>
+        </span>
+      </div>
+      <p class="mt-3 text-sm font-semibold text-blue-600 dark:text-blue-400">
+        ₦{{ week_summary.outstanding|intcomma }}
+      </p>
+    </a>
+
+    <!-- Next 30 Days -->
+    <a href="?tab=month"
+       class="relative bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border-l-4
+              {% if tab == 'month' %}border-green-500{% else %}border-green-200 dark:border-green-800{% endif %}
+              hover:shadow-md transition group">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Next 30 Days</p>
+          <p class="mt-1 text-3xl font-bold text-green-600 dark:text-green-400">{{ month_summary.count|intcomma }}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">installments</p>
+        </div>
+        <span class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+          <i class="fas fa-calendar-alt text-green-500 dark:text-green-400 text-lg"></i>
+        </span>
+      </div>
+      <p class="mt-3 text-sm font-semibold text-green-600 dark:text-green-400">
+        ₦{{ month_summary.outstanding|intcomma }}
+      </p>
+    </a>
+  </div>
+
+  <!-- ── PAR Breakdown ─────────────────────────────────────────────────── -->
+  {% if overdue_summary.count > 0 %}
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+        <i class="fas fa-chart-bar text-primary-500"></i>
+        Portfolio at Risk — PAR Buckets
+      </h2>
+      <span class="text-sm px-3 py-1 rounded-full font-semibold
+        {% if par_at_risk > 20 %}bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400
+        {% elif par_at_risk > 10 %}bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400
+        {% else %}bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400{% endif %}">
+        PAR {{ par_at_risk }}%
+      </span>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <!-- PAR 1-30 -->
+      <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
+        <p class="text-xs font-medium text-red-600 dark:text-red-400 uppercase">PAR 1–30 Days</p>
+        <p class="text-2xl font-bold text-red-700 dark:text-red-300 mt-1">{{ par_buckets.par_1_30.count }}</p>
+        <p class="text-xs text-red-500 dark:text-red-400 mt-1">₦{{ par_buckets.par_1_30.total|intcomma }}</p>
+      </div>
+      <!-- PAR 31-60 -->
+      <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4">
+        <p class="text-xs font-medium text-orange-600 dark:text-orange-400 uppercase">PAR 31–60 Days</p>
+        <p class="text-2xl font-bold text-orange-700 dark:text-orange-300 mt-1">{{ par_buckets.par_31_60.count }}</p>
+        <p class="text-xs text-orange-500 dark:text-orange-400 mt-1">₦{{ par_buckets.par_31_60.total|intcomma }}</p>
+      </div>
+      <!-- PAR 61-90 -->
+      <div class="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4">
+        <p class="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase">PAR 61–90 Days</p>
+        <p class="text-2xl font-bold text-amber-700 dark:text-amber-300 mt-1">{{ par_buckets.par_61_90.count }}</p>
+        <p class="text-xs text-amber-500 dark:text-amber-400 mt-1">₦{{ par_buckets.par_61_90.total|intcomma }}</p>
+      </div>
+      <!-- PAR 90+ -->
+      <div class="bg-rose-50 dark:bg-rose-900/20 rounded-lg p-4">
+        <p class="text-xs font-medium text-rose-600 dark:text-rose-400 uppercase">PAR 90+ Days</p>
+        <p class="text-2xl font-bold text-rose-700 dark:text-rose-300 mt-1">{{ par_buckets.par_90plus.count }}</p>
+        <p class="text-xs text-rose-500 dark:text-rose-400 mt-1">₦{{ par_buckets.par_90plus.total|intcomma }}</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Tab Content ──────────────────────────────────────────────────── -->
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+
+    <!-- Tab Bar -->
+    <div class="border-b border-gray-200 dark:border-gray-700 px-6 pt-4">
+      <nav class="flex gap-1 overflow-x-auto" aria-label="Repayment tabs">
+        {% include 'loans/_tracker_tab.html' with key="overdue" label="Overdue" count=overdue_summary.count color="red" %}
+        {% include 'loans/_tracker_tab.html' with key="today" label="Due Today" count=today_summary.count color="amber" %}
+        {% include 'loans/_tracker_tab.html' with key="week" label="Next 7 Days" count=week_summary.count color="blue" %}
+        {% include 'loans/_tracker_tab.html' with key="month" label="Next 30 Days" count=month_summary.count color="green" %}
+      </nav>
+    </div>
+
+    <!-- ── OVERDUE TAB ── -->
+    {% if tab == 'overdue' %}
+    <div class="p-4 sm:p-6">
+      {% if overdue_rows %}
+      <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+          <thead class="bg-gray-50 dark:bg-gray-700/50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Client</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Loan #</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">No.</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Due Date</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Days Overdue</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Total Due</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Outstanding</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Action</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
+            {% for row in overdue_rows %}
+            <tr class="hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors">
+              <td class="px-4 py-3 whitespace-nowrap">
+                <a href="{% url 'core:client_detail' row.loan.client.id %}"
+                   class="font-medium text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400">
+                  {{ row.loan.client.get_full_name }}
+                </a>
+                {% if row.loan.branch %}
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{{ row.loan.branch.name }}</p>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <a href="{% url 'core:loan_detail' row.loan.id %}"
+                   class="font-mono text-xs text-primary-600 dark:text-primary-400 hover:underline">
+                  {{ row.loan.loan_number }}
+                </a>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-center text-gray-500 dark:text-gray-400">#{{ row.installment_number }}</td>
+              <td class="px-4 py-3 whitespace-nowrap">
+                <span class="font-medium text-red-600 dark:text-red-400">{{ row.due_date|date:"d M Y" }}</span>
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-center">
+                {% with d=row.days_overdue %}
+                <span class="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-semibold
+                  {% if d > 90 %}bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400
+                  {% elif d > 60 %}bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400
+                  {% elif d > 30 %}bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400
+                  {% else %}bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400{% endif %}">
+                  {{ d }}d
+                </span>
+                {% endwith %}
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-right font-medium text-gray-700 dark:text-gray-300">
+                ₦{{ row.total_amount|intcomma }}
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-right font-semibold text-red-600 dark:text-red-400">
+                ₦{{ row.outstanding_amount|intcomma }}
+              </td>
+              <td class="px-4 py-3 whitespace-nowrap text-center">
+                <a href="{% url 'core:loan_detail' row.loan.id %}"
+                   class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition">
+                  <i class="fas fa-arrow-right"></i>View
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-16 text-gray-500 dark:text-gray-400">
+        <i class="fas fa-check-circle text-5xl text-green-400 mb-4"></i>
+        <p class="text-lg font-medium">No overdue instalments</p>
+        <p class="text-sm mt-1">All loan repayments are on track.</p>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ── DUE TODAY TAB ── -->
+    {% if tab == 'today' %}
+    <div class="p-4 sm:p-6">
+      {% if due_today_rows %}
+      {% include 'loans/_tracker_table.html' with rows=due_today_rows badge_color="amber" show_days=False %}
+      {% else %}
+      <div class="text-center py-16 text-gray-500 dark:text-gray-400">
+        <i class="fas fa-calendar-check text-5xl text-green-400 mb-4"></i>
+        <p class="text-lg font-medium">Nothing due today</p>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ── NEXT 7 DAYS TAB ── -->
+    {% if tab == 'week' %}
+    <div class="p-4 sm:p-6">
+      {% if due_week_rows %}
+      {% include 'loans/_tracker_table.html' with rows=due_week_rows badge_color="blue" show_days=False %}
+      {% else %}
+      <div class="text-center py-16 text-gray-500 dark:text-gray-400">
+        <i class="fas fa-calendar text-5xl text-blue-400 mb-4"></i>
+        <p class="text-lg font-medium">No repayments in the next 7 days</p>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ── NEXT 30 DAYS TAB ── -->
+    {% if tab == 'month' %}
+    <div class="p-4 sm:p-6">
+      {% if due_month_rows %}
+      {% include 'loans/_tracker_table.html' with rows=due_month_rows badge_color="green" show_days=False %}
+      {% else %}
+      <div class="text-center py-16 text-gray-500 dark:text-gray-400">
+        <i class="fas fa-calendar text-5xl text-green-400 mb-4"></i>
+        <p class="text-lg font-medium">No repayments in the next 30 days</p>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+  </div><!-- end card -->
+
+</div><!-- end space-y-6 -->
+{% endblock %}
