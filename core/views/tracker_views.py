@@ -16,12 +16,13 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Sum, Q
 from django.shortcuts import render
 from django.utils import timezone
 
 from core.models import LoanRepaymentSchedule, Loan
-from core.permissions import PermissionChecker
+from core.permissions import PermissionChecker, Permissions
 
 
 # ---------------------------------------------------------------------------
@@ -30,7 +31,10 @@ from core.permissions import PermissionChecker
 
 def _base_schedule_qs(user):
     """
-    Return the base LoanRepaymentSchedule queryset scoped to the user's branch.
+    Return the base LoanRepaymentSchedule queryset scoped by the user's role:
+      - Admin / Director / HR : all branches
+      - Manager               : own branch only
+      - Staff                 : only loans for their assigned clients (or created by them)
     Only considers active/overdue/disbursed loans with unpaid/partial/overdue rows.
     """
     checker = PermissionChecker(user)
@@ -40,11 +44,15 @@ def _base_schedule_qs(user):
         loan__status__in=['active', 'overdue', 'disbursed'],
         loan__outstanding_balance__gt=0,
     ).select_related(
-        'loan', 'loan__client', 'loan__branch', 'loan__loan_product'
+        'loan', 'loan__client', 'loan__client__assigned_staff', 'loan__branch', 'loan__loan_product'
     )
-    if not checker.can_view_all_branches() and hasattr(user, 'branch') and user.branch:
-        qs = qs.filter(loan__branch=user.branch)
-    return qs
+    if checker.can_view_all_branches():
+        return qs
+    if checker.is_manager() and checker.branch:
+        return qs.filter(loan__branch=checker.branch)
+    if checker.is_staff():
+        return qs.filter(loan__client__assigned_staff=user)
+    return qs.none()
 
 
 def _par_buckets(overdue_rows, today):
@@ -89,7 +97,19 @@ def loan_repayment_tracker(request):
     """
     Repayment Tracker — shows overdue, today, upcoming installments from the
     LoanRepaymentSchedule table. No notification records are created.
+
+    Access: all roles that can view loans (admin, director, hr, manager, staff).
+    Data is automatically scoped to what each role is allowed to see.
     """
+    checker = PermissionChecker(request.user)
+    # Only roles that can interact with loans may access this page
+    allowed_roles = (
+        Permissions.CAN_CREATE_LOANS
+        + Permissions.CAN_APPROVE_LOANS
+    )
+    if request.user.user_role not in set(allowed_roles):
+        raise PermissionDenied
+
     today = timezone.localdate()
     week_end  = today + timedelta(days=7)
     month_end = today + timedelta(days=30)
@@ -145,14 +165,23 @@ def loan_repayment_tracker(request):
     # ── PAR buckets ────────────────────────────────────────────────────────
     par_buckets = _par_buckets(list(overdue_rows), today)
 
-    # Grand totals for PAR %
+    # Grand totals for PAR % — scoped to what this user can see
+    par_total_qs = LoanRepaymentSchedule.objects.filter(
+        loan__status__in=['active', 'overdue', 'disbursed'],
+        status__in=['pending', 'partial', 'overdue'],
+        loan__outstanding_balance__gt=0,
+    )
+    if checker.can_view_all_branches():
+        pass  # no extra filter
+    elif checker.is_manager() and checker.branch:
+        par_total_qs = par_total_qs.filter(loan__branch=checker.branch)
+    elif checker.is_staff():
+        par_total_qs = par_total_qs.filter(loan__client__assigned_staff=request.user)
+    else:
+        par_total_qs = par_total_qs.none()
+
     total_outstanding_all = (
-        LoanRepaymentSchedule.objects
-        .filter(
-            loan__status__in=['active', 'overdue', 'disbursed'],
-            status__in=['pending', 'partial', 'overdue'],
-        )
-        .aggregate(s=Sum('outstanding_amount'))['s'] or Decimal('0')
+        par_total_qs.aggregate(s=Sum('outstanding_amount'))['s'] or Decimal('0')
     )
 
     par_at_risk = (

@@ -8,6 +8,7 @@ Variables: rows, badge_color (amber|blue|green)
     <thead class="bg-gray-50 dark:bg-gray-700/50">
       <tr>
         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Client</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Staff</th>
         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Loan #</th>
         <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">No.</th>
         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Due Date</th>
@@ -28,6 +29,13 @@ Variables: rows, badge_color (amber|blue|green)
           </a>
           {% if row.loan.branch %}
           <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{{ row.loan.branch.name }}</p>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3 whitespace-nowrap">
+          {% if row.loan.client.assigned_staff %}
+          <span class="font-medium text-gray-800 dark:text-gray-200">{{ row.loan.client.assigned_staff.get_full_name }}</span>
+          {% else %}
+          <span class="text-gray-400 dark:text-gray-500">—</span>
           {% endif %}
         </td>
         <td class="px-4 py-3 whitespace-nowrap">
