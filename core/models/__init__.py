@@ -82,6 +82,9 @@ from .all_models import (
     LoanInsuranceClaim,
     InterBranchTransfer,
 
+    # Configuration
+    PublicHoliday,
+
 
 
 
@@ -160,6 +163,9 @@ __all__ = [
     'BankStatementLine',
     'LoanInsuranceClaim',
     'InterBranchTransfer',
+
+    # Configuration
+    'PublicHoliday',
 ]
 
 

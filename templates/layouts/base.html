@@ -581,6 +581,9 @@
                                     <a href="{% url 'core:branch_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Branches</a>
                                     <a href="{% url 'core:user_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Staff Management</a>
                                     <a href="{% url 'core:user_profile' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Profile & Settings</a>
+                                    {% if user.user_role == 'admin' %}
+                                    <a href="{% url 'core:public_holiday_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Public Holidays</a>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -1044,6 +1047,9 @@
                     <a href="{% url 'core:branch_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Branches</a>
                     <a href="{% url 'core:user_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Staff Management</a>
                     <a href="{% url 'core:user_profile' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Profile & Settings</a>
+                    {% if user.user_role == 'admin' %}
+                    <a href="{% url 'core:public_holiday_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Public Holidays</a>
+                    {% endif %}
                 </div>
             </div>
         </div>

@@ -1,0 +1,127 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Public Holidays - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div>
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Public Holidays</h1>
+            <p class="text-gray-600 dark:text-gray-400">
+                Dates listed here are skipped when generating loan repayment schedules.
+            </p>
+        </div>
+
+        {% if checker.is_admin %}
+        <a href="{% url 'core:public_holiday_create' %}"
+           class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors flex items-center space-x-2">
+            <i class="fas fa-plus"></i>
+            <span>Add Holiday</span>
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Year Filter -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
+        <form method="get" class="flex items-center space-x-3">
+            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by year:</label>
+            <select name="year"
+                    onchange="this.form.submit()"
+                    class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                <option value="">All Years</option>
+                {% for yr in years %}
+                <option value="{{ yr }}" {% if selected_year == yr %}selected{% endif %}>{{ yr }}</option>
+                {% endfor %}
+                <!-- Always include current year even if no entries yet -->
+                {% if current_year not in years %}
+                <option value="{{ current_year }}" {% if selected_year == current_year %}selected{% endif %}>{{ current_year }}</option>
+                {% endif %}
+            </select>
+            {% if selected_year %}
+            <a href="{% url 'core:public_holiday_list' %}"
+               class="px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                Clear
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Holiday Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+        {% if holidays %}
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Holiday Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Day</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Added By</th>
+                    {% if checker.is_admin %}
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                {% for holiday in holidays %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm font-medium text-gray-900 dark:text-white">
+                            {{ holiday.date|date:"d M Y" }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="text-sm text-gray-900 dark:text-white">{{ holiday.name }}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">{{ holiday.date|date:"l" }}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">
+                            {% if holiday.created_by %}{{ holiday.created_by.get_full_name }}{% else %}&mdash;{% endif %}
+                        </span>
+                    </td>
+                    {% if checker.is_admin %}
+                    <td class="px-6 py-4 whitespace-nowrap text-right">
+                        <div class="flex items-center justify-end space-x-2">
+                            <a href="{% url 'core:public_holiday_edit' holiday.id %}"
+                               class="px-3 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">
+                                <i class="fas fa-edit mr-1"></i>Edit
+                            </a>
+                            <a href="{% url 'core:public_holiday_delete' holiday.id %}"
+                               class="px-3 py-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors">
+                                <i class="fas fa-trash mr-1"></i>Delete
+                            </a>
+                        </div>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="p-12 text-center">
+            <i class="fas fa-calendar-times text-4xl text-gray-400 mb-3"></i>
+            <p class="text-gray-500 dark:text-gray-400 mb-4">No public holidays recorded{% if selected_year %} for {{ selected_year }}{% endif %}.</p>
+            {% if checker.is_admin %}
+            <a href="{% url 'core:public_holiday_create' %}"
+               class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+                <i class="fas fa-plus mr-2"></i>Add First Holiday
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Info Note -->
+    <div class="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <div class="flex items-start">
+            <i class="fas fa-info-circle text-blue-500 mt-0.5 mr-3"></i>
+            <div class="text-sm text-blue-800 dark:text-blue-300">
+                <p class="font-medium mb-1">How this works</p>
+                <p>When a new loan is disbursed, its repayment schedule is generated by skipping both weekends and any dates listed here. This only affects <strong>new loans</strong> — existing loan schedules are not changed.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -9,36 +9,42 @@ from core.utils.money import MoneyCalculator
 # BUSINESS-DAY UTILITIES
 # =============================================================================
 
-def is_business_day(d):
-    """Return True if d is Monday–Friday."""
-    return d.weekday() < 5  # 0=Mon … 4=Fri; 5=Sat, 6=Sun
+def is_business_day(d, holidays=None):
+    """Return True if d is Monday–Friday and not a public holiday."""
+    if d.weekday() >= 5:  # 0=Mon … 4=Fri; 5=Sat, 6=Sun
+        return False
+    if holidays and d in holidays:
+        return False
+    return True
 
 
-def next_business_day(d):
+def next_business_day(d, holidays=None):
     """
     Return d if it is already a business day, otherwise advance to the next
-    Monday–Friday (skipping Saturday and Sunday).
+    Monday–Friday that is not a public holiday.
+    Pass a set of date objects as `holidays` to skip those days too.
     """
-    while not is_business_day(d):
+    while not is_business_day(d, holidays):
         d += timedelta(days=1)
     return d
 
 
-def add_one_business_day(d):
+def add_one_business_day(d, holidays=None):
     """
-    Advance d by exactly one business day (Mon–Fri), skipping weekends.
+    Advance d by exactly one business day (Mon–Fri, skipping weekends and
+    any dates in the optional `holidays` set).
 
     Monday → Tuesday
     Friday → Monday
     Saturday → Monday  (advance to next business day first, then +1 business day)
     """
     d += timedelta(days=1)
-    return next_business_day(d)
+    return next_business_day(d, holidays)
 
 
-def count_business_days_in_months(start_date, num_months):
+def count_business_days_in_months(start_date, num_months, holidays=None):
     """
-    Count the number of Mon–Fri days in the period
+    Count the number of Mon–Fri days (excluding public holidays) in the period
     [start_date, start_date + num_months).
 
     Used to determine how many daily installments a loan has when weekend
@@ -48,7 +54,7 @@ def count_business_days_in_months(start_date, num_months):
     total = 0
     current = start_date
     while current < end_date:
-        if is_business_day(current):
+        if is_business_day(current, holidays):
             total += 1
         current += timedelta(days=1)
     return total
@@ -71,6 +77,14 @@ def generate_repayment_schedule(loan):
     """
     if not loan.disbursement_date and loan.status != 'approved':
         return []
+
+    # Load public holidays once for the entire schedule build.
+    # Lazy import avoids circular dependency (all_models imports helpers at module level).
+    try:
+        from core.models.all_models import PublicHoliday
+        holidays = set(PublicHoliday.objects.values_list('date', flat=True))
+    except Exception:
+        holidays = set()
 
     schedule = []
 
@@ -130,8 +144,8 @@ def generate_repayment_schedule(loan):
         # Approved but not yet disbursed — use a placeholder
         first_due = timezone.now().date() + timedelta(days=7)
 
-    # Ensure the first due date never falls on a weekend
-    first_due = next_business_day(first_due)
+    # Ensure the first due date never falls on a weekend or public holiday
+    first_due = next_business_day(first_due, holidays)
 
     today = timezone.now().date()
     total_installments_paid = (
@@ -159,17 +173,17 @@ def generate_repayment_schedule(loan):
         if i == 0:
             due_date = current_due
         else:
-            # Advance by one period, then shift to Monday if it lands on a weekend
+            # Advance by one period, then shift forward if it lands on a weekend or holiday
             if loan.repayment_frequency == 'daily':
-                due_date = add_one_business_day(current_due)
+                due_date = add_one_business_day(current_due, holidays)
             elif loan.repayment_frequency == 'weekly':
-                due_date = next_business_day(current_due + timedelta(weeks=1))
+                due_date = next_business_day(current_due + timedelta(weeks=1), holidays)
             elif loan.repayment_frequency == 'fortnightly':
-                due_date = next_business_day(current_due + timedelta(weeks=2))
+                due_date = next_business_day(current_due + timedelta(weeks=2), holidays)
             elif loan.repayment_frequency == 'yearly':
-                due_date = next_business_day(current_due + relativedelta(years=1))
+                due_date = next_business_day(current_due + relativedelta(years=1), holidays)
             else:  # monthly
-                due_date = next_business_day(current_due + relativedelta(months=1))
+                due_date = next_business_day(current_due + relativedelta(months=1), holidays)
 
         current_due = due_date
 

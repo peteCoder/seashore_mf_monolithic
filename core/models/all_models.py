@@ -4280,7 +4280,13 @@ class Loan(BaseModel):
             if grace_days:
                 import datetime as _dt_preview
                 start = start + _dt_preview.timedelta(days=grace_days)
-            self.first_repayment_date = self.calculate_next_payment_date(start)
+            # Load holidays for preview date calculation
+            try:
+                from core.models.all_models import PublicHoliday as _PH
+                _preview_holidays = set(_PH.objects.values_list('date', flat=True))
+            except Exception:
+                _preview_holidays = set()
+            self.first_repayment_date = self.calculate_next_payment_date(start, _preview_holidays)
             self.next_repayment_date  = self.first_repayment_date
 
             from dateutil.relativedelta import relativedelta
@@ -4288,7 +4294,7 @@ class Loan(BaseModel):
             if freq == 'daily':
                 d = self.first_repayment_date
                 for _ in range(n - 1):
-                    d = add_one_business_day(d)
+                    d = add_one_business_day(d, _preview_holidays)
                 self.final_repayment_date = d
             elif freq == 'weekly':
                 self.final_repayment_date = self.first_repayment_date + timezone.timedelta(weeks=n - 1)
@@ -4299,19 +4305,18 @@ class Loan(BaseModel):
             else:
                 self.final_repayment_date = self.first_repayment_date + relativedelta(months=n - 1)
 
-    def calculate_next_payment_date(self, from_date):
+    def calculate_next_payment_date(self, from_date, holidays=None):
         from dateutil.relativedelta import relativedelta
         freq = self.repayment_frequency
         if freq == 'daily':
-            # Move to the next Mon–Fri business day (skip Sat/Sun)
-            return add_one_business_day(from_date)
+            return add_one_business_day(from_date, holidays)
         elif freq == 'weekly':
-            return next_business_day(from_date + timezone.timedelta(weeks=1))
+            return next_business_day(from_date + timezone.timedelta(weeks=1), holidays)
         elif freq == 'fortnightly':
-            return next_business_day(from_date + timezone.timedelta(weeks=2))
+            return next_business_day(from_date + timezone.timedelta(weeks=2), holidays)
         elif freq == 'yearly':
-            return next_business_day(from_date + relativedelta(years=1))
-        return next_business_day(from_date + relativedelta(months=1))
+            return next_business_day(from_date + relativedelta(years=1), holidays)
+        return next_business_day(from_date + relativedelta(months=1), holidays)
 
     def get_repayment_schedule(self):
         return generate_repayment_schedule(self)
@@ -4498,8 +4503,15 @@ class Loan(BaseModel):
         except Exception:
             pass
 
+        # Load public holidays once for all date calculations during disbursal.
+        try:
+            from core.models.all_models import PublicHoliday
+            _holidays = set(PublicHoliday.objects.values_list('date', flat=True))
+        except Exception:
+            _holidays = set()
+
         schedule_start = disburse_dt.date() + _dt_mod.timedelta(days=grace_days)
-        self.first_repayment_date = self.calculate_next_payment_date(schedule_start)
+        self.first_repayment_date = self.calculate_next_payment_date(schedule_start, _holidays)
         self.next_repayment_date  = self.first_repayment_date
 
         # Recalculate final repayment date anchored to first_repayment_date
@@ -4510,7 +4522,7 @@ class Loan(BaseModel):
             if freq == 'daily':
                 _d = self.first_repayment_date
                 for _ in range(n_inst - 1):
-                    _d = add_one_business_day(_d)
+                    _d = add_one_business_day(_d, _holidays)
                 self.final_repayment_date = _d
             elif freq == 'weekly':
                 self.final_repayment_date = self.first_repayment_date + _dt_mod.timedelta(weeks=n_inst - 1)
@@ -8849,6 +8861,34 @@ class InterBranchTransfer(BaseModel):
             count += 1
             ref = f"{base}-{count:03d}"
         return ref
+
+
+# =============================================================================
+# PUBLIC HOLIDAY
+# =============================================================================
+
+class PublicHoliday(models.Model):
+    """
+    Calendar of public holidays to be skipped when generating loan repayment
+    schedules.  Only applies to loans created after the holiday is recorded.
+    """
+    date = models.DateField(unique=True, help_text="Date of the public holiday")
+    name = models.CharField(max_length=100, help_text="Name or description of the holiday")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        'User',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='public_holidays_added',
+    )
+
+    class Meta:
+        ordering = ['date']
+        verbose_name = 'Public Holiday'
+        verbose_name_plural = 'Public Holidays'
+
+    def __str__(self):
+        return f"{self.name} ({self.date})"
 
 
 

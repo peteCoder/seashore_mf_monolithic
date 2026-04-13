@@ -267,6 +267,13 @@ from core.views.two_factor_views import (
     disable_2fa,
 )
 
+from core.views.public_holiday_views import (
+    public_holiday_list,
+    public_holiday_create,
+    public_holiday_edit,
+    public_holiday_delete,
+)
+
 
 app_name = "core"
 
@@ -591,5 +598,13 @@ urlpatterns = [
     path('imports/clients/', import_clients, name='import_clients'),
     path('imports/loans/',   import_loans,   name='import_loans'),
     path('imports/savings/', import_savings, name='import_savings'),
+
+    # =========================================================================
+    # PUBLIC HOLIDAYS
+    # =========================================================================
+    path('settings/public-holidays/', public_holiday_list, name='public_holiday_list'),
+    path('settings/public-holidays/add/', public_holiday_create, name='public_holiday_create'),
+    path('settings/public-holidays/<int:holiday_id>/edit/', public_holiday_edit, name='public_holiday_edit'),
+    path('settings/public-holidays/<int:holiday_id>/delete/', public_holiday_delete, name='public_holiday_delete'),
 
 ]
