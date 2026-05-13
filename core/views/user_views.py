@@ -447,6 +447,37 @@ def user_profile_edit(request):
 
 
 # =============================================================================
+# CHANGE OWN PASSWORD VIEW
+# =============================================================================
+
+@login_required
+def change_own_password(request):
+    """
+    Any authenticated user can change their own password.
+    Requires verification of the current password.
+    """
+    from core.forms.user_forms import UserChangeOwnPasswordForm
+
+    if request.method == 'POST':
+        form = UserChangeOwnPasswordForm(request.user, request.POST)
+        if form.is_valid():
+            request.user.set_password(form.cleaned_data['new_password1'])
+            request.user.save(update_fields=['password'])
+            from django.contrib.auth import update_session_auth_hash
+            update_session_auth_hash(request, request.user)
+            messages.success(request, 'Your password has been changed successfully.')
+            return redirect('core:user_profile')
+    else:
+        form = UserChangeOwnPasswordForm(request.user)
+
+    context = {
+        'page_title': 'Change Password',
+        'form': form,
+    }
+    return render(request, 'users/change_own_password.html', context)
+
+
+# =============================================================================
 # ADMIN CHANGE PASSWORD VIEW
 # =============================================================================
 

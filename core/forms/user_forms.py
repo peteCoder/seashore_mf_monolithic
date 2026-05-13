@@ -381,6 +381,68 @@ class UserSearchForm(forms.Form):
 # ADMIN CHANGE PASSWORD FORM
 # =============================================================================
 
+class UserChangeOwnPasswordForm(forms.Form):
+    """
+    Allows any authenticated user to change their own password.
+    Requires the current password for verification.
+    """
+    current_password = forms.CharField(
+        label='Current Password',
+        widget=forms.PasswordInput(attrs={
+            'class': INPUT_CLASS,
+            'placeholder': 'Enter your current password...',
+            'autocomplete': 'current-password',
+        })
+    )
+    new_password1 = forms.CharField(
+        label='New Password',
+        widget=forms.PasswordInput(attrs={
+            'class': INPUT_CLASS,
+            'placeholder': 'Enter new password...',
+            'autocomplete': 'new-password',
+        })
+    )
+    new_password2 = forms.CharField(
+        label='Confirm New Password',
+        widget=forms.PasswordInput(attrs={
+            'class': INPUT_CLASS,
+            'placeholder': 'Confirm new password...',
+            'autocomplete': 'new-password',
+        })
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean_current_password(self):
+        current = self.cleaned_data.get('current_password')
+        if not self.user.check_password(current):
+            raise forms.ValidationError('Your current password is incorrect.')
+        return current
+
+    def clean_new_password2(self):
+        p1 = self.cleaned_data.get('new_password1')
+        p2 = self.cleaned_data.get('new_password2')
+        if p1 and p2 and p1 != p2:
+            raise forms.ValidationError("New passwords don't match.")
+        if p1 and len(p1) < 8:
+            raise forms.ValidationError("Password must be at least 8 characters long.")
+        return p2
+
+    def clean(self):
+        cleaned = super().clean()
+        current = cleaned.get('current_password')
+        new = cleaned.get('new_password1')
+        if current and new and current == new:
+            raise forms.ValidationError('New password must be different from your current password.')
+        return cleaned
+
+
+# =============================================================================
+# ADMIN CHANGE PASSWORD FORM
+# =============================================================================
+
 class AdminChangePasswordForm(forms.Form):
     """
     Allows an admin/director to set a new password for any staff member.

@@ -117,6 +117,7 @@ from core.views.user_views import (
     user_profile,
     user_profile_edit,
     user_change_password,
+    change_own_password,
 )
 
 from core.views.transaction_views import (
@@ -426,6 +427,7 @@ urlpatterns = [
     # User Profile (for logged-in user)
     path('profile/', user_profile, name='user_profile'),
     path('profile/edit/', user_profile_edit, name='user_profile_edit'),
+    path('profile/change-password/', change_own_password, name='change_own_password'),
 
     # =========================================================================
     # TRANSACTIONS
