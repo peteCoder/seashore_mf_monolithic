@@ -174,6 +174,7 @@ from core.views.loan_views import (
     loan_edit_guarantor,
     loan_delete_guarantor,
     loan_write_off,
+    loan_cancel,
 )
 
 from core.views.notification_views import (
@@ -444,6 +445,7 @@ urlpatterns = [
     path('loans/<uuid:loan_id>/approve/', loan_approve, name='loan_approve'),
     path('loans/<uuid:loan_id>/disburse/', loan_disburse, name='loan_disburse'),
     path('loans/<uuid:loan_id>/write-off/', loan_write_off, name='loan_write_off'),
+    path('loans/<uuid:loan_id>/cancel/', loan_cancel, name='loan_cancel'),
 
     # Loan Guarantors
     path('loans/<uuid:loan_id>/guarantors/', loan_guarantors, name='loan_guarantors'),

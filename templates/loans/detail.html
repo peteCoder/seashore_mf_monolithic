@@ -28,6 +28,7 @@
                          {% elif loan.status == 'completed' %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300
                          {% elif loan.status == 'overdue' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
                          {% elif loan.status == 'rejected' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
+                         {% elif loan.status == 'cancelled' %}bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300
                          {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
                 {{ loan.get_status_display }}
             </span>
@@ -111,6 +112,13 @@
             <i class="fas fa-shield-alt mr-2"></i>View Active Claim
         </a>
         {% endif %}
+        {% endif %}
+
+        {% if checker.can_approve_loans and loan.status == 'pending_fees' or checker.can_approve_loans and loan.status == 'pending_approval' or checker.can_approve_loans and loan.status == 'approved' %}
+        <a href="{% url 'core:loan_cancel' loan.id %}"
+           class="px-4 py-2 border border-orange-300 dark:border-orange-700 rounded-lg text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors text-sm font-medium">
+            <i class="fas fa-ban mr-2"></i>Cancel Loan
+        </a>
         {% endif %}
     </div>
 
@@ -408,6 +416,29 @@
                 <div class="ml-3">
                     <h3 class="text-sm font-medium text-red-800 dark:text-red-300">Loan Rejected</h3>
                     <p class="mt-2 text-sm text-red-700 dark:text-red-400">{{ loan.rejection_reason }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Cancellation Information -->
+        {% if loan.status == 'cancelled' %}
+        <div class="bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-500 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-ban text-orange-400"></i>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-orange-800 dark:text-orange-300">Loan Cancelled</h3>
+                    {% if loan.cancelled_by %}
+                    <p class="mt-1 text-xs text-orange-600 dark:text-orange-400">
+                        Cancelled by <strong>{{ loan.cancelled_by.get_full_name }}</strong>
+                        {% if loan.cancelled_at %}&mdash; <strong>{{ loan.cancelled_at|date:"F d, Y" }}</strong>{% endif %}
+                    </p>
+                    {% endif %}
+                    {% if loan.cancellation_reason %}
+                    <p class="mt-2 text-sm text-orange-700 dark:text-orange-400">{{ loan.cancellation_reason }}</p>
+                    {% endif %}
                 </div>
             </div>
         </div>

@@ -20,7 +20,7 @@ from core.utils.accounting_helpers import create_journal_entry
 from core.forms.loan_forms import (
     LoanApplicationForm, LoanFeePaymentForm, LoanApprovalForm,
     LoanDisbursementForm, LoanRepaymentPostingForm, BulkLoanRepaymentPostingForm,
-    ApproveRepaymentPostingForm, LoanSearchForm, GuarantorForm
+    ApproveRepaymentPostingForm, LoanSearchForm, GuarantorForm, LoanCancelForm
 )
 from core.permissions import PermissionChecker
 from core.services.notification_service import notify, notify_role
@@ -1615,3 +1615,70 @@ def loan_write_off(request, loan_id):
         'checker': checker,
     }
     return render(request, 'loans/write_off.html', context)
+
+
+# =============================================================================
+# LOAN CANCEL
+# =============================================================================
+
+@login_required
+@transaction.atomic
+def loan_cancel(request, loan_id):
+    """
+    Cancel a loan at any pre-disbursement stage.
+
+    Allowed statuses: pending_fees, pending_approval, approved.
+    If fees_paid=True the fees transaction and its journal entries are reversed.
+    Permissions: Manager (own branch), Director/Admin (any branch).
+    """
+    loan = get_object_or_404(
+        Loan.objects.select_related('client', 'branch', 'loan_product'),
+        id=loan_id,
+    )
+
+    checker = PermissionChecker(request.user)
+    if not checker.can_approve_loans():
+        messages.error(request, 'Only Managers, Directors, HR Managers, and Administrators can cancel loans.')
+        raise PermissionDenied
+
+    # Branch restriction for plain managers (directors/admins can cancel any branch)
+    if checker.is_manager() and not checker.is_admin_or_director():
+        if loan.branch != request.user.branch:
+            raise PermissionDenied("You can only cancel loans in your own branch.")
+
+    CANCELLABLE_STATUSES = ['pending_fees', 'pending_approval', 'approved']
+    if loan.status not in CANCELLABLE_STATUSES:
+        messages.error(
+            request,
+            f'This loan cannot be cancelled. Status is "{loan.get_status_display()}".'
+        )
+        return redirect('core:loan_detail', loan_id=loan.id)
+
+    fees_were_paid = loan.fees_paid
+
+    if request.method == 'POST':
+        form = LoanCancelForm(request.POST)
+        if form.is_valid():
+            reason = form.cleaned_data['cancellation_reason']
+            cancel_date = form.cleaned_data['cancellation_date']
+            success, msg = loan.cancel(cancelled_by=request.user, reason=reason, cancellation_date=cancel_date)
+            if success:
+                messages.success(
+                    request,
+                    f'Loan {loan.loan_number} has been cancelled.'
+                    + (' Fees have been reversed.' if fees_were_paid else '')
+                )
+                return redirect('core:loan_detail', loan_id=loan.id)
+            else:
+                messages.error(request, msg)
+    else:
+        form = LoanCancelForm()
+
+    context = {
+        'page_title': f'Cancel Loan — {loan.loan_number}',
+        'loan': loan,
+        'form': form,
+        'checker': checker,
+        'fees_will_be_reversed': fees_were_paid,
+    }
+    return render(request, 'loans/cancel.html', context)

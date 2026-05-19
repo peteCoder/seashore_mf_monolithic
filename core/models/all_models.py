@@ -3664,6 +3664,7 @@ class Loan(BaseModel):
         ('pending_approval',  'Pending Approval'),
         ('approved',          'Approved'),
         ('rejected',          'Rejected'),
+        ('cancelled',         'Cancelled'),
         ('disbursed',         'Disbursed'),
         ('active',            'Active'),
         ('completed',         'Completed'),
@@ -3950,6 +3951,15 @@ class Loan(BaseModel):
     disbursement_reference = models.CharField(max_length=100, blank=True, null=True)
     disbursement_notes     = models.TextField(blank=True, null=True)
     rejection_reason       = models.TextField(blank=True, null=True)
+
+    cancelled_by           = models.ForeignKey(
+        'User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='loans_cancelled'
+    )
+    cancelled_at           = models.DateTimeField(null=True, blank=True)
+    cancellation_reason    = models.TextField(blank=True)
 
     # =========================================================================
     # SIGNATURES  ← NEW BLOCK
@@ -4470,6 +4480,41 @@ class Loan(BaseModel):
             'status', 'approved_by', 'approval_date', 'rejection_reason', 'updated_at'
         ])
         return True, "Loan rejected"
+
+    @db_transaction.atomic
+    def cancel(self, cancelled_by, reason='', cancellation_date=None):
+        import datetime as _dt
+        CANCELLABLE_STATUSES = ['pending_fees', 'pending_approval', 'approved']
+        if self.status not in CANCELLABLE_STATUSES:
+            return False, f"Cannot cancel loan with status: {self.get_status_display()}"
+
+        # If fees were paid, reverse the fees transaction and its journal entries
+        if self.fees_paid:
+            fees_txn = (
+                self.transactions.filter(transaction_type='charges_at_disbursement', status='completed')
+                .order_by('-created_at')
+                .first()
+            )
+            if fees_txn:
+                fees_txn.reverse(reversed_by=cancelled_by)
+                for je in fees_txn.journal_entries.filter(status='posted'):
+                    je.reverse(reversed_by=cancelled_by)
+
+        if cancellation_date is not None:
+            cancelled_at = timezone.make_aware(
+                _dt.datetime.combine(cancellation_date, _dt.time.min)
+            )
+        else:
+            cancelled_at = timezone.now()
+
+        self.status              = 'cancelled'
+        self.cancelled_by        = cancelled_by
+        self.cancelled_at        = cancelled_at
+        self.cancellation_reason = reason
+        self.save(update_fields=[
+            'status', 'cancelled_by', 'cancelled_at', 'cancellation_reason', 'updated_at'
+        ])
+        return True, "Loan cancelled successfully"
 
     @db_transaction.atomic
     def disburse(self, disbursed_by, method='cash', reference='', disbursement_date=None):

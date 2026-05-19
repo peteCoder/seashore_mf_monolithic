@@ -942,3 +942,34 @@ class GuarantorForm(forms.ModelForm):
             instance.save()
 
         return instance
+
+
+class LoanCancelForm(forms.Form):
+    cancellation_date = forms.DateField(
+        required=True,
+        label='Cancellation Date',
+        widget=forms.DateInput(attrs={
+            'class': TEXT_INPUT_CLASS,
+            'type': 'date',
+        }),
+    )
+    cancellation_reason = forms.CharField(
+        required=True,
+        widget=forms.Textarea(attrs={
+            'class': TEXTAREA_CLASS,
+            'rows': 4,
+            'placeholder': 'State the reason for cancelling this loan...',
+        }),
+        label='Cancellation Reason',
+        min_length=10,
+        error_messages={'min_length': 'Please provide a more detailed reason (at least 10 characters).'},
+    )
+    confirm = forms.BooleanField(
+        required=True,
+        label='I confirm that I want to cancel this loan',
+        widget=forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['cancellation_date'].initial = date.today()
