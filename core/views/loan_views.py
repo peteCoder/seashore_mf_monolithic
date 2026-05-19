@@ -1336,6 +1336,36 @@ def loan_guarantors(request, loan_id):
 
 
 @login_required
+def guarantor_detail(request, loan_id, guarantor_id):
+    """View all details for a single guarantor."""
+    loan = get_object_or_404(
+        Loan.objects.select_related('client', 'loan_product', 'branch'),
+        id=loan_id,
+    )
+    guarantor = get_object_or_404(
+        Guarantor.objects.select_related('linked_client', 'branch', 'loan'),
+        id=guarantor_id,
+        loan=loan,
+    )
+
+    checker = PermissionChecker(request.user)
+    if checker.is_staff():
+        if loan.client.assigned_staff != request.user:
+            raise PermissionDenied("You don't have permission to access this loan")
+    elif checker.is_manager():
+        if loan.branch != request.user.branch:
+            raise PermissionDenied("You don't have permission to access this loan")
+
+    context = {
+        'page_title': f'Guarantor — {guarantor.name}',
+        'loan': loan,
+        'guarantor': guarantor,
+        'checker': checker,
+    }
+    return render(request, 'loans/guarantor_detail.html', context)
+
+
+@login_required
 @transaction.atomic
 def loan_add_guarantor(request, loan_id):
     """

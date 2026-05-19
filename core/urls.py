@@ -173,6 +173,7 @@ from core.views.loan_views import (
     loan_add_guarantor,
     loan_edit_guarantor,
     loan_delete_guarantor,
+    guarantor_detail,
     loan_write_off,
     loan_cancel,
 )
@@ -450,6 +451,7 @@ urlpatterns = [
     # Loan Guarantors
     path('loans/<uuid:loan_id>/guarantors/', loan_guarantors, name='loan_guarantors'),
     path('loans/<uuid:loan_id>/guarantors/add/', loan_add_guarantor, name='loan_add_guarantor'),
+    path('loans/<uuid:loan_id>/guarantors/<uuid:guarantor_id>/', guarantor_detail, name='guarantor_detail'),
     path('loans/<uuid:loan_id>/guarantors/<uuid:guarantor_id>/edit/', loan_edit_guarantor, name='loan_edit_guarantor'),
     path('loans/<uuid:loan_id>/guarantors/<uuid:guarantor_id>/delete/', loan_delete_guarantor, name='loan_delete_guarantor'),
 

@@ -644,6 +644,11 @@
                                 </div>
                             </div>
                         </div>
+                        <a href="{% url 'core:guarantor_detail' loan.id guarantor.id %}"
+                           class="shrink-0 p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                           title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </a>
                     </div>
                 </div>
                 {% endfor %}
