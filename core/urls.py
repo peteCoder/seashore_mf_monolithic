@@ -231,6 +231,7 @@ from core.views.assignment_views import (
     assignment_approve,
     assignment_reject,
     assignment_cancel,
+    staff_portfolio_transfer,
 )
 
 from core.views.reconciliation_views import (
@@ -535,6 +536,7 @@ urlpatterns = [
     path('assignments/<uuid:request_id>/approve/', assignment_approve, name='assignment_approve'),
     path('assignments/<uuid:request_id>/reject/', assignment_reject, name='assignment_reject'),
     path('assignments/<uuid:request_id>/cancel/', assignment_cancel, name='assignment_cancel'),
+    path('assignments/staff-portfolio-transfer/', staff_portfolio_transfer, name='staff_portfolio_transfer'),
 
     # =========================================================================
     # ACCOUNTING MODULE

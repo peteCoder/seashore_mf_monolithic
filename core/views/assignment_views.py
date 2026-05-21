@@ -4,6 +4,8 @@ Assignment Request Views
 Create, review, and execute client/group assignment requests.
 """
 
+import json
+
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
@@ -13,7 +15,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from core.models import AssignmentRequest, Client, ClientGroup
+from core.models import AssignmentRequest, Client, ClientGroup, User
 from core.forms.assignment_forms import AssignmentRequestForm, AssignmentReviewForm
 from core.permissions import PermissionChecker
 from core.services.notification_service import notify, notify_role
@@ -65,8 +67,19 @@ def assignment_list(request):
 def assignment_create(request):
     checker = PermissionChecker(request.user)
 
+    clients_qs = (
+        Client.objects.filter(is_active=True, approval_status='approved')
+        .order_by('first_name', 'last_name')
+        .only('id', 'first_name', 'last_name', 'client_id')
+    )
+    clients_json = json.dumps([
+        {'id': str(c.id), 'name': c.get_full_name(), 'client_id': c.client_id}
+        for c in clients_qs
+    ])
+
     if request.method == 'POST':
         form = AssignmentRequestForm(request.POST)
+        selected_ids = json.dumps(request.POST.getlist('clients'))
         if form.is_valid():
             data = form.build_assignment_data()
             description = form.build_description()
@@ -87,7 +100,6 @@ def assignment_create(request):
                 affected_count=len(clients) if clients else 1,
             )
 
-            # Notify branch manager of new pending assignment request
             notify_role(
                 roles='manager',
                 branch=request.user.branch,
@@ -105,11 +117,14 @@ def assignment_create(request):
             return redirect('core:assignment_detail', request_id=req.id)
     else:
         form = AssignmentRequestForm()
+        selected_ids = '[]'
 
     return render(request, 'assignments/form.html', {
         'page_title': 'New Assignment Request',
         'form': form,
         'checker': checker,
+        'clients_json': clients_json,
+        'selected_ids': selected_ids,
     })
 
 
@@ -333,3 +348,115 @@ def _execute_assignment(req):
 
     else:
         raise ValueError(f'Unknown assignment type: {atype}')
+
+
+# =============================================================================
+# STAFF PORTFOLIO TRANSFER
+# =============================================================================
+
+@login_required
+def staff_portfolio_transfer(request):
+    checker = PermissionChecker(request.user)
+    if not (checker.is_manager() or checker.is_admin_or_director()):
+        raise PermissionDenied('Only managers and above can perform staff portfolio transfers.')
+
+    staff_qs = User.objects.filter(user_role='staff', is_active=True).select_related('branch').order_by('first_name', 'last_name')
+    if checker.is_manager():
+        staff_qs = staff_qs.filter(branch=request.user.branch)
+
+    # Resolve source staff from GET param (initial load) or POST (re-render on error)
+    from_staff_id = request.POST.get('from_staff') or request.GET.get('from_staff')
+    from_staff = None
+    clients_qs = Client.objects.none()
+
+    if from_staff_id:
+        try:
+            from_staff = staff_qs.get(id=from_staff_id)
+            clients_qs = (
+                Client.objects.filter(assigned_staff=from_staff, is_active=True)
+                .order_by('first_name', 'last_name')
+            )
+        except (User.DoesNotExist, ValueError):
+            from_staff = None
+
+    clients_json = json.dumps([
+        {'id': str(c.id), 'name': c.get_full_name(), 'client_id': c.client_id}
+        for c in clients_qs
+    ])
+    target_staff_qs = staff_qs.exclude(id=from_staff.id) if from_staff else staff_qs
+
+    errors = {}
+
+    if request.method == 'POST':
+        client_ids = request.POST.getlist('clients')
+        target_staff_id = request.POST.get('target_staff', '').strip()
+        reason = request.POST.get('reason', '').strip()
+
+        if not from_staff:
+            errors['from_staff'] = 'Please select a source staff member.'
+        if not target_staff_id:
+            errors['target_staff'] = 'Please select a target staff member.'
+        if not client_ids:
+            errors['clients'] = 'Please select at least one client to transfer.'
+        if not reason:
+            errors['reason'] = 'Please provide a reason for the transfer.'
+
+        if not errors:
+            try:
+                target_staff = staff_qs.get(id=target_staff_id)
+            except (User.DoesNotExist, ValueError):
+                errors['target_staff'] = 'Invalid target staff selected.'
+
+        if not errors:
+            # Only transfer clients that genuinely belong to the source staff
+            valid_clients = list(
+                Client.objects.filter(id__in=client_ids, assigned_staff=from_staff, is_active=True)
+                .values_list('id', flat=True)
+            )
+            if not valid_clients:
+                errors['clients'] = 'None of the selected clients belong to the chosen source staff.'
+
+        if not errors:
+            client_id_strs = [str(c) for c in valid_clients]
+            description = (
+                f'Transfer {len(client_id_strs)} client(s) from '
+                f'{from_staff.get_full_name()} to {target_staff.get_full_name()}'
+            )
+            req = AssignmentRequest.objects.create(
+                assignment_type='bulk_clients_to_staff',
+                status='pending',
+                requested_by=request.user,
+                branch=request.user.branch,
+                assignment_data={'client_ids': client_id_strs, 'staff_id': str(target_staff.id)},
+                description=description,
+                reason=reason,
+                target_staff=target_staff,
+                affected_count=len(client_id_strs),
+            )
+
+            notify_role(
+                roles='manager',
+                branch=request.user.branch,
+                notification_type='assignment_request_pending',
+                title='New Portfolio Transfer Request',
+                message=f'{request.user.get_full_name()} submitted a portfolio transfer request: "{description}".',
+                is_urgent=False,
+                exclude_user=request.user,
+            )
+
+            messages.success(request, f'Portfolio transfer request submitted: {description}.')
+            return redirect('core:assignment_detail', request_id=req.id)
+
+    return render(request, 'assignments/staff_portfolio_transfer.html', {
+        'page_title': 'Staff Portfolio Transfer',
+        'checker': checker,
+        'staff_list': staff_qs,
+        'from_staff': from_staff,
+        'target_staff_list': target_staff_qs,
+        'clients_json': clients_json,
+        'selected_ids': '[]',
+        'client_count': clients_qs.count(),
+        'errors': errors,
+        'posted_reason': request.POST.get('reason', '') if request.method == 'POST' else '',
+        'posted_target': request.POST.get('target_staff', '') if request.method == 'POST' else '',
+    })
