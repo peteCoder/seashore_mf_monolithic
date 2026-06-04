@@ -29,6 +29,33 @@ def next_business_day(d, holidays=None):
     return d
 
 
+def next_week_business_day(d, holidays=None):
+    """
+    For schedule due-date adjustment: if d is already a business day return d.
+    If d falls on a weekend or public holiday, advance to the Monday of the
+    FOLLOWING calendar week and then return the first business day from there.
+
+    This ensures a holiday never silently shifts a collection into the same
+    week — the collection moves to the next week entirely.
+
+    Examples (assuming no other holidays):
+      Monday  (holiday) → following Monday   (+7 days)
+      Friday  (holiday) → following Monday   (+3 days)
+      Saturday (weekend) → following Monday  (+2 days)
+      Wednesday (holiday) → following Monday (+5 days)
+    """
+    if is_business_day(d, holidays):
+        return d
+    # Find the Monday of the next calendar week relative to d.
+    # weekday(): Mon=0, Tue=1, ..., Sun=6
+    days_to_next_monday = (7 - d.weekday()) % 7
+    if days_to_next_monday == 0:
+        # d is already a Monday but it's a holiday → jump to the FOLLOWING Monday
+        days_to_next_monday = 7
+    next_monday = d + timedelta(days=days_to_next_monday)
+    return next_business_day(next_monday, holidays)
+
+
 def add_one_business_day(d, holidays=None):
     """
     Advance d by exactly one business day (Mon–Fri, skipping weekends and
@@ -144,8 +171,9 @@ def generate_repayment_schedule(loan):
         # Approved but not yet disbursed — use a placeholder
         first_due = timezone.now().date() + timedelta(days=7)
 
-    # Ensure the first due date never falls on a weekend or public holiday
-    first_due = next_business_day(first_due, holidays)
+    # If the first due date falls on a weekend or public holiday, push it to
+    # the first business day of the following week (not just the next day).
+    first_due = next_week_business_day(first_due, holidays)
 
     today = timezone.now().date()
     total_installments_paid = (
@@ -177,13 +205,13 @@ def generate_repayment_schedule(loan):
             if loan.repayment_frequency == 'daily':
                 due_date = add_one_business_day(current_due, holidays)
             elif loan.repayment_frequency == 'weekly':
-                due_date = next_business_day(current_due + timedelta(weeks=1), holidays)
+                due_date = next_week_business_day(current_due + timedelta(weeks=1), holidays)
             elif loan.repayment_frequency == 'fortnightly':
-                due_date = next_business_day(current_due + timedelta(weeks=2), holidays)
+                due_date = next_week_business_day(current_due + timedelta(weeks=2), holidays)
             elif loan.repayment_frequency == 'yearly':
-                due_date = next_business_day(current_due + relativedelta(years=1), holidays)
+                due_date = next_week_business_day(current_due + relativedelta(years=1), holidays)
             else:  # monthly
-                due_date = next_business_day(current_due + relativedelta(months=1), holidays)
+                due_date = next_week_business_day(current_due + relativedelta(months=1), holidays)
 
         current_due = due_date
 

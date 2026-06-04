@@ -16,7 +16,7 @@ from django.db.models import Q, Count
 from django.db import transaction
 from django.utils import timezone
 
-from core.models import ClientGroup, Client, GroupMembershipRequest
+from core.models import ClientGroup, Client, GroupMembershipRequest, Transaction
 from core.services.notification_service import notify, notify_role
 from core.forms.group_forms import (
     ClientGroupForm, ClientGroupSearchForm, AddMemberForm,
@@ -760,3 +760,80 @@ def group_update_member_role(request, group_id, client_id):
     }
 
     return render(request, 'groups/update_member_role.html', context)
+
+
+# =============================================================================
+# GROUP TRANSACTIONS VIEW
+# =============================================================================
+
+@login_required
+def group_transactions(request, group_id):
+    """All transactions for every member of a group, with filtering and pagination."""
+    checker = PermissionChecker(request.user)
+
+    group = get_object_or_404(ClientGroup, id=group_id)
+
+    if not checker.can_view_group(group):
+        raise PermissionDenied
+
+    member_ids = group.members.filter(
+        is_active=True,
+        approval_status='approved',
+    ).values_list('id', flat=True)
+
+    qs = (
+        Transaction.objects
+        .filter(client__in=member_ids)
+        .select_related('client', 'loan', 'savings_account', 'processed_by')
+        .order_by('-transaction_date', '-created_at')
+    )
+
+    # --- filters ---
+    txn_type  = request.GET.get('type', '')
+    member_id = request.GET.get('member', '')
+    date_from = request.GET.get('date_from', '')
+    date_to   = request.GET.get('date_to', '')
+
+    if txn_type:
+        qs = qs.filter(transaction_type=txn_type)
+    if member_id:
+        qs = qs.filter(client_id=member_id)
+    if date_from:
+        qs = qs.filter(transaction_date__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(transaction_date__date__lte=date_to)
+
+    paginator = Paginator(qs, 25)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    # members list for filter dropdown
+    members = group.members.filter(
+        is_active=True,
+        approval_status='approved',
+    ).order_by('first_name')
+
+    transaction_types = [
+        ('loan_repayment',        'Loan Repayment'),
+        ('deposit',               'Savings Deposit'),
+        ('withdrawal',            'Savings Withdrawal'),
+        ('loan_disbursement',     'Loan Disbursement'),
+        ('registration_fee',      'Registration Fee'),
+        ('membership_card_fee',   'Membership Card Fee'),
+        ('charges_at_disbursement', 'Charges at Disbursement'),
+    ]
+
+    context = {
+        'page_title':       f'Transactions — {group.name}',
+        'group':            group,
+        'page_obj':         page_obj,
+        'members':          members,
+        'transaction_types': transaction_types,
+        'txn_type':         txn_type,
+        'member_id':        member_id,
+        'date_from':        date_from,
+        'date_to':          date_to,
+        'total_count':      qs.count(),
+        'checker':          checker,
+    }
+
+    return render(request, 'groups/transactions.html', context)

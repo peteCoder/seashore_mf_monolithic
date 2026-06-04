@@ -32,6 +32,7 @@ from core.utils.helpers import (
     generate_repayment_schedule,
     count_business_days_in_months,
     next_business_day,
+    next_week_business_day,
     add_one_business_day,
 )
 from core.utils.accounting_helpers import (
@@ -4321,12 +4322,12 @@ class Loan(BaseModel):
         if freq == 'daily':
             return add_one_business_day(from_date, holidays)
         elif freq == 'weekly':
-            return next_business_day(from_date + timezone.timedelta(weeks=1), holidays)
+            return next_week_business_day(from_date + timezone.timedelta(weeks=1), holidays)
         elif freq == 'fortnightly':
-            return next_business_day(from_date + timezone.timedelta(weeks=2), holidays)
+            return next_week_business_day(from_date + timezone.timedelta(weeks=2), holidays)
         elif freq == 'yearly':
-            return next_business_day(from_date + relativedelta(years=1), holidays)
-        return next_business_day(from_date + relativedelta(months=1), holidays)
+            return next_week_business_day(from_date + relativedelta(years=1), holidays)
+        return next_week_business_day(from_date + relativedelta(months=1), holidays)
 
     def get_repayment_schedule(self):
         return generate_repayment_schedule(self)
@@ -4555,7 +4556,10 @@ class Loan(BaseModel):
         except Exception:
             _holidays = set()
 
-        schedule_start = disburse_dt.date() + _dt_mod.timedelta(days=grace_days)
+        # Use the local (Nigeria) calendar date so that late-night UTC disbursements
+        # are anchored to the correct business day rather than the UTC day before.
+        _local_disburse_date = timezone.localtime(disburse_dt).date()
+        schedule_start = _local_disburse_date + _dt_mod.timedelta(days=grace_days)
         self.first_repayment_date = self.calculate_next_payment_date(schedule_start, _holidays)
         self.next_repayment_date  = self.first_repayment_date
 
@@ -4661,27 +4665,62 @@ class Loan(BaseModel):
         principal_portion = Decimal('0.00')
         remaining         = amount
 
-        schedule_rows = (
+        # ₦100 tolerance: absorb denomination rounding excess onto the current
+        # row rather than drifting it to the next installment.
+        # Covers ₦25 (₦7,375 instalment / ₦7,400 collection) and ₦66.67
+        # (₦9,833.33 instalment / ₦9,900 collection) cases common in field.
+        _DENOMINATION_TOLERANCE = Decimal('100.00')
+
+        # Resolve the payment anchor date for date-matched allocation.
+        import datetime as _dt_alloc
+        if isinstance(transaction_date, _dt_alloc.datetime):
+            _pay_date = transaction_date.date()
+        elif isinstance(transaction_date, _dt_alloc.date):
+            _pay_date = transaction_date
+        else:
+            _pay_date = timezone.now().date()
+
+        # Load all unpaid/partial rows, then reorder so the row whose due_date
+        # is closest to the payment date comes first (date-matched allocation).
+        # This means a payment collected on May 18 is applied to the May 18
+        # installment, not to the oldest overdue one.  Any remaining balance
+        # after the anchor row flows forward through subsequent rows.
+        # Rows that are older than the anchor (genuinely missed collections)
+        # are intentionally skipped — they remain overdue.
+        all_open = list(
             self.repayment_schedule
             .filter(status__in=['pending', 'partial', 'overdue'])
             .order_by('installment_number')
         )
 
-        if schedule_rows.exists():
-            for row in schedule_rows:
+        if all_open:
+            anchor     = min(all_open, key=lambda r: abs((r.due_date - _pay_date).days))
+            anchor_idx = all_open.index(anchor)
+            ordered_rows = all_open[anchor_idx:]   # anchor + everything after; skip older missed rows
+        else:
+            ordered_rows = []
+
+        if ordered_rows:
+            for row in ordered_rows:
                 if remaining <= 0:
                     break
-                row_int_owed  = row.interest_amount  - min(row.amount_paid, row.interest_amount)
-                row_prin_owed = row.principal_amount - max(row.amount_paid - row.interest_amount, Decimal('0.00'))
+                row_int_owed   = row.interest_amount  - min(row.amount_paid, row.interest_amount)
+                row_prin_owed  = row.principal_amount - max(row.amount_paid - row.interest_amount, Decimal('0.00'))
                 row_total_owed = row_int_owed + row_prin_owed
 
-                int_taken  = min(remaining, row_int_owed)
-                interest_portion += int_taken
-                remaining -= int_taken
+                excess = remaining - row_total_owed
+                if Decimal('0') < excess <= _DENOMINATION_TOLERANCE:
+                    int_taken  = row_int_owed
+                    prin_taken = row_prin_owed + excess
+                    remaining  = Decimal('0.00')
+                else:
+                    int_taken  = min(remaining, row_int_owed)
+                    remaining -= int_taken
+                    prin_taken = min(remaining, row_prin_owed)
+                    remaining -= prin_taken
 
-                prin_taken = min(remaining, row_prin_owed)
+                interest_portion  += int_taken
                 principal_portion += prin_taken
-                remaining -= prin_taken
 
                 row_applied = int_taken + prin_taken
                 if row_applied > 0:
@@ -5605,8 +5644,18 @@ class LoanRepaymentPosting(BaseModel):
         3. Creates a transaction record
         4. Updates posting status and links transaction
         """
-        if self.status != 'pending':
+        # Re-fetch with a row-level lock so concurrent approval attempts are
+        # serialised — prevents the stale-read double-debit race condition.
+        locked = (
+            LoanRepaymentPosting.objects
+            .select_for_update()
+            .get(pk=self.pk)
+        )
+        if locked.status != 'pending':
             raise ValidationError("Only pending postings can be approved")
+
+        # Reload loan with lock so we always read the latest outstanding balance.
+        self.loan = Loan.objects.select_for_update().get(pk=self.loan_id)
 
         if self.loan.status not in ['active', 'overdue']:
             raise ValidationError(
@@ -5921,8 +5970,12 @@ class SavingsDepositPosting(BaseModel):
             transaction_date: Date to record on the Transaction and JournalEntry.
                               Defaults to self.payment_date if not provided.
         """
-        if self.status != 'pending':
+        locked = SavingsDepositPosting.objects.select_for_update().get(pk=self.pk)
+        if locked.status != 'pending':
             raise ValidationError("Only pending postings can be approved")
+
+        # Reload savings account with lock to read the latest balance.
+        self.savings_account = SavingsAccount.objects.select_for_update().get(pk=self.savings_account_id)
 
         if self.savings_account.status not in ['active', 'pending']:
             raise ValidationError(
@@ -6211,8 +6264,12 @@ class SavingsWithdrawalPosting(BaseModel):
             transaction_date: Date to record on the Transaction and JournalEntry.
                               Defaults to self.withdrawal_date if not provided.
         """
-        if self.status != 'pending':
+        locked = SavingsWithdrawalPosting.objects.select_for_update().get(pk=self.pk)
+        if locked.status != 'pending':
             raise ValidationError("Only pending postings can be approved")
+
+        # Reload savings account with lock to read the latest balance.
+        self.savings_account = SavingsAccount.objects.select_for_update().get(pk=self.savings_account_id)
 
         if self.savings_account.status != 'active':
             raise ValidationError(
@@ -7685,56 +7742,59 @@ class LoanRepaymentSchedule(BaseModel):
     def __str__(self):
         return f"{self.loan.loan_number} - Installment {self.installment_number}"
     
+    @property
+    def computed_status(self):
+        """
+        Always-current status derived from amount_paid, total_amount, and today's
+        date.  Use this for display; the stored status field is a DB-query cache
+        that is only refreshed at save() time.
+        """
+        today = timezone.now().date()
+        full_amount = self.total_amount + self.penalty_amount
+        if self.amount_paid >= full_amount:
+            return 'paid'
+        if self.amount_paid > 0:
+            return 'partial'
+        if self.due_date < today:
+            return 'overdue'
+        return 'pending'
+
     def save(self, *args, **kwargs):
-        # Calculate outstanding
-        self.outstanding_amount = (self.total_amount + self.penalty_amount) - self.amount_paid
-        
-        # Update status
-        if self.amount_paid >= (self.total_amount + self.penalty_amount):
-            self.status = 'paid'
-            if not self.paid_date:
-                self.paid_date = timezone.now().date()
-        elif self.amount_paid > 0:
-            self.status = 'partial'
-        elif self.due_date < timezone.now().date():
-            self.status = 'overdue'
-        else:
-            self.status = 'pending'
-        
+        self.outstanding_amount = max(
+            (self.total_amount + self.penalty_amount) - self.amount_paid,
+            Decimal('0.00'),
+        )
+        # Derive status from computed_status so the logic lives in one place.
+        self.status = self.computed_status
+        if self.status == 'paid' and not self.paid_date:
+            self.paid_date = timezone.now().date()
         super().save(*args, **kwargs)
-    
+
     @db_transaction.atomic
     def record_payment(self, amount, payment_date=None):
-        """Record payment for this installment"""
         amount = Decimal(str(amount))
-        
         if amount <= 0:
             raise ValueError("Payment amount must be positive")
-        
         if amount > self.outstanding_amount:
             raise ValueError(f"Payment exceeds outstanding amount of ₦{self.outstanding_amount:,.2f}")
-        
         self.amount_paid += amount
         self.paid_date = payment_date or timezone.now().date()
         self.save()
-    
+
     def calculate_penalty(self, penalty_rate=Decimal('0.01')):
-        """Calculate penalty for overdue installment"""
-        if self.status == 'overdue':
+        if self.computed_status == 'overdue':
             days_overdue = (timezone.now().date() - self.due_date).days
             if days_overdue > 0:
                 penalty = self.outstanding_amount * penalty_rate * days_overdue / 30
                 self.penalty_amount = max(penalty, Decimal('0.00'))
                 self.save(update_fields=['penalty_amount'])
-    
+
     @property
     def is_overdue(self):
-        """Check if installment is overdue"""
-        return self.status == 'overdue' and self.outstanding_amount > 0
-    
+        return self.computed_status == 'overdue'
+
     @property
     def days_overdue(self):
-        """Calculate days overdue"""
         if self.is_overdue:
             return (timezone.now().date() - self.due_date).days
         return 0

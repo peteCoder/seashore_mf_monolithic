@@ -42,6 +42,7 @@ from .group_views import (
     group_approve_members_bulk,
     group_remove_member,
     group_update_member_role,
+    group_transactions,
 )
 
 from .notification_views import (

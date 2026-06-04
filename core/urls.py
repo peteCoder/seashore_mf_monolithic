@@ -89,6 +89,7 @@ from core.views.group_views import (
     group_approve_members_bulk,
     group_remove_member,
     group_update_member_role,
+    group_transactions,
 )
 
 from core.views.group_collection_views import (
@@ -387,6 +388,7 @@ urlpatterns = [
     path('groups/create/', group_create, name='group_create'),
     path('groups/<uuid:group_id>/', group_detail, name='group_detail'),
     path('groups/<uuid:group_id>/edit/', group_update, name='group_update'),
+    path('groups/<uuid:group_id>/transactions/', group_transactions, name='group_transactions'),
     path('groups/<uuid:group_id>/approve/', group_approve, name='group_approve'),
 
     # Member Management

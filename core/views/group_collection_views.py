@@ -29,6 +29,7 @@ from core.models import (
     GroupCollectionSession, GroupCollectionItem,
     GroupSavingsCollectionSession, GroupSavingsCollectionItem,
     GroupCombinedSession, GroupCombinedLoanItem, GroupCombinedSavingsItem,
+    LoanRepaymentPosting,
 )
 from core.permissions import PermissionChecker
 
@@ -461,11 +462,26 @@ def group_collection_approve(request, session_id):
                         errors.append(f'{item.loan.loan_number}: Amount exceeds balance')
                         continue
 
-                    item.loan.record_repayment(
+                    txn = item.loan.record_repayment(
                         amount=item.amount,
                         processed_by=request.user,
                         description=f'Group collection: {session.group.name} ({session.collection_date})',
                         transaction_date=txn_date,
+                    )
+                    # Create an approved posting for audit trail so it appears
+                    # in the loan's Repayment Postings tab.
+                    LoanRepaymentPosting.objects.create(
+                        loan=item.loan,
+                        client=item.loan.client,
+                        branch=item.loan.branch,
+                        amount=item.amount,
+                        payment_date=txn_date,
+                        status='approved',
+                        submitted_by=session.collected_by,
+                        reviewed_by=request.user,
+                        reviewed_at=timezone.now(),
+                        transaction=txn,
+                        submission_notes=f'Group collection: {session.group.name} ({session.collection_date})',
                     )
                 except Exception as e:
                     errors.append(f'{item.loan.loan_number}: {str(e)}')
@@ -832,11 +848,22 @@ def group_combined_collection_approve(request, session_id):
                     if item.amount > item.loan.outstanding_balance:
                         errors.append(f'Loan {item.loan.loan_number}: amount exceeds balance')
                         continue
-                    item.loan.record_repayment(
+                    txn = item.loan.record_repayment(
                         amount=item.amount,
                         processed_by=request.user,
                         description=f'Group combined collection: {session.group.name} ({session.collection_date})',
                         transaction_date=txn_date,
+                    )
+                    LoanRepaymentPosting.objects.create(
+                        loan=item.loan,
+                        amount=item.amount,
+                        payment_date=txn_date,
+                        status='approved',
+                        submitted_by=session.collected_by,
+                        reviewed_by=request.user,
+                        reviewed_at=timezone.now(),
+                        transaction=txn,
+                        notes=f'Group combined collection: {session.group.name} ({session.collection_date})',
                     )
                 except Exception as e:
                     errors.append(f'Loan {item.loan.loan_number}: {str(e)}')

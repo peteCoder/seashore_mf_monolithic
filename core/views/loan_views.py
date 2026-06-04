@@ -157,9 +157,20 @@ def loan_detail(request, loan_id):
             raise PermissionDenied("You don't have permission to view this loan")
     # Admin/Director can view all
 
-    # Generate repayment schedule
-    from core.utils.helpers import generate_repayment_schedule
-    repayment_schedule = generate_repayment_schedule(loan)
+    # Use persisted DB rows so the template can access model properties
+    # (e.g. computed_status).  Fall back to a generated preview for loans
+    # that have not been disbursed yet and have no persisted rows.
+    from core.models import LoanRepaymentSchedule as _LRS
+    db_schedule = _LRS.objects.filter(loan=loan).order_by('installment_number')
+    if db_schedule.exists():
+        repayment_schedule = db_schedule
+    else:
+        from core.utils.helpers import generate_repayment_schedule
+        preview = generate_repayment_schedule(loan)
+        # Inject computed_status so the template works for preview rows too.
+        for item in preview:
+            item['computed_status'] = item.get('status', 'pending')
+        repayment_schedule = preview
 
     # Get repayment postings
     repayment_postings = loan.repayment_postings.select_related(

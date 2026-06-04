@@ -40,6 +40,10 @@
                 {% endif %}
             </div>
             <div class="flex flex-wrap items-center gap-3">
+                <a href="{% url 'core:group_transactions' group.id %}"
+                   class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium">
+                    <i class="fas fa-receipt mr-2"></i>View Transactions
+                </a>
                 {% if checker.is_admin_or_director or checker.is_manager and group.branch == checker.user.branch or checker.is_staff and group.loan_officer == checker.user %}
                 <a href="{% url 'core:group_update' group.id %}"
                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
@@ -321,6 +325,11 @@
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
                 <div class="space-y-2">
+                    <a href="{% url 'core:group_transactions' group.id %}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-receipt text-indigo-600"></i>
+                        <span>View All Transactions</span>
+                    </a>
                     {% if checker.is_admin_or_director or checker.is_manager and group.branch == checker.user.branch or checker.is_staff and group.loan_officer == checker.user %}
                     <a href="{% url 'core:group_update' group.id %}"
                        class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">

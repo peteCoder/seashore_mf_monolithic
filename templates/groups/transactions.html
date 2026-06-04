@@ -1,0 +1,226 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div>
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:group_list' %}" class="hover:text-primary-600">Groups</a>
+            <span>/</span>
+            <a href="{% url 'core:group_detail' group.id %}" class="hover:text-primary-600">{{ group.name }}</a>
+            <span>/</span>
+            <span>Transactions</span>
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {{ total_count|intcomma }} transaction{{ total_count|pluralize }} across all active members
+                </p>
+            </div>
+            <a href="{% url 'core:group_detail' group.id %}"
+               class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Group
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Member filter -->
+            <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Member</label>
+                <select name="member"
+                        class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500">
+                    <option value="">All Members</option>
+                    {% for m in members %}
+                    <option value="{{ m.id }}" {% if member_id == m.id|stringformat:'s' %}selected{% endif %}>
+                        {{ m.full_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Type filter -->
+            <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Type</label>
+                <select name="type"
+                        class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500">
+                    <option value="">All Types</option>
+                    {% for val, label in transaction_types %}
+                    <option value="{{ val }}" {% if txn_type == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Date from -->
+            <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">From Date</label>
+                <input type="date" name="date_from" value="{{ date_from }}"
+                       class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500">
+            </div>
+
+            <!-- Date to -->
+            <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">To Date</label>
+                <input type="date" name="date_to" value="{{ date_to }}"
+                       class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500">
+            </div>
+
+            <div class="sm:col-span-2 lg:col-span-4 flex items-center gap-3">
+                <button type="submit"
+                        class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg">
+                    <i class="fas fa-filter mr-2"></i>Apply Filters
+                </button>
+                {% if txn_type or member_id or date_from or date_to %}
+                <a href="{% url 'core:group_transactions' group.id %}"
+                   class="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg">
+                    <i class="fas fa-times mr-2"></i>Clear
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {% if page_obj.object_list %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Reference</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Processed By</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                    {% for txn in page_obj %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                            {{ txn.transaction_date|date:"M d, Y" }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <a href="{% url 'core:client_detail' txn.client.id %}"
+                               class="text-sm font-medium text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400">
+                                {{ txn.client.full_name }}
+                            </a>
+                        </td>
+                        <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 font-mono whitespace-nowrap">
+                            {{ txn.transaction_ref }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            {% if txn.transaction_type == 'loan_repayment' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                                <i class="fas fa-redo mr-1"></i>Loan Repayment
+                            </span>
+                            {% elif txn.transaction_type == 'deposit' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                                <i class="fas fa-arrow-down mr-1"></i>Savings Deposit
+                            </span>
+                            {% elif txn.transaction_type == 'withdrawal' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300">
+                                <i class="fas fa-arrow-up mr-1"></i>Withdrawal
+                            </span>
+                            {% elif txn.transaction_type == 'loan_disbursement' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
+                                <i class="fas fa-hand-holding-usd mr-1"></i>Disbursement
+                            </span>
+                            {% elif txn.transaction_type == 'registration_fee' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                <i class="fas fa-receipt mr-1"></i>Registration Fee
+                            </span>
+                            {% elif txn.transaction_type == 'membership_card_fee' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                <i class="fas fa-id-card mr-1"></i>Card Fee
+                            </span>
+                            {% elif txn.transaction_type == 'charges_at_disbursement' %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
+                                <i class="fas fa-tags mr-1"></i>Disbursement Charges
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                                {{ txn.get_transaction_type_display }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white text-right whitespace-nowrap">
+                            &#8358;{{ txn.amount|floatformat:2|intcomma }}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            {% if txn.status == 'completed' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                                <i class="fas fa-check-circle mr-1"></i>Completed
+                            </span>
+                            {% elif txn.status == 'pending' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
+                                <i class="fas fa-clock mr-1"></i>Pending
+                            </span>
+                            {% elif txn.status == 'reversed' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+                                <i class="fas fa-undo mr-1"></i>Reversed
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                                {{ txn.status|capfirst }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                            {{ txn.processed_by.get_full_name|default:"—" }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+                Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count|intcomma }}
+            </p>
+            <div class="flex items-center gap-1">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if txn_type %}&type={{ txn_type }}{% endif %}{% if member_id %}&member={{ member_id }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}"
+                   class="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+                {% endif %}
+                <span class="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if txn_type %}&type={{ txn_type }}{% endif %}{% if member_id %}&member={{ member_id }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}"
+                   class="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="py-16 text-center">
+            <i class="fas fa-receipt text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
+            <p class="text-gray-500 dark:text-gray-400">No transactions found</p>
+            {% if txn_type or member_id or date_from or date_to %}
+            <a href="{% url 'core:group_transactions' group.id %}"
+               class="mt-3 inline-block text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400">
+                Clear filters to see all transactions
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
