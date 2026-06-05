@@ -94,6 +94,7 @@ from core.views.group_views import (
 
 from core.views.group_collection_views import (
     group_collection_list,
+    group_all_sessions_list,
     group_collection_detail,
     group_collection_post,
     group_collection_session_detail,
@@ -399,6 +400,9 @@ urlpatterns = [
     path('groups/<uuid:group_id>/members/<uuid:client_id>/remove/', group_remove_member, name='group_remove_member'),
     path('groups/<uuid:group_id>/members/<uuid:client_id>/update-role/', group_update_member_role, name='group_update_member_role'),
     path('groups/membership-requests/<uuid:request_id>/approve/', group_approve_member, name='group_approve_member'),
+
+    # Group Collections - unified sessions list
+    path('groups/sessions/', group_all_sessions_list, name='group_all_sessions_list'),
 
     # Group Collections - Loan Repayments
     path('groups/collections/', group_collection_list, name='group_collection_list'),

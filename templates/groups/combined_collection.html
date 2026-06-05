@@ -552,6 +552,17 @@ function combinedCollectionApp() {
                 );
                 return false;
             }
+            // Warn if there are active loan members but no loan amounts were entered
+            const hasLoanMembers = {{ member_loan_data|length }} > 0;
+            if (hasLoanMembers && this.loanFilledCount() === 0) {
+                const proceed = confirm(
+                    'Warning: You have not entered any loan repayment amounts.\n\n' +
+                    'This session will be submitted as SAVINGS ONLY — no loan balances will be updated.\n\n' +
+                    'If you meant to collect loan repayments too, click Cancel and fill in the loan amounts.\n\n' +
+                    'Click OK only if you intentionally want to collect savings only this time.'
+                );
+                if (!proceed) return false;
+            }
             return true;
         }
     };

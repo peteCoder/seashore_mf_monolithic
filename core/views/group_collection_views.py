@@ -32,6 +32,7 @@ from core.models import (
     LoanRepaymentPosting,
 )
 from core.permissions import PermissionChecker
+from core.services.notification_service import notify_role
 
 
 def _check_group_permission(checker, group, request):
@@ -101,6 +102,97 @@ def group_collection_list(request):
     }
 
     return render(request, 'groups/collection_list.html', context)
+
+
+# =============================================================================
+# ALL GROUP SESSIONS LIST (approval dashboard)
+# =============================================================================
+
+@login_required
+def group_all_sessions_list(request):
+    """Unified list of all group collection sessions for managers/admins to review."""
+    checker = PermissionChecker(request.user)
+
+    if not (checker.is_admin_or_director() or checker.is_manager()):
+        raise PermissionDenied('Only managers, HR, directors and admins can view this page.')
+
+    status_filter = request.GET.get('status', 'pending')
+    type_filter = request.GET.get('type', 'all')
+
+    def _base_qs(model):
+        qs = model.objects.select_related('group', 'group__branch', 'collected_by')
+        if checker.is_manager():
+            qs = qs.filter(group__branch=request.user.branch)
+        if status_filter in ('pending', 'approved', 'rejected'):
+            qs = qs.filter(status=status_filter)
+        return qs.order_by('-collection_date', '-created_at')
+
+    combined_qs = _base_qs(GroupCombinedSession)
+    loan_qs = _base_qs(GroupCollectionSession)
+    savings_qs = _base_qs(GroupSavingsCollectionSession)
+
+    # Tag each session with its type and build a merged list
+    def _tag(qs, tag, detail_url_name):
+        rows = []
+        for s in qs:
+            rows.append({
+                'session': s,
+                'session_type': tag,
+                'detail_url_name': detail_url_name,
+                'sort_key': (s.collection_date, s.created_at),
+            })
+        return rows
+
+    if type_filter == 'combined':
+        rows = _tag(combined_qs, 'combined', 'core:group_combined_session_detail')
+    elif type_filter == 'loan':
+        rows = _tag(loan_qs, 'loan', 'core:group_collection_session_detail')
+    elif type_filter == 'savings':
+        rows = _tag(savings_qs, 'savings', 'core:group_savings_session_detail')
+    else:
+        rows = (
+            _tag(combined_qs, 'combined', 'core:group_combined_session_detail')
+            + _tag(loan_qs, 'loan', 'core:group_collection_session_detail')
+            + _tag(savings_qs, 'savings', 'core:group_savings_session_detail')
+        )
+        rows.sort(key=lambda r: r['sort_key'], reverse=True)
+
+    # Pending counts for badges
+    pending_counts = {}
+    for model, label in (
+        (GroupCombinedSession, 'combined'),
+        (GroupCollectionSession, 'loan'),
+        (GroupSavingsCollectionSession, 'savings'),
+    ):
+        qs = model.objects.filter(status='pending')
+        if checker.is_manager():
+            qs = qs.filter(group__branch=request.user.branch)
+        pending_counts[label] = qs.count()
+    pending_counts['total'] = sum(pending_counts.values())
+
+    paginator = Paginator(rows, 25)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    return render(request, 'groups/all_sessions_list.html', {
+        'page_title': 'Group Collection Sessions',
+        'page_obj': page_obj,
+        'status_filter': status_filter,
+        'type_filter': type_filter,
+        'pending_counts': pending_counts,
+        'checker': checker,
+        'status_choices': [
+            ('pending', 'Pending'),
+            ('approved', 'Approved'),
+            ('rejected', 'Rejected'),
+            ('all', 'All'),
+        ],
+        'type_choices': [
+            ('all', 'All Types'),
+            ('combined', 'Combined'),
+            ('loan', 'Loan Only'),
+            ('savings', 'Savings Only'),
+        ],
+    })
 
 
 # =============================================================================
@@ -226,7 +318,8 @@ def group_collection_post(request, group_id):
         notes=notes or f'Loan collection via {payment_method}. Ref: {payment_reference}',
     )
 
-    # Create individual items
+    # Create individual items + a pending LoanRepaymentPosting for each
+    # (so the posting appears in /loans/repayments/ for manager review)
     for item_data in items_data:
         GroupCollectionItem.objects.create(
             session=session,
@@ -234,7 +327,29 @@ def group_collection_post(request, group_id):
             amount=item_data['amount'],
             notes=f'Group collection - {payment_method}',
         )
+        LoanRepaymentPosting.objects.create(
+            loan=item_data['loan'],
+            amount=item_data['amount'],
+            payment_date=session.collection_date,
+            payment_method=payment_method,
+            payment_reference=payment_reference,
+            status='pending',
+            submitted_by=request.user,
+            submission_notes=f'group_session:{session.id}',
+        )
 
+    notify_role(
+        roles='manager',
+        branch=group.branch,
+        notification_type='group_collection_pending',
+        title='Group Loan Collection Awaiting Approval',
+        message=(
+            f'{request.user.get_full_name()} collected ₦{total_amount_entered:,.2f} in loan repayments '
+            f'from group "{group.name}" — awaiting your approval.'
+        ),
+        is_urgent=False,
+        exclude_user=request.user,
+    )
     messages.success(
         request,
         f'Collection session created with {len(items_data)} payment(s) totalling ₦{total_amount_entered:,.2f}. '
@@ -365,6 +480,18 @@ def group_savings_collection_post(request, group_id):
             amount=item_data['amount'],
         )
 
+    notify_role(
+        roles='manager',
+        branch=group.branch,
+        notification_type='group_collection_pending',
+        title='Group Savings Collection Awaiting Approval',
+        message=(
+            f'{request.user.get_full_name()} collected ₦{total_amount_entered:,.2f} in savings deposits '
+            f'from group "{group.name}" — awaiting your approval.'
+        ),
+        is_urgent=False,
+        exclude_user=request.user,
+    )
     messages.success(
         request,
         f'Savings collection created with {len(items_data)} deposit(s) totalling ₦{total_amount_entered:,.2f}. '
@@ -455,6 +582,15 @@ def group_collection_approve(request, session_id):
                 items = session.items.select_related('loan', 'loan__client')
                 errors = []
 
+                # Map loan_id → existing pending posting (created when session was submitted)
+                existing_postings = {
+                    p.loan_id: p
+                    for p in LoanRepaymentPosting.objects.filter(
+                        submission_notes=f'group_session:{session.id}',
+                        status='pending',
+                    )
+                }
+
                 for item in items:
                     try:
                         if item.loan.status not in ['active', 'overdue']:
@@ -464,25 +600,37 @@ def group_collection_approve(request, session_id):
                             errors.append(f'{item.loan.loan_number}: Amount exceeds balance')
                             continue
 
-                        txn = item.loan.record_repayment(
-                            amount=item.amount,
-                            processed_by=request.user,
-                            description=f'Group collection: {session.group.name} ({session.collection_date})',
-                            transaction_date=txn_date,
-                        )
-                        LoanRepaymentPosting.objects.create(
-                            loan=item.loan,
-                            client=item.loan.client,
-                            branch=item.loan.branch,
-                            amount=item.amount,
-                            payment_date=txn_date,
-                            status='approved',
-                            submitted_by=session.collected_by,
-                            reviewed_by=request.user,
-                            reviewed_at=timezone.now(),
-                            transaction=txn,
-                            submission_notes=f'Group collection: {session.group.name} ({session.collection_date})',
-                        )
+                        with transaction.atomic():
+                            txn = item.loan.record_repayment(
+                                amount=item.amount,
+                                processed_by=request.user,
+                                description=f'Group collection: {session.group.name} ({session.collection_date})',
+                                transaction_date=txn_date,
+                            )
+                            posting = existing_postings.get(item.loan_id)
+                            if posting:
+                                posting.status = 'approved'
+                                posting.reviewed_by = request.user
+                                posting.reviewed_at = timezone.now()
+                                posting.transaction = txn
+                                posting.payment_date = txn_date
+                                posting.save(update_fields=[
+                                    'status', 'reviewed_by', 'reviewed_at',
+                                    'transaction', 'payment_date', 'updated_at',
+                                ])
+                            else:
+                                # Fallback for sessions created before this change
+                                LoanRepaymentPosting.objects.create(
+                                    loan=item.loan,
+                                    amount=item.amount,
+                                    payment_date=txn_date,
+                                    status='approved',
+                                    submitted_by=session.collected_by,
+                                    reviewed_by=request.user,
+                                    reviewed_at=timezone.now(),
+                                    transaction=txn,
+                                    submission_notes=f'group_session:{session.id}',
+                                )
                     except Exception as e:
                         errors.append(f'{item.loan.loan_number}: {str(e)}')
 
@@ -505,6 +653,17 @@ def group_collection_approve(request, session_id):
                 if not review_notes:
                     messages.error(request, 'Please provide a reason for rejection.')
                     return redirect('core:group_collection_approve', session_id=session.id)
+
+                # Reject any pending postings created when the session was submitted
+                LoanRepaymentPosting.objects.filter(
+                    submission_notes=f'group_session:{session.id}',
+                    status='pending',
+                ).update(
+                    status='rejected',
+                    reviewed_by=request.user,
+                    reviewed_at=timezone.now(),
+                    review_notes=review_notes,
+                )
 
                 session.status = 'rejected'
                 session.rejected_by = request.user
@@ -748,6 +907,21 @@ def group_combined_collection_post(request, group_id):
         messages.error(request, 'No valid amounts were entered for any member.')
         return redirect('core:group_combined_collection', group_id=group.id)
 
+    # If the group has active/overdue loans but no loan amounts were submitted,
+    # reject the request so repayments are not silently skipped.
+    if not loan_items_data:
+        has_active_loans = Loan.objects.filter(
+            client__group=group,
+            status__in=['active', 'overdue']
+        ).exists()
+        if has_active_loans:
+            messages.error(
+                request,
+                'This group has members with active loans but no loan repayment amounts '
+                'were entered. Please fill in loan amounts or use "Collect Savings Only" instead.'
+            )
+            return redirect('core:group_combined_collection', group_id=group.id)
+
     grand_total = loan_total + savings_total
 
     # Validate submitted total_amount matches computed grand total
@@ -795,6 +969,19 @@ def group_combined_collection_post(request, group_id):
             amount=item['amount'],
         )
 
+    notify_role(
+        roles='manager',
+        branch=group.branch,
+        notification_type='group_collection_pending',
+        title='Group Combined Collection Awaiting Approval',
+        message=(
+            f'{request.user.get_full_name()} submitted a combined collection for group "{group.name}": '
+            f'{len(loan_items_data)} loan repayment(s) + {len(savings_items_data)} savings deposit(s), '
+            f'total ₦{grand_total:,.2f} — awaiting your approval.'
+        ),
+        is_urgent=False,
+        exclude_user=request.user,
+    )
     messages.success(
         request,
         f'Combined collection session created: {len(loan_items_data)} loan repayment(s) '
@@ -869,23 +1056,26 @@ def group_combined_collection_approve(request, session_id):
                         if item.amount > item.loan.outstanding_balance:
                             errors.append(f'Loan {item.loan.loan_number}: amount exceeds balance')
                             continue
-                        txn = item.loan.record_repayment(
-                            amount=item.amount,
-                            processed_by=request.user,
-                            description=f'Group combined collection: {session.group.name} ({session.collection_date})',
-                            transaction_date=txn_date,
-                        )
-                        LoanRepaymentPosting.objects.create(
-                            loan=item.loan,
-                            amount=item.amount,
-                            payment_date=txn_date,
-                            status='approved',
-                            submitted_by=session.collected_by,
-                            reviewed_by=request.user,
-                            reviewed_at=timezone.now(),
-                            transaction=txn,
-                            submission_notes=f'Group combined collection: {session.group.name} ({session.collection_date})',
-                        )
+                        with transaction.atomic():
+                            txn = item.loan.record_repayment(
+                                amount=item.amount,
+                                processed_by=request.user,
+                                description=f'Group combined collection: {session.group.name} ({session.collection_date})',
+                                transaction_date=txn_date,
+                            )
+                            LoanRepaymentPosting.objects.create(
+                                loan=item.loan,
+                                client=item.loan.client,
+                                branch=item.loan.branch,
+                                amount=item.amount,
+                                payment_date=txn_date,
+                                status='approved',
+                                submitted_by=session.collected_by,
+                                reviewed_by=request.user,
+                                reviewed_at=timezone.now(),
+                                transaction=txn,
+                                submission_notes=f'Group combined collection: {session.group.name} ({session.collection_date})',
+                            )
                     except Exception as e:
                         errors.append(f'Loan {item.loan.loan_number}: {str(e)}')
 

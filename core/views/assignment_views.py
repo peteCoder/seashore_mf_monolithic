@@ -15,7 +15,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from core.models import AssignmentRequest, Client, ClientGroup, User
+from core.models import AssignmentRequest, Client, ClientGroup, Loan, SavingsAccount, User
 from core.forms.assignment_forms import AssignmentRequestForm, AssignmentReviewForm
 from core.permissions import PermissionChecker
 from core.services.notification_service import notify, notify_role
@@ -67,11 +67,12 @@ def assignment_list(request):
 def assignment_create(request):
     checker = PermissionChecker(request.user)
 
-    clients_qs = (
-        Client.objects.filter(is_active=True, approval_status='approved')
-        .order_by('first_name', 'last_name')
-        .only('id', 'first_name', 'last_name', 'client_id')
-    )
+    clients_qs = Client.objects.filter(is_active=True, approval_status='approved')
+    if checker.is_staff():
+        clients_qs = clients_qs.filter(assigned_staff=request.user)
+    elif checker.is_manager():
+        clients_qs = clients_qs.filter(branch=request.user.branch)
+    clients_qs = clients_qs.order_by('first_name', 'last_name').only('id', 'first_name', 'last_name', 'client_id')
     clients_json = json.dumps([
         {'id': str(c.id), 'name': c.get_full_name(), 'client_id': c.client_id}
         for c in clients_qs
@@ -305,6 +306,8 @@ def _execute_assignment(req):
         branch_id = data.get('branch_id')
         if client_id and branch_id:
             Client.objects.filter(id=client_id).update(branch_id=branch_id)
+            SavingsAccount.objects.filter(client_id=client_id).update(branch_id=branch_id)
+            Loan.objects.filter(client_id=client_id).update(branch_id=branch_id)
 
     elif atype == 'client_to_group':
         client_id = data.get('client_id')
@@ -339,6 +342,8 @@ def _execute_assignment(req):
         branch_id = data.get('branch_id')
         if client_ids and branch_id:
             Client.objects.filter(id__in=client_ids).update(branch_id=branch_id)
+            SavingsAccount.objects.filter(client_id__in=client_ids).update(branch_id=branch_id)
+            Loan.objects.filter(client_id__in=client_ids).update(branch_id=branch_id)
 
     elif atype == 'bulk_clients_to_group':
         client_ids = data.get('client_ids', [])

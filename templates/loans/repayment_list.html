@@ -141,6 +141,57 @@
     </div>
     {% endif %}
 
+    <!-- Pending Group Loan Collections -->
+    {% if pending_group_sessions %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden mb-6 border-l-4 border-yellow-400">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-users text-yellow-500"></i>
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                    Pending Group Loan Collections
+                    <span class="ml-2 px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">{{ pending_group_sessions|length }}</span>
+                </h2>
+            </div>
+            <a href="{% url 'core:group_all_sessions_list' %}?type=loan&status=pending"
+               class="text-sm text-primary-600 dark:text-primary-400 hover:underline">View all →</a>
+        </div>
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-yellow-50 dark:bg-yellow-900/10">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Group</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Branch</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Collection Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Amount</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Submitted By</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                {% for session in pending_group_sessions %}
+                <tr class="hover:bg-yellow-50/60 dark:hover:bg-yellow-900/10 transition-colors">
+                    <td class="px-6 py-4">
+                        <a href="{% url 'core:group_detail' session.group.id %}"
+                           class="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline">
+                            {{ session.group.name }}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{{ session.group.branch.name }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900 dark:text-white whitespace-nowrap">{{ session.collection_date|date:"M d, Y" }}</td>
+                    <td class="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">&#8358;{{ session.total_amount|floatformat:2|intcomma }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">{{ session.collected_by.get_full_name }}</td>
+                    <td class="px-6 py-4 text-right">
+                        <a href="{% url 'core:group_collection_approve' session.id %}"
+                           class="inline-flex items-center px-3 py-1.5 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:hover:bg-yellow-900/50 dark:text-yellow-300 rounded-lg text-xs font-semibold transition-colors">
+                            <i class="fas fa-clipboard-check mr-1"></i> Review Session
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
     <!-- Postings Table -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">

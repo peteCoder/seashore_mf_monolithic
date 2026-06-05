@@ -1,0 +1,193 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}Group Collection Sessions - Seashore Microfinance{% endblock %}
+{% block page_title %}Group Collection Sessions{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+    <!-- Header -->
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                <i class="fas fa-layer-group text-primary-600 dark:text-primary-400 mr-2"></i>
+                Group Collection Sessions
+            </h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">All collection sessions from every group — review and approve pending submissions.</p>
+        </div>
+        {% if pending_counts.total > 0 %}
+        <div class="flex items-center space-x-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg px-4 py-2">
+            <i class="fas fa-clock text-yellow-600 dark:text-yellow-400"></i>
+            <span class="text-sm font-semibold text-yellow-800 dark:text-yellow-300">{{ pending_counts.total }} session{{ pending_counts.total|pluralize }} awaiting approval</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Pending counts summary -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <a href="?type=combined&status=pending"
+           class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 flex items-center space-x-4 hover:ring-2 hover:ring-primary-400 transition-all {% if type_filter == 'combined' and status_filter == 'pending' %}ring-2 ring-primary-500{% endif %}">
+            <div class="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-layer-group text-primary-600 dark:text-primary-400"></i>
+            </div>
+            <div>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ pending_counts.combined }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Pending Combined</p>
+            </div>
+        </a>
+        <a href="?type=loan&status=pending"
+           class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 flex items-center space-x-4 hover:ring-2 hover:ring-green-400 transition-all {% if type_filter == 'loan' and status_filter == 'pending' %}ring-2 ring-green-500{% endif %}">
+            <div class="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-money-bill-wave text-green-600 dark:text-green-400"></i>
+            </div>
+            <div>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ pending_counts.loan }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Pending Loan-Only</p>
+            </div>
+        </a>
+        <a href="?type=savings&status=pending"
+           class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 flex items-center space-x-4 hover:ring-2 hover:ring-purple-400 transition-all {% if type_filter == 'savings' and status_filter == 'pending' %}ring-2 ring-purple-500{% endif %}">
+            <div class="h-10 w-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-piggy-bank text-purple-600 dark:text-purple-400"></i>
+            </div>
+            <div>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ pending_counts.savings }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Pending Savings-Only</p>
+            </div>
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6 flex flex-wrap gap-3 items-center">
+        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Status:</span>
+        {% for s_val, s_label in status_choices %}
+        <a href="?status={{ s_val }}&type={{ type_filter }}"
+           class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+                  {% if status_filter == s_val %}bg-primary-600 text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
+            {{ s_label }}
+        </a>
+        {% endfor %}
+
+        <span class="text-gray-300 dark:text-gray-600 mx-1">|</span>
+        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Type:</span>
+        {% for t_val, t_label in type_choices %}
+        <a href="?type={{ t_val }}&status={{ status_filter }}"
+           class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+                  {% if type_filter == t_val %}bg-primary-600 text-white{% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600{% endif %}">
+            {{ t_label }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Sessions Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+        {% if page_obj.object_list %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Group</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Submitted By</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"></th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for row in page_obj %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors {% if row.session.status == 'pending' %}bg-yellow-50/40 dark:bg-yellow-900/10{% endif %}">
+                        <td class="px-4 py-3">
+                            <a href="{% url 'core:group_detail' row.session.group.id %}"
+                               class="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline">
+                                {{ row.session.group.name }}
+                            </a>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ row.session.group.branch.name }}</p>
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if row.session_type == 'combined' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-300">
+                                <i class="fas fa-layer-group mr-1"></i> Combined
+                            </span>
+                            {% elif row.session_type == 'loan' %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                <i class="fas fa-money-bill-wave mr-1"></i> Loan
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                                <i class="fas fa-piggy-bank mr-1"></i> Savings
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">
+                            {{ row.session.collection_date|date:"M d, Y" }}
+                        </td>
+                        <td class="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                            &#8358;{{ row.session.total_amount|floatformat:2|intcomma }}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                            {{ row.session.collected_by.get_full_name }}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% include "groups/_session_status_badge.html" with status=row.session.status %}
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <a href="{% url row.detail_url_name row.session.id %}"
+                               class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg
+                                      {% if row.session.status == 'pending' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 hover:bg-yellow-200{% else %}bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200{% endif %}
+                                      transition-colors">
+                                {% if row.session.status == 'pending' %}
+                                <i class="fas fa-clipboard-check mr-1"></i> Review
+                                {% else %}
+                                <i class="fas fa-eye mr-1"></i> View
+                                {% endif %}
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+                Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }} session{{ page_obj.paginator.count|pluralize }}
+            </p>
+            <div class="flex items-center space-x-1">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}&type={{ type_filter }}"
+                   class="px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+                {% endif %}
+                <span class="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}&type={{ type_filter }}"
+                   class="px-3 py-1.5 rounded-lg text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="px-6 py-16 text-center">
+            <i class="fas fa-inbox text-4xl text-gray-300 dark:text-gray-600 mb-4 block"></i>
+            <p class="text-gray-500 dark:text-gray-400 font-medium">No sessions found</p>
+            <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                {% if status_filter == 'pending' %}No pending sessions — all collections are up to date.
+                {% else %}Try adjusting the filters above.{% endif %}
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

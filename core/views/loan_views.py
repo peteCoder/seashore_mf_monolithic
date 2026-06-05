@@ -15,7 +15,7 @@ from django.db.models import Q, Sum, F, Case, When, DecimalField
 from django.utils import timezone
 from decimal import Decimal
 
-from core.models import Loan, LoanRepaymentPosting, Transaction, Client, Branch, LoanProduct, Guarantor, Collateral, FollowUpTask, PaymentPromise, LoanInsuranceClaim
+from core.models import Loan, LoanRepaymentPosting, Transaction, Client, Branch, LoanProduct, Guarantor, Collateral, FollowUpTask, PaymentPromise, LoanInsuranceClaim, GroupCollectionSession
 from core.utils.accounting_helpers import create_journal_entry
 from core.forms.loan_forms import (
     LoanApplicationForm, LoanFeePaymentForm, LoanApprovalForm,
@@ -969,12 +969,23 @@ def loan_repayment_list(request):
         )['amount__sum'] or Decimal('0.00'),
     }
 
+    # Pending group loan collection sessions — shown as a separate section
+    # so managers can see and approve group collections from this page
+    pending_group_sessions = GroupCollectionSession.objects.filter(
+        status='pending'
+    ).select_related('group', 'group__branch', 'collected_by').order_by('-collection_date')
+    if checker.is_staff():
+        pending_group_sessions = pending_group_sessions.filter(collected_by=request.user)
+    elif checker.is_manager():
+        pending_group_sessions = pending_group_sessions.filter(group__branch=request.user.branch)
+
     context = {
         'page_title': 'Loan Repayment Postings',
         'postings': page_obj,
         'status_filter': status_filter,
         'summary': summary,
         'checker': checker,
+        'pending_group_sessions': pending_group_sessions,
     }
 
     return render(request, 'loans/repayment_list.html', context)

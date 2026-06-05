@@ -255,6 +255,7 @@
                                     <a href="{% url 'core:loan_repayment_list' %}?status=pending" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Repayments</a>
                                     <a href="{% url 'core:savings_account_list' %}?status=pending" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Savings Accounts</a>
                                     <a href="{% url 'core:savings_transaction_list' %}?status=pending" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Savings Transactions</a>
+                                    <a href="{% url 'core:group_all_sessions_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Group Collection Sessions</a>
                                     {% if user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
                                     <a href="{% url 'core:user_list' %}?status=pending" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Staff Approvals</a>
                                     {% endif %}
@@ -708,6 +709,7 @@
                     <a href="{% url 'core:loan_repayment_list' %}?status=pending" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Repayments</a>
                     <a href="{% url 'core:savings_account_list' %}?status=pending" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Savings Accounts</a>
                     <a href="{% url 'core:savings_transaction_list' %}?status=pending" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Savings Transactions</a>
+                    <a href="{% url 'core:group_all_sessions_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Group Collection Sessions</a>
                     {% if user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
                     <a href="{% url 'core:user_list' %}?status=pending" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Pending Staff Approvals</a>
                     {% endif %}

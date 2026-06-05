@@ -16,7 +16,10 @@ from django.db.models import Q, Count
 from django.db import transaction
 from django.utils import timezone
 
-from core.models import ClientGroup, Client, GroupMembershipRequest, Transaction
+from core.models import (
+    ClientGroup, Client, GroupMembershipRequest, Transaction,
+    GroupCollectionSession, GroupSavingsCollectionSession, GroupCombinedSession,
+)
 from core.services.notification_service import notify, notify_role
 from core.forms.group_forms import (
     ClientGroupForm, ClientGroupSearchForm, AddMemberForm,
@@ -138,12 +141,38 @@ def group_detail(request, group_id):
         status__in=['approved', 'rejected']
     ).select_related('client', 'reviewed_by').order_by('-reviewed_at')[:10]
 
+    # Recent collection sessions — only for manager of this branch, HR, director, admin
+    can_see_sessions = (
+        checker.is_admin_or_director()
+        or (checker.is_manager() and request.user.branch == group.branch)
+    )
+    if can_see_sessions:
+        recent_loan_sessions = list(
+            GroupCollectionSession.objects.filter(group=group)
+            .select_related('collected_by').order_by('-collection_date', '-created_at')[:10]
+        )
+        recent_savings_sessions = list(
+            GroupSavingsCollectionSession.objects.filter(group=group)
+            .select_related('collected_by').order_by('-collection_date', '-created_at')[:10]
+        )
+        recent_combined_sessions = list(
+            GroupCombinedSession.objects.filter(group=group)
+            .select_related('collected_by').order_by('-collection_date', '-created_at')[:10]
+        )
+    else:
+        recent_loan_sessions = []
+        recent_savings_sessions = []
+        recent_combined_sessions = []
+
     context = {
         'page_title': f'Group: {group.name}',
         'group': group,
         'active_members': active_members,
         'pending_requests': pending_requests,
         'recent_requests': recent_requests,
+        'recent_loan_sessions': recent_loan_sessions,
+        'recent_savings_sessions': recent_savings_sessions,
+        'recent_combined_sessions': recent_combined_sessions,
         'checker': checker,
     }
 
