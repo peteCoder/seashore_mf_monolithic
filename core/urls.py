@@ -123,6 +123,7 @@ from core.views.user_views import (
 
 from core.views.transaction_views import (
     transaction_detail,
+    transaction_reverse,
 )
 
 from core.views.accounting_views import (
@@ -438,6 +439,7 @@ urlpatterns = [
     # TRANSACTIONS
     # =========================================================================
     path('transactions/<uuid:transaction_id>/', transaction_detail, name='transaction_detail'),
+    path('transactions/<uuid:transaction_id>/reverse/', transaction_reverse, name='transaction_reverse'),
 
     # =========================================================================
     # LOANS

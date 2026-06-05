@@ -425,96 +425,104 @@ def group_savings_session_detail(request, session_id):
 @transaction.atomic
 def group_collection_approve(request, session_id):
     """Approve or reject a loan collection session"""
-    session = get_object_or_404(
-        GroupCollectionSession.objects.select_related('group', 'collected_by'),
-        id=session_id
-    )
     checker = PermissionChecker(request.user)
 
     if not (checker.is_manager() or checker.is_admin_or_director()):
         raise PermissionDenied("Only managers, directors or admins can approve collections")
 
-    if session.status != 'pending':
-        messages.warning(request, 'This collection has already been processed.')
+    if request.method == 'POST':
+        with transaction.atomic():
+            session = get_object_or_404(
+                GroupCollectionSession.objects.select_related(
+                    'group', 'collected_by'
+                ).select_for_update(),
+                id=session_id,
+            )
+            if session.status != 'pending':
+                messages.warning(request, 'This collection has already been processed.')
+                return redirect('core:group_collection_session_detail', session_id=session.id)
+
+            decision = request.POST.get('decision')
+            review_notes = request.POST.get('notes', '')
+
+            raw_txn_date = request.POST.get('transaction_date', '')
+            try:
+                txn_date = _dt.date.fromisoformat(raw_txn_date) if raw_txn_date else session.collection_date
+            except ValueError:
+                txn_date = session.collection_date
+
+            if decision == 'approve':
+                items = session.items.select_related('loan', 'loan__client')
+                errors = []
+
+                for item in items:
+                    try:
+                        if item.loan.status not in ['active', 'overdue']:
+                            errors.append(f'{item.loan.loan_number}: Loan is {item.loan.get_status_display()}')
+                            continue
+                        if item.amount > item.loan.outstanding_balance:
+                            errors.append(f'{item.loan.loan_number}: Amount exceeds balance')
+                            continue
+
+                        txn = item.loan.record_repayment(
+                            amount=item.amount,
+                            processed_by=request.user,
+                            description=f'Group collection: {session.group.name} ({session.collection_date})',
+                            transaction_date=txn_date,
+                        )
+                        LoanRepaymentPosting.objects.create(
+                            loan=item.loan,
+                            client=item.loan.client,
+                            branch=item.loan.branch,
+                            amount=item.amount,
+                            payment_date=txn_date,
+                            status='approved',
+                            submitted_by=session.collected_by,
+                            reviewed_by=request.user,
+                            reviewed_at=timezone.now(),
+                            transaction=txn,
+                            submission_notes=f'Group collection: {session.group.name} ({session.collection_date})',
+                        )
+                    except Exception as e:
+                        errors.append(f'{item.loan.loan_number}: {str(e)}')
+
+                if errors:
+                    for error in errors:
+                        messages.warning(request, error)
+
+                session.status = 'approved'
+                session.approved_by = request.user
+                session.approved_at = timezone.now()
+                session.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+
+                success_count = items.count() - len(errors)
+                messages.success(
+                    request,
+                    f'Collection approved! {success_count} loan repayment(s) processed successfully.'
+                )
+
+            elif decision == 'reject':
+                if not review_notes:
+                    messages.error(request, 'Please provide a reason for rejection.')
+                    return redirect('core:group_collection_approve', session_id=session.id)
+
+                session.status = 'rejected'
+                session.rejected_by = request.user
+                session.rejected_at = timezone.now()
+                session.rejection_reason = review_notes
+                session.save(update_fields=[
+                    'status', 'rejected_by', 'rejected_at', 'rejection_reason', 'updated_at'
+                ])
+                messages.success(request, 'Collection session rejected.')
+
         return redirect('core:group_collection_session_detail', session_id=session.id)
 
-    if request.method == 'POST':
-        decision = request.POST.get('decision')
-        review_notes = request.POST.get('notes', '')
-
-        # Parse the manager-confirmed transaction date; fall back to collection_date
-        raw_txn_date = request.POST.get('transaction_date', '')
-        try:
-            txn_date = _dt.date.fromisoformat(raw_txn_date) if raw_txn_date else session.collection_date
-        except ValueError:
-            txn_date = session.collection_date
-
-        if decision == 'approve':
-            items = session.items.select_related('loan', 'loan__client')
-            errors = []
-
-            for item in items:
-                try:
-                    if item.loan.status not in ['active', 'overdue']:
-                        errors.append(f'{item.loan.loan_number}: Loan is {item.loan.get_status_display()}')
-                        continue
-                    if item.amount > item.loan.outstanding_balance:
-                        errors.append(f'{item.loan.loan_number}: Amount exceeds balance')
-                        continue
-
-                    txn = item.loan.record_repayment(
-                        amount=item.amount,
-                        processed_by=request.user,
-                        description=f'Group collection: {session.group.name} ({session.collection_date})',
-                        transaction_date=txn_date,
-                    )
-                    # Create an approved posting for audit trail so it appears
-                    # in the loan's Repayment Postings tab.
-                    LoanRepaymentPosting.objects.create(
-                        loan=item.loan,
-                        client=item.loan.client,
-                        branch=item.loan.branch,
-                        amount=item.amount,
-                        payment_date=txn_date,
-                        status='approved',
-                        submitted_by=session.collected_by,
-                        reviewed_by=request.user,
-                        reviewed_at=timezone.now(),
-                        transaction=txn,
-                        submission_notes=f'Group collection: {session.group.name} ({session.collection_date})',
-                    )
-                except Exception as e:
-                    errors.append(f'{item.loan.loan_number}: {str(e)}')
-
-            if errors:
-                for error in errors:
-                    messages.warning(request, error)
-
-            session.status = 'approved'
-            session.approved_by = request.user
-            session.approved_at = timezone.now()
-            session.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
-
-            success_count = items.count() - len(errors)
-            messages.success(
-                request,
-                f'Collection approved! {success_count} loan repayment(s) processed successfully.'
-            )
-
-        elif decision == 'reject':
-            if not review_notes:
-                messages.error(request, 'Please provide a reason for rejection.')
-                return redirect('core:group_collection_approve', session_id=session.id)
-
-            session.status = 'rejected'
-            session.rejected_by = request.user
-            session.rejected_at = timezone.now()
-            session.rejection_reason = review_notes
-            session.save(update_fields=[
-                'status', 'rejected_by', 'rejected_at', 'rejection_reason', 'updated_at'
-            ])
-            messages.success(request, 'Collection session rejected.')
-
+    session = get_object_or_404(
+        GroupCollectionSession.objects.select_related('group', 'collected_by'),
+        id=session_id,
+    )
+    if session.status != 'pending':
+        messages.warning(request, 'This collection has already been processed.')
         return redirect('core:group_collection_session_detail', session_id=session.id)
 
     items = session.items.select_related('loan', 'loan__client')
@@ -529,76 +537,86 @@ def group_collection_approve(request, session_id):
 
 
 @login_required
-@transaction.atomic
 def group_savings_collection_approve(request, session_id):
     """Approve or reject a savings collection session"""
-    session = get_object_or_404(
-        GroupSavingsCollectionSession.objects.select_related('group', 'collected_by'),
-        id=session_id
-    )
     checker = PermissionChecker(request.user)
 
     if not (checker.is_manager() or checker.is_admin_or_director()):
         raise PermissionDenied("Only managers, directors or admins can approve collections")
 
-    if session.status != 'pending':
-        messages.warning(request, 'This collection has already been processed.')
+    if request.method == 'POST':
+        with transaction.atomic():
+            session = get_object_or_404(
+                GroupSavingsCollectionSession.objects.select_related(
+                    'group', 'collected_by'
+                ).select_for_update(),
+                id=session_id,
+            )
+            if session.status != 'pending':
+                messages.warning(request, 'This collection has already been processed.')
+                return redirect('core:group_savings_session_detail', session_id=session.id)
+
+            decision = request.POST.get('decision')
+            review_notes = request.POST.get('notes', '')
+
+            raw_txn_date = request.POST.get('transaction_date', '')
+            try:
+                txn_date = _dt.date.fromisoformat(raw_txn_date) if raw_txn_date else session.collection_date
+            except ValueError:
+                txn_date = session.collection_date
+
+            if decision == 'approve':
+                items = session.items.select_related('savings_account', 'client')
+                errors = []
+
+                for item in items:
+                    try:
+                        item.savings_account.deposit(
+                            amount=item.amount,
+                            processed_by=request.user,
+                            description=f'Group savings collection: {session.group.name} ({session.collection_date})',
+                            transaction_date=txn_date,
+                        )
+                    except Exception as e:
+                        errors.append(f'{item.client.get_full_name()}: {str(e)}')
+
+                if errors:
+                    for error in errors:
+                        messages.warning(request, error)
+
+                session.status = 'approved'
+                session.approved_by = request.user
+                session.approved_at = timezone.now()
+                session.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+
+                success_count = items.count() - len(errors)
+                messages.success(
+                    request,
+                    f'Savings collection approved! {success_count} deposit(s) processed successfully.'
+                )
+
+            elif decision == 'reject':
+                if not review_notes:
+                    messages.error(request, 'Please provide a reason for rejection.')
+                    return redirect('core:group_savings_collection_approve', session_id=session.id)
+
+                session.status = 'rejected'
+                session.rejected_by = request.user
+                session.rejected_at = timezone.now()
+                session.rejection_reason = review_notes
+                session.save(update_fields=[
+                    'status', 'rejected_by', 'rejected_at', 'rejection_reason', 'updated_at'
+                ])
+                messages.success(request, 'Savings collection session rejected.')
+
         return redirect('core:group_savings_session_detail', session_id=session.id)
 
-    if request.method == 'POST':
-        decision = request.POST.get('decision')
-        review_notes = request.POST.get('notes', '')
-
-        raw_txn_date = request.POST.get('transaction_date', '')
-        try:
-            txn_date = _dt.date.fromisoformat(raw_txn_date) if raw_txn_date else session.collection_date
-        except ValueError:
-            txn_date = session.collection_date
-
-        if decision == 'approve':
-            items = session.items.select_related('savings_account', 'client')
-            errors = []
-
-            for item in items:
-                try:
-                    item.savings_account.deposit(
-                        amount=item.amount,
-                        processed_by=request.user,
-                        description=f'Group savings collection: {session.group.name} ({session.collection_date})',
-                        transaction_date=txn_date,
-                    )
-                except Exception as e:
-                    errors.append(f'{item.client.get_full_name()}: {str(e)}')
-
-            if errors:
-                for error in errors:
-                    messages.warning(request, error)
-
-            session.status = 'approved'
-            session.approved_by = request.user
-            session.approved_at = timezone.now()
-            session.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
-
-            success_count = items.count() - len(errors)
-            messages.success(
-                request,
-                f'Savings collection approved! {success_count} deposit(s) processed successfully.'
-            )
-
-        elif decision == 'reject':
-            if not review_notes:
-                messages.error(request, 'Please provide a reason for rejection.')
-                return redirect('core:group_savings_collection_approve', session_id=session.id)
-
-            session.status = 'rejected'
-            session.rejected_by = request.user
-            session.rejected_at = timezone.now()
-            session.rejection_reason = review_notes
-            session.save(update_fields=[
-                'status', 'rejected_by', 'rejected_at', 'rejection_reason', 'updated_at'
-            ])
-            messages.success(request, 'Savings collection session rejected.')
-
+    session = get_object_or_404(
+        GroupSavingsCollectionSession.objects.select_related('group', 'collected_by'),
+        id=session_id,
+    )
+    if session.status != 'pending':
+        messages.warning(request, 'This collection has already been processed.')
         return redirect('core:group_savings_session_detail', session_id=session.id)
 
     items = session.items.select_related('savings_account', 'client')
@@ -812,103 +830,114 @@ def group_combined_session_detail(request, session_id):
 @transaction.atomic
 def group_combined_collection_approve(request, session_id):
     """Approve or reject a combined collection session."""
-    session = get_object_or_404(
-        GroupCombinedSession.objects.select_related('group', 'collected_by'),
-        id=session_id
-    )
     checker = PermissionChecker(request.user)
 
     if not (checker.is_manager() or checker.is_admin_or_director()):
         raise PermissionDenied("Only managers, directors or admins can approve collections")
 
-    if session.status != 'pending':
-        messages.warning(request, 'This collection session has already been processed.')
+    if request.method == 'POST':
+        with transaction.atomic():
+            session = get_object_or_404(
+                GroupCombinedSession.objects.select_related(
+                    'group', 'collected_by'
+                ).select_for_update(),
+                id=session_id,
+            )
+            if session.status != 'pending':
+                messages.warning(request, 'This collection session has already been processed.')
+                return redirect('core:group_combined_session_detail', session_id=session.id)
+
+            decision = request.POST.get('decision')
+            review_notes = request.POST.get('notes', '')
+
+            raw_txn_date = request.POST.get('transaction_date', '')
+            try:
+                txn_date = _dt.date.fromisoformat(raw_txn_date) if raw_txn_date else session.collection_date
+            except ValueError:
+                txn_date = session.collection_date
+
+            if decision == 'approve':
+                loan_items = session.loan_items.select_related('loan', 'client')
+                savings_items = session.savings_items.select_related('savings_account', 'client')
+                errors = []
+
+                for item in loan_items:
+                    try:
+                        if item.loan.status not in ['active', 'overdue']:
+                            errors.append(f'Loan {item.loan.loan_number}: status is {item.loan.get_status_display()}')
+                            continue
+                        if item.amount > item.loan.outstanding_balance:
+                            errors.append(f'Loan {item.loan.loan_number}: amount exceeds balance')
+                            continue
+                        txn = item.loan.record_repayment(
+                            amount=item.amount,
+                            processed_by=request.user,
+                            description=f'Group combined collection: {session.group.name} ({session.collection_date})',
+                            transaction_date=txn_date,
+                        )
+                        LoanRepaymentPosting.objects.create(
+                            loan=item.loan,
+                            amount=item.amount,
+                            payment_date=txn_date,
+                            status='approved',
+                            submitted_by=session.collected_by,
+                            reviewed_by=request.user,
+                            reviewed_at=timezone.now(),
+                            transaction=txn,
+                            submission_notes=f'Group combined collection: {session.group.name} ({session.collection_date})',
+                        )
+                    except Exception as e:
+                        errors.append(f'Loan {item.loan.loan_number}: {str(e)}')
+
+                for item in savings_items:
+                    try:
+                        item.savings_account.deposit(
+                            amount=item.amount,
+                            processed_by=request.user,
+                            description=f'Group combined collection: {session.group.name} ({session.collection_date})',
+                            transaction_date=txn_date,
+                        )
+                    except Exception as e:
+                        errors.append(f'Savings ({item.client.get_full_name()}): {str(e)}')
+
+                for error in errors:
+                    messages.warning(request, error)
+
+                session.status = 'approved'
+                session.approved_by = request.user
+                session.approved_at = timezone.now()
+                session.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+
+                loan_count = loan_items.count() - sum(1 for e in errors if 'Loan' in e)
+                savings_count = savings_items.count() - sum(1 for e in errors if 'Savings' in e)
+                messages.success(
+                    request,
+                    f'Combined collection approved! {loan_count} loan repayment(s) and '
+                    f'{savings_count} savings deposit(s) processed successfully.'
+                )
+
+            elif decision == 'reject':
+                if not review_notes:
+                    messages.error(request, 'Please provide a reason for rejection.')
+                    return redirect('core:group_combined_collection_approve', session_id=session.id)
+
+                session.status = 'rejected'
+                session.rejected_by = request.user
+                session.rejected_at = timezone.now()
+                session.rejection_reason = review_notes
+                session.save(update_fields=[
+                    'status', 'rejected_by', 'rejected_at', 'rejection_reason', 'updated_at'
+                ])
+                messages.success(request, 'Combined collection session rejected.')
+
         return redirect('core:group_combined_session_detail', session_id=session.id)
 
-    if request.method == 'POST':
-        decision = request.POST.get('decision')
-        review_notes = request.POST.get('notes', '')
-
-        raw_txn_date = request.POST.get('transaction_date', '')
-        try:
-            txn_date = _dt.date.fromisoformat(raw_txn_date) if raw_txn_date else session.collection_date
-        except ValueError:
-            txn_date = session.collection_date
-
-        if decision == 'approve':
-            loan_items = session.loan_items.select_related('loan', 'client')
-            savings_items = session.savings_items.select_related('savings_account', 'client')
-            errors = []
-
-            for item in loan_items:
-                try:
-                    if item.loan.status not in ['active', 'overdue']:
-                        errors.append(f'Loan {item.loan.loan_number}: status is {item.loan.get_status_display()}')
-                        continue
-                    if item.amount > item.loan.outstanding_balance:
-                        errors.append(f'Loan {item.loan.loan_number}: amount exceeds balance')
-                        continue
-                    txn = item.loan.record_repayment(
-                        amount=item.amount,
-                        processed_by=request.user,
-                        description=f'Group combined collection: {session.group.name} ({session.collection_date})',
-                        transaction_date=txn_date,
-                    )
-                    LoanRepaymentPosting.objects.create(
-                        loan=item.loan,
-                        amount=item.amount,
-                        payment_date=txn_date,
-                        status='approved',
-                        submitted_by=session.collected_by,
-                        reviewed_by=request.user,
-                        reviewed_at=timezone.now(),
-                        transaction=txn,
-                        notes=f'Group combined collection: {session.group.name} ({session.collection_date})',
-                    )
-                except Exception as e:
-                    errors.append(f'Loan {item.loan.loan_number}: {str(e)}')
-
-            for item in savings_items:
-                try:
-                    item.savings_account.deposit(
-                        amount=item.amount,
-                        processed_by=request.user,
-                        description=f'Group combined collection: {session.group.name} ({session.collection_date})',
-                        transaction_date=txn_date,
-                    )
-                except Exception as e:
-                    errors.append(f'Savings ({item.client.get_full_name()}): {str(e)}')
-
-            for error in errors:
-                messages.warning(request, error)
-
-            session.status = 'approved'
-            session.approved_by = request.user
-            session.approved_at = timezone.now()
-            session.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
-
-            loan_count = loan_items.count() - sum(1 for e in errors if 'Loan' in e)
-            savings_count = savings_items.count() - sum(1 for e in errors if 'Savings' in e)
-            messages.success(
-                request,
-                f'Combined collection approved! {loan_count} loan repayment(s) and '
-                f'{savings_count} savings deposit(s) processed successfully.'
-            )
-
-        elif decision == 'reject':
-            if not review_notes:
-                messages.error(request, 'Please provide a reason for rejection.')
-                return redirect('core:group_combined_collection_approve', session_id=session.id)
-
-            session.status = 'rejected'
-            session.rejected_by = request.user
-            session.rejected_at = timezone.now()
-            session.rejection_reason = review_notes
-            session.save(update_fields=[
-                'status', 'rejected_by', 'rejected_at', 'rejection_reason', 'updated_at'
-            ])
-            messages.success(request, 'Combined collection session rejected.')
-
+    session = get_object_or_404(
+        GroupCombinedSession.objects.select_related('group', 'collected_by'),
+        id=session_id,
+    )
+    if session.status != 'pending':
+        messages.warning(request, 'This collection session has already been processed.')
         return redirect('core:group_combined_session_detail', session_id=session.id)
 
     loan_items = session.loan_items.select_related('loan', 'client')

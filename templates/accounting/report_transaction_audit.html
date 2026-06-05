@@ -1,5 +1,5 @@
 {% extends 'layouts/base.html' %}
-{% load humanize %}
+{% load humanize audit_tags %}
 {% block content %}
 <div class="p-6">
     <h1 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Transaction Audit Log</h1>
@@ -22,6 +22,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase whitespace-nowrap">Type</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase whitespace-nowrap">Amount</th>
                         <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase whitespace-nowrap">Journal Entry</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase whitespace-nowrap">Action</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -49,6 +50,9 @@
                                 </a>
                             </div>
                             {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                            {% include 'transactions/_reverse_btn.html' with txn=item.transaction %}
                         </td>
                     </tr>
                     {% endfor %}

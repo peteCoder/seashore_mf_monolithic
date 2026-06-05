@@ -69,11 +69,10 @@ def detect_overdue_loans(self):
         if loan.next_repayment_date >= cutoff_date:
             continue  # still within grace period
 
-        # 1. Mark loan overdue
-        if loan.status != 'overdue':
-            Loan.objects.filter(pk=loan.pk).update(status='overdue')
-            overdue_count += 1
-            logger.info(f"Loan {loan.loan_number} → overdue (due: {loan.next_repayment_date})")
+        # Loan-level overdue status is no longer used.
+        # Overdue state is tracked at the schedule-row level only.
+        overdue_count += 1
+        logger.info(f"Loan {loan.loan_number} past due (due: {loan.next_repayment_date}) — penalty only")
 
         # 2. Skip if penalty already applied today
         already_penalised = LoanPenalty.objects.filter(

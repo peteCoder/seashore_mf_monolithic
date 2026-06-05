@@ -9,6 +9,25 @@ from django.utils.safestring import mark_safe
 
 register = template.Library()
 
+_REVERSIBLE_TYPES = {'loan_repayment', 'deposit', 'withdrawal'}
+_REVERSAL_ROLES   = {'admin', 'director', 'hr'}
+
+
+@register.filter(name='can_reverse')
+def can_reverse(user):
+    """Return True if the user is allowed to reverse transactions."""
+    if not user or not user.is_authenticated:
+        return False
+    return getattr(user, 'user_role', '') in _REVERSAL_ROLES
+
+
+@register.filter(name='is_reversible')
+def is_reversible(txn):
+    """Return True if the transaction can be reversed."""
+    if txn is None:
+        return False
+    return txn.status == 'completed' and txn.transaction_type in _REVERSIBLE_TYPES
+
 
 @register.filter(name='tojson')
 def to_changes_json(changes_dict):

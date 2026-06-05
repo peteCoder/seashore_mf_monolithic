@@ -569,10 +569,13 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="{% url 'core:transaction_detail' transaction.id %}"
-                               class="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300">
-                                View
-                            </a>
+                            <div class="flex items-center justify-end gap-3">
+                                <a href="{% url 'core:transaction_detail' transaction.id %}"
+                                   class="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300">
+                                    View
+                                </a>
+                                {% include 'transactions/_reverse_btn.html' with txn=transaction %}
+                            </div>
                         </td>
                     </tr>
                     {% empty %}

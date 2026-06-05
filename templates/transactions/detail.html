@@ -1,5 +1,5 @@
 {% extends 'layouts/base.html' %}
-{% load humanize %}
+{% load humanize audit_tags %}
 
 {% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
 
@@ -19,7 +19,7 @@
             </div>
             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
         </div>
-        <div>
+        <div class="flex items-center gap-3">
             <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium
                          {% if transaction.status == 'completed' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
                          {% elif transaction.status == 'pending' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
@@ -29,6 +29,16 @@
                          {% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
                 {{ transaction.get_status_display }}
             </span>
+            {% if request.user|can_reverse and transaction|is_reversible %}
+            <a href="{% url 'core:transaction_reverse' transaction.id %}"
+               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors">
+                <i class="fas fa-undo text-xs"></i>Reverse
+            </a>
+            {% elif transaction.status == 'reversed' %}
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-sm font-medium rounded-lg">
+                <i class="fas fa-undo text-xs"></i>Reversed
+            </span>
+            {% endif %}
         </div>
     </div>
 

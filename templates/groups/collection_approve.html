@@ -158,7 +158,7 @@
             <i class="fas fa-gavel text-primary-600 dark:text-primary-400 mr-2"></i>Make Your Decision
         </h2>
 
-        <form method="post">
+        <form method="post" id="approvalForm">
             {% csrf_token %}
 
             <!-- Decision Radio Buttons -->
@@ -240,7 +240,7 @@
                    class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium">
                     Cancel
                 </a>
-                <button type="submit"
+                <button type="submit" id="submitBtn"
                         class="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors shadow-sm">
                     <i class="fas fa-check mr-2"></i>Submit Decision
                 </button>
@@ -248,4 +248,13 @@
         </form>
     </div>
 </div>
+<script>
+document.getElementById('approvalForm').addEventListener('submit', function() {
+    var btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+    btn.classList.remove('bg-primary-600', 'hover:bg-primary-700');
+    btn.classList.add('bg-gray-400', 'cursor-not-allowed');
+});
+</script>
 {% endblock %}

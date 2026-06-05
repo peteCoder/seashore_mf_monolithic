@@ -1,0 +1,163 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}Reverse Transaction — Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+    <!-- Breadcrumb -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <span>Transactions</span>
+            <span>/</span>
+            <a href="{% url 'core:transaction_detail' txn.id %}" class="hover:text-primary-600 dark:hover:text-primary-400">{{ txn.transaction_ref }}</a>
+            <span>/</span>
+            <span class="text-gray-900 dark:text-white font-medium">Reverse</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+            <i class="fas fa-undo text-red-600 dark:text-red-400 mr-2"></i>Reverse Transaction
+        </h1>
+    </div>
+
+    <!-- Transaction Summary -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Transaction Being Reversed</h2>
+        <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Reference</dt>
+                <dd class="font-mono font-medium text-gray-900 dark:text-white">{{ txn.transaction_ref }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Type</dt>
+                <dd class="font-medium text-gray-900 dark:text-white">{{ txn.get_transaction_type_display }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Client</dt>
+                <dd class="font-medium text-gray-900 dark:text-white">{{ txn.client.full_name }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Date</dt>
+                <dd class="font-medium text-gray-900 dark:text-white">{{ txn.transaction_date|date:"M d, Y" }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Amount</dt>
+                <dd class="text-lg font-bold text-gray-900 dark:text-white">&#8358;{{ txn.amount|floatformat:2|intcomma }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Processed By</dt>
+                <dd class="font-medium text-gray-900 dark:text-white">{{ txn.processed_by.get_full_name|default:"—" }}</dd>
+            </div>
+            {% if txn.loan %}
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Loan</dt>
+                <dd class="font-medium font-mono text-gray-900 dark:text-white">{{ txn.loan.loan_number }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Loan Balance Before</dt>
+                <dd class="font-medium text-gray-900 dark:text-white">&#8358;{{ txn.balance_before|floatformat:2|intcomma }}</dd>
+            </div>
+            {% endif %}
+            {% if txn.savings_account %}
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Account</dt>
+                <dd class="font-medium font-mono text-gray-900 dark:text-white">{{ txn.savings_account.account_number }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Balance Before</dt>
+                <dd class="font-medium text-gray-900 dark:text-white">&#8358;{{ txn.balance_before|floatformat:2|intcomma }}</dd>
+            </div>
+            {% endif %}
+        </dl>
+    </div>
+
+    <!-- Impact Warning -->
+    <div class="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg">
+        <div class="flex">
+            <i class="fas fa-exclamation-triangle text-red-500 text-lg flex-shrink-0 mt-0.5"></i>
+            <div class="ml-3">
+                <h3 class="text-sm font-semibold text-red-800 dark:text-red-300">This action will:</h3>
+                <ul class="mt-1 text-sm text-red-700 dark:text-red-300 list-disc list-inside space-y-1">
+                    <li>Mark this transaction as <strong>Reversed</strong></li>
+                    {% if txn.transaction_type == 'loan_repayment' %}
+                    <li>Restore the loan outstanding balance by <strong>&#8358;{{ txn.amount|floatformat:2|intcomma }}</strong></li>
+                    <li>Reverse the repayment schedule installment(s)</li>
+                    {% elif txn.transaction_type == 'deposit' %}
+                    <li>Deduct <strong>&#8358;{{ txn.amount|floatformat:2|intcomma }}</strong> from the savings account balance</li>
+                    {% elif txn.transaction_type == 'withdrawal' %}
+                    <li>Add back <strong>&#8358;{{ txn.amount|floatformat:2|intcomma }}</strong> to the savings account balance</li>
+                    {% endif %}
+                    {% if linked_journals %}
+                    <li>Reverse {{ linked_journals.count }} journal entr{{ linked_journals.count|pluralize:"y,ies" }} (counter-entries will be posted)</li>
+                    {% endif %}
+                    <li>This <strong>cannot be undone</strong></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Journal entries that will be reversed -->
+    {% if linked_journals %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 mb-6">
+        <h2 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            <i class="fas fa-book mr-1 text-gray-500"></i>Journal Entries to be Reversed
+        </h2>
+        <div class="space-y-2">
+            {% for je in linked_journals %}
+            <div class="flex items-center justify-between text-sm py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                <span class="font-mono text-gray-700 dark:text-gray-300">{{ je.journal_number }}</span>
+                <span class="text-gray-500 dark:text-gray-400">{{ je.description|truncatechars:60 }}</span>
+                <span class="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">{{ je.get_status_display }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Reversal Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <form method="post" id="reversalForm">
+            {% csrf_token %}
+            {% if messages %}
+            <div class="mb-4 space-y-2">
+                {% for msg in messages %}
+                <div class="p-3 rounded-lg {% if msg.tags == 'error' %}bg-red-50 text-red-800 dark:bg-red-900/20 dark:text-red-300{% else %}bg-yellow-50 text-yellow-800{% endif %} text-sm">
+                    {{ msg }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="mb-5">
+                <label for="reason" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Reason for Reversal <span class="text-red-500">*</span>
+                </label>
+                <textarea id="reason" name="reason" rows="3" required
+                          placeholder="State clearly why this transaction is being reversed..."
+                          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-red-500">{{ request.POST.reason }}</textarea>
+            </div>
+
+            <div class="flex items-center justify-between pt-2">
+                <a href="{% url 'core:transaction_detail' txn.id %}"
+                   class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg font-medium">
+                    <i class="fas fa-arrow-left mr-1"></i>Cancel
+                </a>
+                <button type="submit" id="reversalBtn"
+                        class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                    <i class="fas fa-undo mr-2"></i>Confirm Reversal
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+<script>
+document.getElementById('reversalForm').addEventListener('submit', function() {
+    var btn = document.getElementById('reversalBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+    btn.classList.remove('bg-red-600', 'hover:bg-red-700');
+    btn.classList.add('bg-gray-400', 'cursor-not-allowed');
+});
+</script>
+{% endblock %}

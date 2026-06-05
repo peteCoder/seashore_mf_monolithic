@@ -237,6 +237,9 @@
                                 <i class="fas fa-check-circle mr-1"></i>Review
                             </a>
                             {% endif %}
+                            {% if posting.transaction %}
+                            {% include 'transactions/_reverse_btn.html' with txn=posting.transaction %}
+                            {% endif %}
                         </div>
                     </td>
                 </tr>

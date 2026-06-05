@@ -3,22 +3,28 @@ Management command: rebuild_loan_schedules
 ==========================================
 
 Rebuilds repayment schedule rows for all active/overdue loans from scratch
-using the corrected business-day rule (next_week_business_day) and the
-current public holiday table, then IMMEDIATELY re-allocates payments within
-the same atomic transaction per loan.
+using the corrected weekday-preserving holiday rule and the current public
+holiday table, then IMMEDIATELY re-allocates payments within the same atomic
+transaction per loan.
 
-Each loan is processed completely (rebuild + reallocate) before moving to the
-next. If the DB connection drops mid-run, already-processed loans remain
-correct; just re-run the command to continue from where it left off (already-
-clean loans are detected and skipped).
+COLLECTION-DAY RULE
+-------------------
+- First collection = disbursement date + 7 days (same weekday, next week).
+- If that date is a public holiday → same weekday the week after (+14 days
+  total from disbursement).  The weekday NEVER changes.
+- Every subsequent installment follows the same weekday consistently:
+  a Monday loan always collects on Mondays, a Wednesday loan on Wednesdays.
+- If any installment lands on a holiday it moves to the same weekday of
+  the following week (+7 days), never to Monday or a different weekday.
 
 WHAT IT FIXES
 -------------
-1. Schedule rows landing on public holidays  → first business day next week.
-2. Schedule rows landing on weekends         → fixed by holiday rule.
-3. Wrong first_repayment_date               → recalculated from local disburse date.
-4. "Overdue on top" (officer started 1 week late) → anchors Row 1 to first
-   actual collection when gap is 6-14 days.
+1. Schedule rows landing on public holidays → same weekday next week (+7).
+   Previously they jumped to Monday, breaking the collection day for all
+   non-Monday loans.
+2. Wrong first_repayment_date → recalculated from local disbursement date.
+3. "Officer started 1 week late" → anchors Row 1 to first actual collection
+   when the gap is 6-14 days.
 
 WHAT IT DOES NOT TOUCH
 -----------------------
@@ -57,12 +63,16 @@ class Command(BaseCommand):
         mode = parser.add_mutually_exclusive_group(required=True)
         mode.add_argument('--dry-run', action='store_true')
         mode.add_argument('--commit', action='store_true')
-        parser.add_argument('--loan-id', metavar='UUID',
-                            help='Process a single loan only')
+        target = parser.add_mutually_exclusive_group()
+        target.add_argument('--loan-id', metavar='UUID',
+                            help='Process a single loan by UUID')
+        target.add_argument('--loan-number', metavar='LN...',
+                            help='Process a single loan by loan number (e.g. LN20260508180128104956)')
 
     def handle(self, *args, **options):
         dry_run = options['dry_run']
-        loan_id = options.get('loan_id')
+        loan_id     = options.get('loan_id')
+        loan_number = options.get('loan_number')
         mode = 'DRY RUN' if dry_run else 'COMMIT'
 
         self.stdout.write(self.style.WARNING(
@@ -80,15 +90,23 @@ class Command(BaseCommand):
         )
         if loan_id:
             loan_ids = [lid for lid in loan_ids if str(lid) == loan_id]
+        elif loan_number:
+            matched = Loan.objects.filter(loan_number=loan_number).values_list('id', flat=True)
+            if not matched:
+                self.stdout.write(self.style.ERROR(
+                    f'No active/overdue loan found with loan_number={loan_number}'
+                ))
+                return
+            loan_ids = [lid for lid in loan_ids if lid in list(matched)]
 
         total   = len(loan_ids)
         rebuilt = skipped = errors = 0
 
         self.stdout.write(f'Scope: {total} active/overdue loan(s)\n')
 
-        # Process in batches of 10; reconnect between batches so Neon
+        # Process in batches of 3; reconnect between batches so Neon
         # auto-suspend does not kill the long-running session.
-        BATCH = 10
+        BATCH = 3
         for batch_start in range(0, total, BATCH):
             close_old_connections()
             batch = loan_ids[batch_start: batch_start + BATCH]
@@ -204,15 +222,21 @@ class Command(BaseCommand):
                                 'outstanding_amount', 'status', 'updated_at',
                             ])
 
-                        # 4. Update loan date fields
+                        # 4. Update loan date fields and reset any overdue status
+                        # Overdue is tracked at schedule-row level only — loan
+                        # stays 'active' as long as there is an outstanding balance.
                         loan.final_repayment_date = new_first  # temporary
                         loan.final_repayment_date = new_final
                         if next_due:
                             loan.next_repayment_date = next_due
-                        loan.save(update_fields=[
+                        update_fields = [
                             'first_repayment_date', 'final_repayment_date',
                             'next_repayment_date', 'updated_at',
-                        ])
+                        ]
+                        if loan.status == 'overdue':
+                            loan.status = 'active'
+                            update_fields.append('status')
+                        loan.save(update_fields=update_fields)
 
                     rebuilt += 1
 

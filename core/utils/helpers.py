@@ -31,29 +31,37 @@ def next_business_day(d, holidays=None):
 
 def next_week_business_day(d, holidays=None):
     """
-    For schedule due-date adjustment: if d is already a business day return d.
-    If d falls on a weekend or public holiday, advance to the Monday of the
-    FOLLOWING calendar week and then return the first business day from there.
+    For loan schedule due-date adjustment.
 
-    This ensures a holiday never silently shifts a collection into the same
-    week — the collection moves to the next week entirely.
+    Rules (in order):
+    1. If d is a weekday AND not a public holiday → return d unchanged.
+    2. If d falls on a weekend (shouldn't occur for weekly loans, but handled
+       for safety) → jump to Monday of the following week, then apply rule 3.
+    3. If d is a public holiday → advance by exactly +7 days (same weekday,
+       next week) and repeat from rule 1.
 
-    Examples (assuming no other holidays):
-      Monday  (holiday) → following Monday   (+7 days)
-      Friday  (holiday) → following Monday   (+3 days)
-      Saturday (weekend) → following Monday  (+2 days)
-      Wednesday (holiday) → following Monday (+5 days)
+    This preserves the collection weekday across the entire schedule:
+    - A Wednesday loan stays on Wednesdays even when a Wednesday is a holiday.
+    - A Monday loan stays on Mondays.
+    - When a date is a holiday the installment moves to the SAME weekday of
+      the FOLLOWING week (+7 days), not to the nearest Monday.
+
+    Examples (W = Wednesday, M = Monday):
+      Wed 27-May (holiday)  → Wed 03-Jun          (+7 days)
+      Mon 06-Apr (holiday)  → Mon 13-Apr           (+7 days)
+      Thu 28-May (holiday)  → Thu 04-Jun           (+7 days)
+      Mon 06-Apr + Mon 13-Apr both holidays → Mon 20-Apr (+14 days total)
     """
-    if is_business_day(d, holidays):
-        return d
-    # Find the Monday of the next calendar week relative to d.
-    # weekday(): Mon=0, Tue=1, ..., Sun=6
-    days_to_next_monday = (7 - d.weekday()) % 7
-    if days_to_next_monday == 0:
-        # d is already a Monday but it's a holiday → jump to the FOLLOWING Monday
-        days_to_next_monday = 7
-    next_monday = d + timedelta(days=days_to_next_monday)
-    return next_business_day(next_monday, holidays)
+    if holidays is None:
+        holidays = set()
+    # Step 1: resolve weekends (edge case — weekly loans never produce weekend dates)
+    if d.weekday() >= 5:
+        days_to_monday = (7 - d.weekday()) % 7 or 7
+        d = d + timedelta(days=days_to_monday)
+    # Step 2: skip public holidays by jumping to the same weekday next week
+    while d in holidays:
+        d += timedelta(days=7)
+    return d
 
 
 def add_one_business_day(d, holidays=None):

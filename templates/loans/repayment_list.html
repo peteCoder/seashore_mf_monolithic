@@ -210,14 +210,17 @@
                         </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {% if posting.status == 'pending' and checker.can_approve_loans %}
-                        <a href="{% url 'core:loan_repayment_approve' posting.id %}"
-                           class="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300">
-                            Review
-                        </a>
-                        {% else %}
-                        <span class="text-gray-400 dark:text-gray-600">-</span>
-                        {% endif %}
+                        <div class="flex items-center justify-end gap-3">
+                            {% if posting.status == 'pending' and checker.can_approve_loans %}
+                            <a href="{% url 'core:loan_repayment_approve' posting.id %}"
+                               class="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300">
+                                Review
+                            </a>
+                            {% endif %}
+                            {% if posting.transaction %}
+                            {% include 'transactions/_reverse_btn.html' with txn=posting.transaction %}
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% empty %}

@@ -4724,7 +4724,11 @@ class Loan(BaseModel):
 
                 row_applied = int_taken + prin_taken
                 if row_applied > 0:
-                    row.amount_paid += row_applied
+                    new_amount_paid = row.amount_paid + row_applied
+                    # Cap at the row total to satisfy the DB CHECK constraint
+                    # (schedule_amount_paid_valid). Any denomination-tolerance
+                    # excess is already absorbed into principal_portion above.
+                    row.amount_paid = min(new_amount_paid, row.total_amount + row.penalty_amount)
                     if row_applied >= row_total_owed:
                         import datetime as _row_dt
                         if isinstance(transaction_date, _row_dt.datetime):
@@ -4774,21 +4778,12 @@ class Loan(BaseModel):
             self.next_repayment_date = self.calculate_next_payment_date(self.next_repayment_date)
 
         # --- status
+        # Loan status stays 'active' while there is an outstanding balance.
+        # Overdue state is tracked at the schedule-row level only.
         if self.outstanding_balance <= Decimal('0.01'):
             self.outstanding_balance = Decimal('0.00')
-            self.status             = 'completed'
-            self.completion_date    = timezone.now()
-        elif self.next_repayment_date:
-            grace_days = (
-                self.loan_product.grace_period_days
-                if self.loan_product_id and self.loan_product
-                else 0
-            )
-            overdue_threshold = self.next_repayment_date + timezone.timedelta(days=grace_days)
-            if overdue_threshold < timezone.now().date():
-                self.status = 'overdue'
-            else:
-                self.status = 'active'
+            self.status          = 'completed'
+            self.completion_date = timezone.now()
         else:
             self.status = 'active'
 

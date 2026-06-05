@@ -155,26 +155,11 @@ class Command(BaseCommand):
         overdue_threshold = loan.next_repayment_date + timezone.timedelta(days=grace_days)
 
         if overdue_threshold >= today:
-            # Next due date is in the future — if loan was marked overdue, reset it
-            if loan.status == "overdue":
-                if not dry_run:
-                    loan.status = "active"
-                    loan.save(update_fields=["status", "updated_at"])
-                self.stdout.write(
-                    f"  {loan.loan_number} → status reset to ACTIVE "
-                    f"(next due: {loan.next_repayment_date}, threshold: {overdue_threshold})"
-                )
             return "skipped"
 
-        # 2. Mark loan as overdue if not already
-        if loan.status == "active":
-            if not dry_run:
-                loan.status = "overdue"
-                loan.save(update_fields=["status", "updated_at"])
-            self.stdout.write(
-                f"  {loan.loan_number} → status set to OVERDUE "
-                f"(due: {loan.next_repayment_date}, grace: {grace_days}d)"
-            )
+        # Loan-level overdue status is no longer used.
+        # Overdue state is tracked at the schedule-row level only.
+        # Proceed to penalty creation below.
 
         # 3. Idempotency — skip if penalty already created today
         already_penalized = loan.penalties.filter(
