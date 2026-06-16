@@ -319,7 +319,7 @@ class SavingsAccountManager(models.Manager):
 
 class TransactionQuerySet(BranchFilteredQuerySet):
     """Custom QuerySet for Transaction model"""
-    
+
     def completed(self):
         """Completed transactions"""
         return self.filter(status='completed')
@@ -409,9 +409,9 @@ class TransactionQuerySet(BranchFilteredQuerySet):
 
 class TransactionManager(models.Manager):
     """Custom Manager for Transaction model"""
-    
+
     def get_queryset(self):
-        return TransactionQuerySet(self.model, using=self._db)
+        return TransactionQuerySet(self.model, using=self._db).filter(deleted_at__isnull=True)
     
     def completed(self):
         return self.get_queryset().completed()

@@ -102,12 +102,13 @@ def _restore_loan_repayment(txn, reversal_txn):
     """Restore loan outstanding balance and repayment schedule rows."""
     loan = Loan.objects.select_for_update().get(pk=txn.loan_id)
 
-    # Restore balance directly from the stored balance_before snapshot
-    loan.outstanding_balance = txn.balance_before
+    if txn.balance_before is not None:
+        loan.outstanding_balance = txn.balance_before
+    else:
+        loan.outstanding_balance = loan.outstanding_balance + txn.amount
     loan.amount_paid = max(Decimal('0.00'), loan.amount_paid - txn.amount)
 
-    # If the loan was completed by this payment, revert to active
-    if loan.status == 'completed' and txn.balance_before > Decimal('0.00'):
+    if loan.status == 'completed' and loan.outstanding_balance > Decimal('0.00'):
         loan.status = 'active'
         loan.completion_date = None
 
@@ -116,9 +117,6 @@ def _restore_loan_repayment(txn, reversal_txn):
         'completion_date', 'updated_at',
     ])
 
-    # Restore repayment schedule rows:
-    # Walk schedule rows in REVERSE installment order, reduce amount_paid until
-    # the full txn.amount has been un-applied.
     remaining = txn.amount
     rows = (
         LoanRepaymentSchedule.objects
@@ -137,16 +135,19 @@ def _restore_loan_repayment(txn, reversal_txn):
 
         if row.amount_paid <= Decimal('0.00'):
             row.amount_paid = Decimal('0.00')
+            row.outstanding_amount = row.total_amount
             row.paid_date = None
             row.status = 'overdue' if row.due_date < today else 'pending'
         else:
+            row.outstanding_amount = row.total_amount - row.amount_paid
             row.status = 'partial'
 
-        row.save(update_fields=['amount_paid', 'paid_date', 'status', 'updated_at'])
+        row.save(update_fields=[
+            'amount_paid', 'outstanding_amount', 'paid_date', 'status', 'updated_at',
+        ])
 
-    # Update reversal transaction balance snapshots
     reversal_txn.balance_before = txn.balance_after
-    reversal_txn.balance_after = txn.balance_before
+    reversal_txn.balance_after = loan.outstanding_balance
     reversal_txn.save(update_fields=['balance_before', 'balance_after'])
 
 

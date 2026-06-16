@@ -17,7 +17,7 @@ from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Sum, Q
+from django.db.models import Count, Exists, OuterRef, Sum, Q
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -31,18 +31,21 @@ from core.permissions import PermissionChecker, Permissions
 
 def _base_schedule_qs(user):
     """
-    Return the base LoanRepaymentSchedule queryset scoped by the user's role:
-      - Admin / Director / HR : all branches
-      - Manager               : own branch only
-      - Staff                 : only loans for their assigned clients (or created by them)
-    Only considers active/overdue/disbursed loans with unpaid/partial/overdue rows.
+    Return the base LoanRepaymentSchedule queryset scoped by the user's role.
+
+    Uses outstanding_amount__gt=0 as the primary "not fully paid" check rather
+    than the stored status field, which is a stale DB cache only refreshed on
+    save(). Rows bulk-created at disbursement time may have status='pending'
+    even when their computed_status would be 'overdue'. We exclude only
+    definitively closed rows (paid / waived) by filtering on outstanding_amount.
     """
     checker = PermissionChecker(user)
     qs = LoanRepaymentSchedule.objects.filter(
-        status__in=['pending', 'partial', 'overdue'],
         outstanding_amount__gt=0,
         loan__status__in=['active', 'overdue', 'disbursed'],
         loan__outstanding_balance__gt=0,
+    ).exclude(
+        status__in=['paid', 'waived'],
     ).select_related(
         'loan', 'loan__client', 'loan__client__assigned_staff', 'loan__branch', 'loan__loan_product'
     )
@@ -52,6 +55,32 @@ def _base_schedule_qs(user):
         return qs.filter(loan__branch=checker.branch)
     if checker.is_staff():
         return qs.filter(loan__client__assigned_staff=user)
+    return qs.none()
+
+
+def _loans_without_schedule(user, checker=None):
+    """
+    Return active/disbursed loans that have NO LoanRepaymentSchedule rows at all.
+    These are invisible to the schedule-based tracker and need separate handling.
+    """
+    if checker is None:
+        checker = PermissionChecker(user)
+    qs = Loan.objects.filter(
+        status__in=['active', 'overdue', 'disbursed'],
+        outstanding_balance__gt=0,
+    ).annotate(
+        has_schedule=Exists(
+            LoanRepaymentSchedule.objects.filter(loan=OuterRef('pk'))
+        )
+    ).filter(
+        has_schedule=False,
+    ).select_related('client', 'client__assigned_staff', 'branch', 'loan_product')
+    if checker.can_view_all_branches():
+        return qs
+    if checker.is_manager() and checker.branch:
+        return qs.filter(branch=checker.branch)
+    if checker.is_staff():
+        return qs.filter(client__assigned_staff=user)
     return qs.none()
 
 
@@ -140,6 +169,18 @@ def loan_repayment_tracker(request):
         .order_by('due_date', 'loan__client__first_name')
     )
 
+    # ── Active loans with NO schedule rows ─────────────────────────────────
+    # These are completely invisible to the schedule-based tracker. Show them
+    # as a warning so managers can investigate and rebuild their schedules.
+    loans_no_schedule = list(
+        _loans_without_schedule(request.user, checker=checker)
+        .order_by('next_repayment_date', 'client__first_name')
+    )
+    loans_no_schedule_today = [
+        l for l in loans_no_schedule
+        if l.next_repayment_date and l.next_repayment_date <= today
+    ]
+
     # ── Summary aggregates ─────────────────────────────────────────────────
     def _agg(qs):
         agg = qs.aggregate(
@@ -158,9 +199,15 @@ def loan_repayment_tracker(request):
     week_summary       = _agg(due_week_rows)
     month_summary      = _agg(due_month_rows)
 
+    # Bump "today" count to include schedule-less loans due today/overdue
+    today_summary['count'] += len(loans_no_schedule_today)
+    today_summary['outstanding'] += sum(
+        (l.outstanding_balance or Decimal('0')) for l in loans_no_schedule_today
+    )
+
     # Unique loan counts
     overdue_loan_count = overdue_rows.values('loan_id').distinct().count()
-    today_loan_count   = due_today_rows.values('loan_id').distinct().count()
+    today_loan_count   = due_today_rows.values('loan_id').distinct().count() + len(loans_no_schedule_today)
 
     # ── PAR buckets ────────────────────────────────────────────────────────
     par_buckets = _par_buckets(list(overdue_rows), today)
@@ -168,9 +215,9 @@ def loan_repayment_tracker(request):
     # Grand totals for PAR % — scoped to what this user can see
     par_total_qs = LoanRepaymentSchedule.objects.filter(
         loan__status__in=['active', 'overdue', 'disbursed'],
-        status__in=['pending', 'partial', 'overdue'],
+        outstanding_amount__gt=0,
         loan__outstanding_balance__gt=0,
-    )
+    ).exclude(status__in=['paid', 'waived'])
     if checker.can_view_all_branches():
         pass  # no extra filter
     elif checker.is_manager() and checker.branch:
@@ -207,6 +254,10 @@ def loan_repayment_tracker(request):
         'due_today_rows':  due_today_rows,
         'due_week_rows':   due_week_rows,
         'due_month_rows':  due_month_rows,
+
+        # Loans with no schedule rows (invisible to main tracker)
+        'loans_no_schedule':       loans_no_schedule,
+        'loans_no_schedule_today': loans_no_schedule_today,
 
         # Summaries
         'overdue_summary':      overdue_summary,

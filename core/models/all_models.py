@@ -6780,39 +6780,26 @@ class JournalEntry(BaseModel):
 
     @db_transaction.atomic
     def reverse(self, reversed_by, reason=''):
-        """Create a reversal journal entry"""
+        """
+        Void this journal entry.
+
+        Every trial balance / account balance query in this system filters
+        strictly on status='posted', so marking this entry status='reversed'
+        is by itself sufficient to remove its effect from the books. We do
+        NOT also create a second, opposite-direction entry — doing both
+        would remove the entry's effect twice (e.g. a NGN 9,900 duplicate
+        would vanish as NGN 19,800).
+        """
         if self.status != 'posted':
             raise ValueError("Only posted journals can be reversed")
-        
-        reversal = JournalEntry.objects.create(
-            entry_type='reversal',
-            transaction_date=timezone.now().date(),
-            branch=self.branch,
-            description=f"Reversal of {self.journal_number}: {reason}",
-            created_by=reversed_by,
-            reversed_entry=self,
-            status='draft'
-        )
-        
-        # Create opposite lines
-        for line in self.lines.all():
-            JournalEntryLine.objects.create(
-                journal_entry=reversal,
-                account=line.account,
-                debit_amount=line.credit_amount,  # Swap
-                credit_amount=line.debit_amount,  # Swap
-                description=f"Reversal: {line.description}",
-                client=line.client
-            )
-        
-        # Post reversal immediately
-        reversal.post(reversed_by)
-        
-        # Mark original as reversed
+
+        timestamp = timezone.now().strftime('%Y-%m-%d %H:%M')
+        note = f"\n[Reversed by {reversed_by.get_full_name()} on {timestamp}. Reason: {reason}]"
         self.status = 'reversed'
-        self.save(update_fields=['status', 'updated_at'])
-        
-        return reversal
+        self.description = (self.description or '') + note
+        self.save(update_fields=['status', 'description', 'updated_at'])
+
+        return self
 
 
 class JournalEntryLine(BaseModel):
