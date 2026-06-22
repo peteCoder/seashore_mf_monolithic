@@ -85,10 +85,11 @@ def get_savings_liability_account(product_type):
     from core.models import ChartOfAccounts
 
     account_mapping = {
-        'regular': '2010',   # Savings Deposits - Regular
-        'fixed': '2020',     # Savings Deposits - Fixed
-        'target': '2030',    # Savings Deposits - Voluntary
-        'children': '2040',  # Savings Deposits - Children
+        'regular': '2010',       # Savings Deposits - Regular
+        'fixed': '2020',         # Savings Deposits - Fixed
+        'target': '2030',        # Savings Deposits - Voluntary
+        'children': '2040',      # Savings Deposits - Children
+        'group_savings': '2010', # Group Savings — maps to Regular until a dedicated GL is added
     }
 
     gl_code = account_mapping.get(product_type, '2010')  # Default to regular
@@ -758,5 +759,53 @@ def post_loan_interest_accrual_journal(
         lines=lines,
         loan=loan,
         reference_number=f"{accrual_reference}-{loan.loan_number}",
+        auto_post=True,
+    )
+
+
+def post_group_savings_deposit_journal(
+    group_savings_account,
+    amount,
+    processed_by,
+    transaction_obj,
+):
+    """
+    Create journal entry for a group savings deposit.
+
+    Journal Entry:
+        Dr  1010  Cash In Hand                  xxx
+            Cr  20xx  Savings Deposits - [Type]     xxx
+    """
+    cash_account = get_cash_account_for_branch(group_savings_account.branch)
+    savings_liability = get_savings_liability_account(
+        group_savings_account.savings_product.product_type
+    )
+
+    group_name = group_savings_account.group.name
+
+    lines = [
+        {
+            'account_code': cash_account.gl_code,
+            'debit': amount,
+            'credit': 0,
+            'description': f"Group savings deposit — {group_name}",
+        },
+        {
+            'account_code': savings_liability.gl_code,
+            'debit': 0,
+            'credit': amount,
+            'description': f"Credit to group savings account {group_savings_account.account_number}",
+        },
+    ]
+
+    return create_journal_entry(
+        entry_type='savings_deposit',
+        transaction_date=transaction_obj.transaction_date,
+        branch=group_savings_account.branch,
+        description=f"Group Savings Deposit: {group_savings_account.account_number} — {group_name}",
+        created_by=processed_by,
+        lines=lines,
+        transaction_obj=transaction_obj,
+        reference_number=transaction_obj.transaction_ref,
         auto_post=True,
     )

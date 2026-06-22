@@ -1,0 +1,122 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}Create Group Savings Account — Seashore{% endblock %}
+{% block page_title %}Create Group Savings Account{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+    <!-- Breadcrumb -->
+    <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-6">
+        <a href="{% url 'core:group_savings_account_list' %}" class="hover:text-primary-600 dark:hover:text-primary-400">
+            <i class="fas fa-piggy-bank mr-1"></i>Group Savings
+        </a>
+        <span>/</span>
+        {% if group %}
+        <a href="{% url 'core:group_detail' group.id %}" class="hover:text-primary-600 dark:hover:text-primary-400">{{ group.name }}</a>
+        <span>/</span>
+        {% endif %}
+        <span class="text-gray-900 dark:text-white font-medium">Create Account</span>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+
+        <!-- Card header -->
+        <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40">
+            <div class="flex items-center space-x-3">
+                <div class="flex-shrink-0 w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-piggy-bank text-green-600 dark:text-green-400"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-gray-900 dark:text-white">New Group Savings Account</h1>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Creates a collective savings pot for a client group</p>
+                </div>
+            </div>
+        </div>
+
+        <form method="post" novalidate class="p-6 space-y-6">
+            {% csrf_token %}
+
+            <!-- Non-field errors -->
+            {% if form.non_field_errors %}
+            <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div class="flex items-start space-x-2">
+                    <i class="fas fa-exclamation-circle text-red-500 mt-0.5 flex-shrink-0"></i>
+                    <div>
+                        {% for error in form.non_field_errors %}
+                        <p class="text-sm text-red-700 dark:text-red-300">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Group field -->
+            {% if group %}
+                {# Pre-selected group — show as read-only card, submit hidden field #}
+                {{ form.group }}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Group
+                    </label>
+                    <div class="flex items-center space-x-3 p-3.5 bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-lg">
+                        <div class="flex-shrink-0 w-8 h-8 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
+                            <i class="fas fa-users text-primary-600 dark:text-primary-400 text-xs"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ group.name }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ group.code }} &middot; {{ group.branch.name }}</p>
+                        </div>
+                        <span class="ml-auto px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-full">
+                            Pre-selected
+                        </span>
+                    </div>
+                </div>
+            {% else %}
+                {# Free selection — show styled dropdown #}
+                <div>
+                    <label for="{{ form.group.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Group <span class="text-red-500">*</span>
+                    </label>
+                    {{ form.group }}
+                    {% if form.group.errors %}
+                    <p class="mt-1.5 text-xs text-red-600 dark:text-red-400 flex items-center">
+                        <i class="fas fa-exclamation-circle mr-1"></i>{{ form.group.errors.0 }}
+                    </p>
+                    {% endif %}
+                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        Only active groups without an existing savings account are shown.
+                    </p>
+                </div>
+            {% endif %}
+
+            <!-- Info banner -->
+            <div class="flex items-start space-x-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <i class="fas fa-info-circle text-blue-500 dark:text-blue-400 mt-0.5 flex-shrink-0"></i>
+                <div class="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                    <p><strong>What happens next:</strong></p>
+                    <ul class="list-disc list-inside space-y-0.5 text-blue-600 dark:text-blue-400">
+                        <li>Account is created under the <strong>Group Savings</strong> product</li>
+                        <li>Status starts as <strong>Pending Approval</strong></li>
+                        <li>A manager must approve it before savings can be posted</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
+                <a href="{% if group %}{% url 'core:group_detail' group.id %}{% else %}{% url 'core:group_savings_account_list' %}{% endif %}"
+                   class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium">
+                    <i class="fas fa-arrow-left mr-2 text-xs"></i>Cancel
+                </a>
+                <button type="submit"
+                        class="inline-flex items-center px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
+                    <i class="fas fa-plus mr-2"></i>Create Account
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

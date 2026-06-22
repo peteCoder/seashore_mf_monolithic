@@ -19,6 +19,7 @@ from django.utils import timezone
 from core.models import (
     ClientGroup, Client, GroupMembershipRequest, Transaction,
     GroupCollectionSession, GroupSavingsCollectionSession, GroupCombinedSession,
+    GroupSavingsAccount, SavingsProduct,
 )
 from core.services.notification_service import notify, notify_role
 from core.forms.group_forms import (
@@ -164,6 +165,10 @@ def group_detail(request, group_id):
         recent_savings_sessions = []
         recent_combined_sessions = []
 
+    group_savings_accounts = GroupSavingsAccount.objects.filter(
+        group=group
+    ).select_related('savings_product').order_by('-created_at')
+
     context = {
         'page_title': f'Group: {group.name}',
         'group': group,
@@ -173,10 +178,42 @@ def group_detail(request, group_id):
         'recent_loan_sessions': recent_loan_sessions,
         'recent_savings_sessions': recent_savings_sessions,
         'recent_combined_sessions': recent_combined_sessions,
+        'group_savings_accounts': group_savings_accounts,
         'checker': checker,
     }
 
     return render(request, 'groups/detail.html', context)
+
+
+# =============================================================================
+# HELPERS
+# =============================================================================
+
+def _get_group_savings_product():
+    """Return the active Group Savings SavingsProduct, or None if not configured."""
+    return SavingsProduct.objects.filter(
+        product_type='group_savings', is_active=True
+    ).first()
+
+
+def _auto_create_group_savings_account(group, created_by, status='pending'):
+    """
+    Create a GroupSavingsAccount for a group if the group savings product exists
+    and the group doesn't already have one.
+    Returns the account or None.
+    """
+    product = _get_group_savings_product()
+    if not product:
+        return None
+    if GroupSavingsAccount.objects.filter(group=group).exists():
+        return None
+    return GroupSavingsAccount.objects.create(
+        group=group,
+        savings_product=product,
+        branch=group.branch,
+        status=status,
+        created_by=created_by,
+    )
 
 
 # =============================================================================
@@ -205,6 +242,9 @@ def group_create(request):
             group.approval_status = 'pending'
             group.created_by = request.user
             group.save()
+
+            # Auto-create group savings account (pending, activated on group approval)
+            _auto_create_group_savings_account(group, created_by=request.user, status='pending')
 
             # Notify branch manager that a new group needs approval
             notify_role(
@@ -316,6 +356,16 @@ def group_approve(request, group_id):
                 group.approval_date = timezone.now()
                 group.is_active = True
                 group.save()
+
+                # Activate pending group savings account, or create one if absent
+                gsa = GroupSavingsAccount.objects.filter(group=group, status='pending').first()
+                if gsa:
+                    gsa.status = 'active'
+                    gsa.approved_by = request.user
+                    gsa.approved_at = timezone.now()
+                    gsa.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+                else:
+                    _auto_create_group_savings_account(group, created_by=request.user, status='active')
 
                 messages.success(request, f'Group {group.name} approved successfully!')
 

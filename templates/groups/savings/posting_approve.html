@@ -1,0 +1,273 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}Approve Posting — {{ posting.posting_ref }} — Seashore{% endblock %}
+{% block page_title %}Approve Group Savings Posting{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+    <!-- Breadcrumb -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:group_savings_account_list' %}" class="hover:text-primary-600 dark:hover:text-primary-400">
+                <i class="fas fa-piggy-bank mr-1"></i>Group Savings
+            </a>
+            <span>/</span>
+            <a href="{% url 'core:group_savings_account_detail' account.id %}" class="hover:text-primary-600 dark:hover:text-primary-400">{{ account.account_number }}</a>
+            <span>/</span>
+            <a href="{% url 'core:group_savings_posting_detail' posting.id %}" class="hover:text-primary-600 dark:hover:text-primary-400">{{ posting.posting_ref }}</a>
+            <span>/</span>
+            <span class="text-gray-900 dark:text-white font-medium">Approve</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+            <i class="fas fa-clipboard-check text-green-600 dark:text-green-400 mr-2"></i>
+            Review Group Savings Posting
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Review the posting details and member contributions before making a decision</p>
+    </div>
+
+    <!-- Posting Details Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <i class="fas fa-info-circle text-primary-600 dark:text-primary-400 mr-2"></i>Posting Details
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Reference</p>
+                <p class="text-base font-semibold font-mono text-gray-900 dark:text-white mt-0.5">{{ posting.posting_ref }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Group</p>
+                <a href="{% url 'core:group_detail' account.group.id %}"
+                   class="text-base font-semibold text-primary-600 dark:text-primary-400 hover:underline">
+                    {{ account.group.name }}
+                </a>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">{{ account.group.code }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                <span class="mt-1 px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                    <i class="fas fa-clock mr-1"></i>Pending Approval
+                </span>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Collection Date</p>
+                <p class="text-base font-semibold text-gray-900 dark:text-white mt-0.5">{{ posting.collection_date|date:"F d, Y" }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Total Amount</p>
+                <p class="text-xl font-bold text-green-600 dark:text-green-400 mt-0.5">&#8358;{{ posting.total_amount|floatformat:2|intcomma }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Submitted By</p>
+                <p class="text-base font-semibold text-gray-900 dark:text-white mt-0.5">{{ posting.submitted_by.get_full_name }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ posting.created_at|date:"d M Y, H:i" }}</p>
+            </div>
+        </div>
+        {% if posting.notes %}
+        <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Submission Notes</p>
+            <div class="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                <p class="text-sm text-gray-900 dark:text-white">{{ posting.notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Member Contributions Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                <i class="fas fa-users text-primary-600 dark:text-primary-400 mr-2"></i>Member Contributions
+            </h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">#</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Client Code</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">% Share</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for item in items %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ forloop.counter }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{{ item.client.get_full_name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500 dark:text-gray-400">{{ item.client.client_code }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-green-600 dark:text-green-400">&#8358;{{ item.amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400">{% widthratio item.amount posting.total_amount 100 %}%</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-inbox text-4xl mb-3 block"></i>
+                            <p>No contribution items found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if items %}
+                <tfoot class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <td colspan="3" class="px-6 py-4 text-right text-sm font-bold text-gray-900 dark:text-white">Total:</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <span class="text-lg font-bold text-green-600 dark:text-green-400">&#8358;{{ posting.total_amount|floatformat:2|intcomma }}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400">100%</td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+
+    <!-- Impact Notice -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-6 rounded-r-lg">
+        <div class="flex">
+            <i class="fas fa-info-circle text-blue-400 text-lg flex-shrink-0 mt-0.5"></i>
+            <div class="ml-3">
+                <h3 class="text-sm font-semibold text-blue-800 dark:text-blue-300">Approval Impact</h3>
+                <div class="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                    <p>If you approve this posting:</p>
+                    <ul class="list-disc list-inside ml-2 mt-1 space-y-1">
+                        <li><strong>&#8358;{{ posting.total_amount|floatformat:2|intcomma }}</strong> will be credited to account <strong>{{ account.account_number }}</strong></li>
+                        <li>A journal entry will be posted — Dr Cash / Cr Savings Liability</li>
+                        <li>{{ items|length }} member contribution{{ items|length|pluralize }} will be recorded against this posting</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Decision Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6">
+            <i class="fas fa-gavel text-primary-600 dark:text-primary-400 mr-2"></i>Make Your Decision
+        </h2>
+
+        <form method="post" id="approvalForm" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-r-lg">
+                {% for error in form.non_field_errors %}
+                <p class="text-sm text-red-700 dark:text-red-300"><i class="fas fa-exclamation-circle mr-1"></i>{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Decision Radio Cards -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Decision <span class="text-red-500">*</span>
+                </label>
+                <div class="space-y-3">
+                    <label class="flex items-start p-4 border-2 border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-green-50 dark:hover:bg-green-900/10 hover:border-green-300 dark:hover:border-green-700 transition-colors">
+                        <input type="radio" name="decision" value="approve"
+                               class="h-4 w-4 mt-0.5 text-green-600 focus:ring-green-500 border-gray-300"
+                               required {% if form.decision.value == 'approve' %}checked{% endif %}>
+                        <div class="ml-3">
+                            <span class="block text-sm font-semibold text-gray-900 dark:text-white">
+                                <i class="fas fa-check-circle text-green-600 dark:text-green-400 mr-1"></i>Approve Posting
+                            </span>
+                            <span class="block text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                Credit &#8358;{{ posting.total_amount|floatformat:2|intcomma }} to account {{ account.account_number }} and post the journal entry
+                            </span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start p-4 border-2 border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/10 hover:border-red-300 dark:hover:border-red-700 transition-colors">
+                        <input type="radio" name="decision" value="reject"
+                               class="h-4 w-4 mt-0.5 text-red-600 focus:ring-red-500 border-gray-300"
+                               {% if form.decision.value == 'reject' %}checked{% endif %}>
+                        <div class="ml-3">
+                            <span class="block text-sm font-semibold text-gray-900 dark:text-white">
+                                <i class="fas fa-times-circle text-red-600 dark:text-red-400 mr-1"></i>Reject Posting
+                            </span>
+                            <span class="block text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                Reject this posting. A reason must be provided below.
+                            </span>
+                        </div>
+                    </label>
+                </div>
+                {% if form.decision.errors %}
+                <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ form.decision.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Transaction Date -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Transaction Date
+                </label>
+                <input type="date" name="transaction_date"
+                       value="{{ form.transaction_date.value|default:posting.collection_date|date:'Y-m-d' }}"
+                       class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500">
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Date these deposits will be recorded in the ledger. Defaults to the collection date if left blank.
+                </p>
+                {% if form.transaction_date.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.transaction_date.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Review Notes
+                </label>
+                <textarea name="notes" rows="4"
+                          placeholder="Enter your review notes here… (required if rejecting)"
+                          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500">{{ form.notes.value|default:'' }}</textarea>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Optional for approval. Required when rejecting.
+                </p>
+                {% if form.notes.errors %}
+                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Warning -->
+            <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 mb-6 rounded-r-lg">
+                <div class="flex">
+                    <i class="fas fa-exclamation-triangle text-yellow-400 text-lg flex-shrink-0 mt-0.5"></i>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-semibold text-yellow-800 dark:text-yellow-300">Important</h3>
+                        <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                            Your decision is final. If approved, the deposit and journal entry cannot be reversed from this screen.
+                            If rejected, the posting will need to be resubmitted by the field officer.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                <a href="{% url 'core:group_savings_posting_detail' posting.id %}"
+                   class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium">
+                    Cancel
+                </a>
+                <button type="submit" id="submitBtn"
+                        class="px-8 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-semibold transition-colors shadow-sm">
+                    <i class="fas fa-check mr-2"></i>Submit Decision
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('approvalForm').addEventListener('submit', function () {
+    var btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing…';
+    btn.classList.remove('bg-primary-600', 'hover:bg-primary-700');
+    btn.classList.add('bg-gray-400', 'cursor-not-allowed');
+});
+</script>
+{% endblock %}

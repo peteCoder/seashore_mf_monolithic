@@ -109,6 +109,16 @@ from core.views.group_collection_views import (
     group_savings_collection_approve,
 )
 
+from core.views.group_savings_views import (
+    group_savings_account_list,
+    group_savings_account_detail,
+    group_savings_account_create,
+    group_savings_account_approve,
+    group_savings_post,
+    group_savings_posting_detail,
+    group_savings_posting_approve,
+)
+
 from core.views.user_views import (
     user_list,
     user_create,
@@ -422,6 +432,17 @@ urlpatterns = [
     path('groups/<uuid:group_id>/collect-all/post/', group_combined_collection_post, name='group_combined_collection_post'),
     path('groups/combined-collections/<uuid:session_id>/', group_combined_session_detail, name='group_combined_session_detail'),
     path('groups/combined-collections/<uuid:session_id>/approve/', group_combined_collection_approve, name='group_combined_collection_approve'),
+
+    # =========================================================================
+    # GROUP SAVINGS ACCOUNTS
+    # =========================================================================
+    path('group-savings/', group_savings_account_list, name='group_savings_account_list'),
+    path('group-savings/create/', group_savings_account_create, name='group_savings_account_create'),
+    path('group-savings/<uuid:account_id>/', group_savings_account_detail, name='group_savings_account_detail'),
+    path('group-savings/<uuid:account_id>/approve/', group_savings_account_approve, name='group_savings_account_approve'),
+    path('group-savings/<uuid:account_id>/post/', group_savings_post, name='group_savings_post'),
+    path('group-savings/postings/<uuid:posting_id>/', group_savings_posting_detail, name='group_savings_posting_detail'),
+    path('group-savings/postings/<uuid:posting_id>/approve/', group_savings_posting_approve, name='group_savings_posting_approve'),
 
     # =========================================================================
     # USERS/STAFF MANAGEMENT

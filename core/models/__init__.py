@@ -73,6 +73,10 @@ from .all_models import (
     GroupCombinedLoanItem,
     GroupCombinedSavingsItem,
 
+    GroupSavingsAccount,
+    GroupSavingsPosting,
+    GroupSavingsPostingItem,
+
     SavingsDepositPosting,
     SavingsWithdrawalPosting,
 
@@ -157,6 +161,10 @@ __all__ = [
     'GroupCombinedSession',
     'GroupCombinedLoanItem',
     'GroupCombinedSavingsItem',
+
+    'GroupSavingsAccount',
+    'GroupSavingsPosting',
+    'GroupSavingsPostingItem',
 
     # Financial Operations
     'BankReconciliation',

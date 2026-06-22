@@ -386,6 +386,63 @@
 
         <!-- Sidebar -->
         <div class="space-y-6">
+
+            <!-- Group Savings Accounts -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white flex items-center">
+                        <i class="fas fa-piggy-bank mr-2 text-green-600 dark:text-green-400"></i>Group Savings
+                    </h3>
+                    {% if checker.can_create_group_savings_account %}
+                    <a href="{% url 'core:group_savings_account_create' %}?group={{ group.id }}"
+                       class="text-xs px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+                        <i class="fas fa-plus mr-1"></i>New
+                    </a>
+                    {% endif %}
+                </div>
+                {% if group_savings_accounts %}
+                <div class="space-y-2">
+                    {% for gsa in group_savings_accounts %}
+                    <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-mono font-bold text-gray-900 dark:text-white">{{ gsa.account_number }}</span>
+                            <span class="px-1.5 py-0.5 text-xs font-semibold rounded-full
+                                {% if gsa.status == 'active' %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300
+                                {% elif gsa.status == 'pending' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300
+                                {% else %}bg-gray-200 text-gray-600 dark:bg-gray-600 dark:text-gray-300{% endif %}">
+                                {{ gsa.get_status_display }}
+                            </span>
+                        </div>
+                        <p class="text-base font-bold text-green-600 dark:text-green-400">&#8358;{{ gsa.balance|floatformat:2|intcomma }}</p>
+                        <div class="flex gap-2 mt-2">
+                            {% if gsa.status == 'active' %}
+                            <a href="{% url 'core:group_savings_post' gsa.id %}"
+                               class="flex-1 text-center text-xs px-2 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition-colors">
+                                <i class="fas fa-plus mr-1"></i>Post
+                            </a>
+                            {% endif %}
+                            <a href="{% url 'core:group_savings_account_detail' gsa.id %}"
+                               class="flex-1 text-center text-xs px-2 py-1.5 border border-gray-300 dark:border-gray-500 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 rounded font-medium transition-colors">
+                                View
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-gray-400 dark:text-gray-500">
+                    <i class="fas fa-piggy-bank text-2xl mb-1.5 block opacity-30"></i>
+                    <p class="text-xs">No savings account yet</p>
+                    {% if checker.can_create_group_savings_account %}
+                    <a href="{% url 'core:group_savings_account_create' %}?group={{ group.id }}"
+                       class="mt-1.5 inline-block text-xs text-primary-600 dark:text-primary-400 hover:underline">
+                        Create one
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+
             <!-- Statistics -->
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Statistics</h3>
@@ -481,6 +538,20 @@
                     </a>
                     {% endif %}
                     {% if group.status == 'active' %}
+                    <hr class="border-gray-200 dark:border-gray-700 my-2">
+                    <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase px-3">Group Savings</p>
+                    <a href="{% url 'core:group_savings_account_list' %}?search={{ group.name }}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-piggy-bank text-green-600"></i>
+                        <span>View Savings Accounts</span>
+                    </a>
+                    {% if checker.can_create_group_savings_account %}
+                    <a href="{% url 'core:group_savings_account_create' %}?group={{ group.id }}"
+                       class="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        <i class="fas fa-plus-circle text-green-600"></i>
+                        <span>New Savings Account</span>
+                    </a>
+                    {% endif %}
                     <hr class="border-gray-200 dark:border-gray-700 my-2">
                     <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase px-3">Collections</p>
                     <a href="{% url 'core:group_collection_detail' group.id %}"

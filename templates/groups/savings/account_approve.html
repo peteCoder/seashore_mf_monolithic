@@ -1,0 +1,84 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}Approve Account — {{ account.account_number }}{% endblock %}
+{% block page_title %}Approve Group Savings Account{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-6">
+        <a href="{% url 'core:group_savings_account_list' %}" class="hover:text-primary-600 dark:hover:text-primary-400"><i class="fas fa-piggy-bank mr-1"></i>Group Savings</a>
+        <span>/</span>
+        <a href="{% url 'core:group_savings_account_detail' account.id %}" class="hover:text-primary-600 dark:hover:text-primary-400">{{ account.account_number }}</a>
+        <span>/</span>
+        <span class="text-gray-900 dark:text-white font-medium">Approve</span>
+    </div>
+
+    <!-- Account summary -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-4">
+        <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Account Summary</h2>
+        <dl class="grid grid-cols-2 gap-4">
+            <div>
+                <dt class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Account Number</dt>
+                <dd class="text-sm font-mono font-bold text-gray-900 dark:text-white mt-1">{{ account.account_number }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</dt>
+                <dd class="mt-1">
+                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">Pending</span>
+                </dd>
+            </div>
+            <div>
+                <dt class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Group</dt>
+                <dd class="text-sm font-medium text-gray-900 dark:text-white mt-1">{{ account.group.name }} <span class="text-gray-500">({{ account.group.code }})</span></dd>
+            </div>
+            <div>
+                <dt class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Savings Product</dt>
+                <dd class="text-sm text-gray-900 dark:text-white mt-1">{{ account.savings_product.name }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Branch</dt>
+                <dd class="text-sm text-gray-900 dark:text-white mt-1">{{ account.branch.name }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created By</dt>
+                <dd class="text-sm text-gray-900 dark:text-white mt-1">{{ account.created_by.get_full_name }} <span class="text-gray-500">on {{ account.created_at|date:"d M Y" }}</span></dd>
+            </div>
+        </dl>
+    </div>
+
+    <!-- Approval form -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">
+            <i class="fas fa-clipboard-check text-primary-600 dark:text-primary-400 mr-2"></i>Decision
+        </h2>
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Notes / Reason (required if rejecting)</label>
+                <textarea name="notes" rows="3"
+                          class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          placeholder="Optional approval notes, or required rejection reason…"></textarea>
+            </div>
+
+            <div class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700 gap-4">
+                <a href="{% url 'core:group_savings_account_detail' account.id %}"
+                   class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium">
+                    Cancel
+                </a>
+                <div class="flex gap-3">
+                    <button type="submit" name="decision" value="reject"
+                            class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-sm">
+                        <i class="fas fa-times mr-2"></i>Reject
+                    </button>
+                    <button type="submit" name="decision" value="approve"
+                            class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors shadow-sm">
+                        <i class="fas fa-check mr-2"></i>Approve
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

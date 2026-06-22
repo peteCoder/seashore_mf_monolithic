@@ -184,7 +184,7 @@
     
     {% if user.is_authenticated %}
         <!-- Authenticated Layout -->
-        <div class="min-h-screen" x-data="{ mobileMenuOpen: false, profileDropdownOpen: false, loansExpanded: false, reportsExpanded: false, approvalsExpanded: false, systemExpanded: false, collectionsExpanded: false }">
+        <div class="min-h-screen" x-data="{ mobileMenuOpen: false, profileDropdownOpen: false, loansExpanded: false, reportsExpanded: false, approvalsExpanded: false, systemExpanded: false, collectionsExpanded: false, groupsExpanded: {% if 'group' in request.resolver_match.url_name %}true{% else %}false{% endif %} }">
             
             <!-- Desktop Sidebar - Fixed -->
             <aside class="hidden lg:flex lg:flex-col lg:w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 fixed left-0 top-0 bottom-0">
@@ -280,18 +280,43 @@
                                 <span>Clients</span>
                             </a>
                             
-                            <!-- Groups - Manager, Director, Admin Only -->
+                            <!-- Groups dropdown - Manager, Director, Admin Only -->
                             {% if user.user_role == 'manager' or user.user_role == 'director' or user.user_role == 'admin' or user.user_role == 'hr' %}
-                            <a href="{% url 'core:group_list' %}"
-                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
-                                      {% if 'group' in request.resolver_match.url_name %}
-                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
-                                      {% else %}
-                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
-                                      {% endif %}">
-                                <i class="fas fa-layer-group w-5 mr-3 text-base"></i>
-                                <span>Groups</span>
-                            </a>
+                            <div>
+                                <button @click="groupsExpanded = !groupsExpanded"
+                                        class="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                               {% if 'group' in request.resolver_match.url_name %}
+                                               text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20
+                                               {% else %}
+                                               text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                               {% endif %}">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-layer-group w-5 mr-3 text-base"></i>
+                                        <span>Groups</span>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-xs transition-transform" :class="{ 'rotate-90': groupsExpanded }"></i>
+                                </button>
+                                <div x-show="groupsExpanded" x-collapse class="ml-8 mt-1 space-y-1">
+                                    <a href="{% url 'core:group_list' %}"
+                                       class="block px-3 py-2 text-sm rounded-lg transition-colors
+                                              {% if 'group' in request.resolver_match.url_name and 'group_savings' not in request.resolver_match.url_name %}
+                                              text-amber-600 dark:text-amber-400 font-medium
+                                              {% else %}
+                                              text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white
+                                              {% endif %}">
+                                        <i class="fas fa-layer-group mr-1.5 text-xs"></i>Groups
+                                    </a>
+                                    <a href="{% url 'core:group_savings_account_list' %}"
+                                       class="block px-3 py-2 text-sm rounded-lg transition-colors
+                                              {% if 'group_savings' in request.resolver_match.url_name %}
+                                              text-amber-600 dark:text-amber-400 font-medium
+                                              {% else %}
+                                              text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white
+                                              {% endif %}">
+                                        <i class="fas fa-piggy-bank mr-1.5 text-xs"></i>Group Savings Accounts
+                                    </a>
+                                </div>
+                            </div>
 
                             <a href="{% url 'core:assignment_list' %}"
                                class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all

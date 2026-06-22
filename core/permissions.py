@@ -65,6 +65,11 @@ class Permissions:
     CAN_CREATE_LOANS    = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER, Roles.STAFF]
     CAN_RECORD_PAYMENTS = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER, Roles.STAFF]
 
+    # ── group savings ─────────────────────────────────────────────────
+    CAN_MANAGE_GROUP_SAVINGS  = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER]
+    CAN_APPROVE_GROUP_SAVINGS = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER]
+    CAN_POST_GROUP_SAVINGS    = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER, Roles.STAFF]
+
     # ── client lifecycle  ────────────────────────────────────────────
     # Full-form edit.  Staff excluded deliberately.
     CAN_EDIT_CLIENT          = [Roles.ADMIN, Roles.DIRECTOR]
@@ -405,6 +410,50 @@ class PermissionChecker:
         if self.is_staff() and group.loan_officer == self.user:
             return True
         return False
+
+    # =========================================================================
+    # GROUP SAVINGS
+    # =========================================================================
+
+    def can_create_group_savings_account(self):
+        """Staff cannot create accounts manually (auto-created on group creation)."""
+        return self.role in Permissions.CAN_MANAGE_GROUP_SAVINGS
+
+    def can_approve_group_savings(self):
+        return self.role in Permissions.CAN_APPROVE_GROUP_SAVINGS
+
+    def can_view_group_savings_account(self, account):
+        if self.is_admin_or_director():
+            return True
+        if self.is_manager():
+            return account.branch == self.branch
+        if self.is_staff():
+            return account.group.loan_officer == self.user
+        return False
+
+    def can_post_group_savings(self, account):
+        if self.role not in Permissions.CAN_POST_GROUP_SAVINGS:
+            return False
+        if self.is_admin_or_director():
+            return True
+        if self.is_manager():
+            return account.branch == self.branch
+        if self.is_staff():
+            return account.group.loan_officer == self.user
+        return False
+
+    def can_post_any_group_savings(self):
+        """Role-level check only — use on list pages where the queryset is already scoped."""
+        return self.role in Permissions.CAN_POST_GROUP_SAVINGS
+
+    def filter_group_savings_accounts(self, queryset):
+        if self.is_admin_or_director():
+            return queryset
+        if self.is_manager() and self.branch:
+            return queryset.filter(branch=self.branch)
+        if self.is_staff():
+            return queryset.filter(group__loan_officer=self.user)
+        return queryset.none()
 
     # =========================================================================
     # QUERYSET FILTERS
