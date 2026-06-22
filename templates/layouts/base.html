@@ -536,9 +536,11 @@
                                     <a href="{% url 'core:report_trial_balance' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                                         Trial Balance
                                     </a>
+                                    {% if request.user.user_role == 'admin' or request.user.user_role == 'director' %}
                                     <a href="{% url 'core:report_profit_loss' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                                         Profit & Loss
                                     </a>
+                                    {% endif %}
                                     <a href="{% url 'core:report_balance_sheet' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                                         Balance Sheet
                                     </a>
@@ -1003,9 +1005,11 @@
                     <a href="{% url 'core:report_trial_balance' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                         Trial Balance
                     </a>
+                    {% if request.user.user_role == 'admin' or request.user.user_role == 'director' %}
                     <a href="{% url 'core:report_profit_loss' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                         Profit & Loss
                     </a>
+                    {% endif %}
                     <a href="{% url 'core:report_balance_sheet' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                         Balance Sheet
                     </a>

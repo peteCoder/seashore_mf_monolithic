@@ -1007,12 +1007,12 @@ def report_profit_loss(request):
     """
     Generate Profit & Loss Statement
 
-    Permissions: Manager, Director, Admin
+    Permissions: Admin and Director only.
     """
     checker = PermissionChecker(request.user)
 
-    if not (checker.is_manager() or checker.is_admin_or_director()):
-        messages.error(request, 'You do not have permission to view financial reports.')
+    if not checker.can_view_profit_loss():
+        messages.error(request, 'You do not have permission to view the Profit & Loss statement.')
         raise PermissionDenied
 
     form = ProfitLossForm(request.GET or None)

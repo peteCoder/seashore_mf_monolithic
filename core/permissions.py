@@ -188,6 +188,7 @@ class PermissionChecker:
     def can_process_transaction(self):      return self.can_process_transactions()   # alias
     def can_view_reports(self):             return self.role in Permissions.CAN_VIEW_REPORTS
     def can_view_financials(self):          return self.role in Permissions.CAN_VIEW_FINANCIALS
+    def can_view_profit_loss(self):         return self.role in (Roles.ADMIN, Roles.DIRECTOR)
 
     # =========================================================================
     # CLIENT LIFECYCLE  ← core of this rewrite
