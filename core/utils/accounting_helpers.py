@@ -763,6 +763,54 @@ def post_loan_interest_accrual_journal(
     )
 
 
+def post_group_savings_withdrawal_journal(
+    group_savings_account,
+    amount,
+    processed_by,
+    transaction_obj,
+):
+    """
+    Create journal entry for a group savings withdrawal.
+
+    Journal Entry:
+        Dr  20xx  Savings Deposits - [Type]     xxx   (reduce liability)
+            Cr  1010  Cash In Hand              xxx   (money leaves)
+    """
+    cash_account = get_cash_account_for_branch(group_savings_account.branch)
+    savings_liability = get_savings_liability_account(
+        group_savings_account.savings_product.product_type
+    )
+
+    group_name = group_savings_account.group.name
+
+    lines = [
+        {
+            'account_code': savings_liability.gl_code,
+            'debit': amount,
+            'credit': 0,
+            'description': f"Group savings withdrawal — {group_savings_account.account_number}",
+        },
+        {
+            'account_code': cash_account.gl_code,
+            'debit': 0,
+            'credit': amount,
+            'description': f"Cash paid out for group savings withdrawal — {group_name}",
+        },
+    ]
+
+    return create_journal_entry(
+        entry_type='savings_withdrawal',
+        transaction_date=transaction_obj.transaction_date,
+        branch=group_savings_account.branch,
+        description=f"Group Savings Withdrawal: {group_savings_account.account_number} — {group_name}",
+        created_by=processed_by,
+        lines=lines,
+        transaction_obj=transaction_obj,
+        reference_number=transaction_obj.transaction_ref,
+        auto_post=True,
+    )
+
+
 def post_group_savings_deposit_journal(
     group_savings_account,
     amount,

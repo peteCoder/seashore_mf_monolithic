@@ -5003,7 +5003,8 @@ class Transaction(BaseModel):
         ('fee',                     'Fee / Charge'),
 
         # --- group savings ---
-        ('group_savings_deposit',   'Group Savings Deposit'),
+        ('group_savings_deposit',    'Group Savings Deposit'),
+        ('group_savings_withdrawal', 'Group Savings Withdrawal'),
 
         # --- other ---
         ('reversal',                'Reversal'),
@@ -5035,10 +5036,11 @@ class Transaction(BaseModel):
     # Used by the debit_amount / credit_amount properties.
     # -----------------------------------------------------------------------
     OUTFLOW_TYPES = {
-        'loan_disbursement',   # bank pays out
-        'withdrawal',          # client withdraws
-        'interest_applied',    # interest charged against client (bank earns)
-        'reversal',            # could go either way — see property logic
+        'loan_disbursement',        # bank pays out
+        'withdrawal',               # client withdraws
+        'interest_applied',         # interest charged against client (bank earns)
+        'reversal',                 # could go either way — see property logic
+        'group_savings_withdrawal', # group withdraws from group savings pot
     }
 
     STATUS_CHOICES = [
@@ -9069,15 +9071,64 @@ class GroupSavingsAccount(BaseModel, ApprovalWorkflowMixin):
             transaction_date=txn_dt,
         )
 
-        try:
-            post_group_savings_deposit_journal(
-                group_savings_account=account,
-                amount=amount,
-                processed_by=processed_by,
-                transaction_obj=txn,
+        post_group_savings_deposit_journal(
+            group_savings_account=account,
+            amount=amount,
+            processed_by=processed_by,
+            transaction_obj=txn,
+        )
+
+        return txn
+
+    @db_transaction.atomic
+    def withdraw(self, amount, processed_by, description='', transaction_date=None):
+        """
+        Debit the group savings account balance.
+        Creates a Transaction and a posted JournalEntry (Dr Savings Liability / Cr Cash).
+        """
+        from core.models import Transaction
+        from core.utils.accounting_helpers import post_group_savings_withdrawal_journal
+        import datetime as _dt
+
+        amount = Decimal(str(amount))
+        if amount <= 0:
+            raise ValueError("Withdrawal amount must be positive")
+        if self.status != 'active':
+            raise ValueError(f"Cannot withdraw from a {self.get_status_display()} account")
+
+        account = GroupSavingsAccount.objects.select_for_update().get(pk=self.pk)
+        if account.balance < amount:
+            raise ValueError(
+                f"Insufficient balance. Available: ₦{account.balance:,.2f}, Requested: ₦{amount:,.2f}"
             )
-        except Exception:
-            pass  # Journal failure is logged; transaction still stands
+
+        old_balance = account.balance
+        account.balance = account.balance - amount
+        account.save(update_fields=['balance', 'updated_at'])
+
+        txn_dt = transaction_date if transaction_date is not None else timezone.now()
+        if isinstance(txn_dt, _dt.date) and not isinstance(txn_dt, _dt.datetime):
+            txn_dt = timezone.make_aware(_dt.datetime.combine(txn_dt, _dt.time.min))
+
+        txn = Transaction.objects.create(
+            transaction_type='group_savings_withdrawal',
+            amount=amount,
+            group_savings_account=account,
+            branch=account.branch,
+            balance_before=old_balance,
+            balance_after=account.balance,
+            processed_by=processed_by,
+            description=description or f"Group savings withdrawal — {account.group.name}",
+            status='completed',
+            transaction_date=txn_dt,
+        )
+
+        post_group_savings_withdrawal_journal(
+            group_savings_account=account,
+            amount=amount,
+            processed_by=processed_by,
+            transaction_obj=txn,
+        )
 
         return txn
 
@@ -9172,6 +9223,73 @@ class GroupSavingsPostingItem(BaseModel):
 
     def __str__(self):
         return f"{self.client.get_full_name()} — ₦{self.amount:,.2f}"
+
+
+class GroupSavingsWithdrawal(BaseModel):
+    """
+    A withdrawal request from a GroupSavingsAccount.
+    Staff submit the request; a manager approves it.
+    On approval: Dr Savings Liability / Cr Cash In Hand.
+    """
+    STATUS_CHOICES = [
+        ('pending',  'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
+    group_savings_account = models.ForeignKey(
+        'GroupSavingsAccount',
+        on_delete=models.PROTECT,
+        related_name='withdrawals',
+    )
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    withdrawal_date = models.DateField()
+    purpose = models.CharField(max_length=500, help_text="What is this withdrawal for?")
+    notes = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+
+    withdrawal_ref = models.CharField(max_length=30, unique=True, editable=False)
+
+    submitted_by = models.ForeignKey(
+        'User', on_delete=models.PROTECT, related_name='submitted_group_withdrawals',
+    )
+
+    approved_by = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='approved_group_withdrawals',
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    transaction = models.OneToOneField(
+        'Transaction', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='group_savings_withdrawal_posting',
+    )
+
+    rejected_by = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='rejected_group_withdrawals',
+    )
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-withdrawal_date', '-created_at']
+
+    def __str__(self):
+        return f"{self.withdrawal_ref} — ₦{self.amount:,.2f} ({self.get_status_display()})"
+
+    def save(self, *args, **kwargs):
+        if not self.withdrawal_ref:
+            self.withdrawal_ref = self._generate_ref()
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def _generate_ref():
+        from django.utils.crypto import get_random_string
+        prefix = 'WDR'
+        ref = f"{prefix}-{get_random_string(8, '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
+        while GroupSavingsWithdrawal.objects.filter(withdrawal_ref=ref).exists():
+            ref = f"{prefix}-{get_random_string(8, '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
+        return ref
 
 
 class PublicHoliday(models.Model):

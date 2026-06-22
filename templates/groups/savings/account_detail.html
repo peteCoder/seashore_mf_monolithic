@@ -28,6 +28,10 @@
                class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors shadow-sm">
                 <i class="fas fa-plus mr-2"></i>Post Savings
             </a>
+            <a href="{% url 'core:group_savings_withdrawal_create' account.id %}"
+               class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors shadow-sm">
+                <i class="fas fa-arrow-up mr-2"></i>Withdraw
+            </a>
             {% endif %}
             {% if account.status == 'pending' and can_approve %}
             <a href="{% url 'core:group_savings_account_approve' account.id %}"
@@ -156,6 +160,66 @@
             </div>
         </div>
         {% endif %}
+    </div>
+
+    <!-- Withdrawals -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden mt-6">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white flex items-center">
+                <i class="fas fa-arrow-up text-red-500 mr-2"></i>Withdrawal Requests
+            </h2>
+            {% if account.status == 'active' and can_post %}
+            <a href="{% url 'core:group_savings_withdrawal_create' account.id %}"
+               class="text-sm px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors">
+                <i class="fas fa-plus mr-1"></i>New Withdrawal
+            </a>
+            {% endif %}
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Reference</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Purpose</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for w in account.withdrawals.all %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap font-mono text-sm text-gray-900 dark:text-white">{{ w.withdrawal_ref }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{{ w.withdrawal_date|date:"d M Y" }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 max-w-xs truncate">{{ w.purpose }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 inline-flex text-xs font-semibold rounded-full
+                                {% if w.status == 'approved' %}bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300
+                                {% elif w.status == 'pending' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300
+                                {% else %}bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300{% endif %}">
+                                {{ w.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-red-600 dark:text-red-400">&#8358;{{ w.amount|floatformat:2|intcomma }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <a href="{% url 'core:group_savings_withdrawal_detail' w.id %}" class="text-primary-600 dark:text-primary-400 hover:underline text-sm">View</a>
+                            {% if w.status == 'pending' and can_approve %}
+                            · <a href="{% url 'core:group_savings_withdrawal_approve' w.id %}" class="text-yellow-600 dark:text-yellow-400 hover:underline text-sm">Approve</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-arrow-up text-3xl mb-2 block opacity-20"></i>
+                            <p class="text-sm">No withdrawal requests yet</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <div class="mt-4">

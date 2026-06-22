@@ -1,0 +1,208 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+
+{% block title %}Approve Withdrawal {{ withdrawal.withdrawal_ref }}{% endblock %}
+{% block page_title %}Approve Group Savings Withdrawal{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+
+    <!-- Breadcrumb -->
+    <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-6">
+        <a href="{% url 'core:group_savings_account_list' %}" class="hover:text-primary-600 dark:hover:text-primary-400">
+            <i class="fas fa-piggy-bank mr-1"></i>Group Savings
+        </a>
+        <span>/</span>
+        <a href="{% url 'core:group_savings_account_detail' account.id %}" class="hover:text-primary-600 dark:hover:text-primary-400">{{ account.account_number }}</a>
+        <span>/</span>
+        <a href="{% url 'core:group_savings_withdrawal_detail' withdrawal.id %}" class="hover:text-primary-600 dark:hover:text-primary-400">{{ withdrawal.withdrawal_ref }}</a>
+        <span>/</span>
+        <span class="text-gray-900 dark:text-white font-medium">Approve</span>
+    </div>
+
+    <form method="post" novalidate id="approveForm">
+        {% csrf_token %}
+
+        <!-- Non-field errors -->
+        {% if form.non_field_errors %}
+        <div class="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start space-x-2">
+            <i class="fas fa-exclamation-circle text-red-500 mt-0.5 flex-shrink-0"></i>
+            <div>{% for error in form.non_field_errors %}<p class="text-sm text-red-700 dark:text-red-300">{{ error }}</p>{% endfor %}</div>
+        </div>
+        {% endif %}
+
+        <!-- Withdrawal summary -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-5">
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Withdrawal Details</h2>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Reference</p>
+                    <p class="text-sm font-mono font-semibold text-gray-900 dark:text-white">{{ withdrawal.withdrawal_ref }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Group</p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">
+                        <a href="{% url 'core:group_detail' account.group.id %}" class="text-primary-600 dark:text-primary-400 hover:underline">{{ account.group.name }}</a>
+                    </p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Account</p>
+                    <p class="text-sm font-mono text-gray-900 dark:text-white">{{ account.account_number }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Amount Requested</p>
+                    <p class="text-lg font-bold text-red-600 dark:text-red-400">&#8358;{{ withdrawal.amount|floatformat:2|intcomma }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Current Balance</p>
+                    <p class="text-lg font-bold text-green-600 dark:text-green-400">&#8358;{{ account.balance|floatformat:2|intcomma }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Withdrawal Date</p>
+                    <p class="text-sm text-gray-900 dark:text-white">{{ withdrawal.withdrawal_date|date:"d M Y" }}</p>
+                </div>
+                <div class="col-span-2 sm:col-span-3">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Purpose</p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ withdrawal.purpose }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Submitted By</p>
+                    <p class="text-sm text-gray-900 dark:text-white">{{ withdrawal.submitted_by.get_full_name }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Submitted At</p>
+                    <p class="text-sm text-gray-900 dark:text-white">{{ withdrawal.created_at|date:"d M Y, H:i" }}</p>
+                </div>
+            </div>
+            {% if withdrawal.notes %}
+            <div class="mt-4 p-3 bg-gray-50 dark:bg-gray-700/60 rounded-lg">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Notes from staff</p>
+                <p class="text-sm text-gray-700 dark:text-gray-300">{{ withdrawal.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Balance impact notice -->
+        <div class="{% if sufficient_funds %}bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800{% else %}bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800{% endif %} border rounded-xl p-5 mb-5">
+            <h3 class="text-sm font-semibold mb-2 flex items-center {% if sufficient_funds %}text-blue-900 dark:text-blue-300{% else %}text-red-900 dark:text-red-300{% endif %}">
+                <i class="fas fa-calculator mr-2"></i>If Approved — Journal Impact
+            </h3>
+            <ul class="text-sm space-y-1 {% if sufficient_funds %}text-blue-700 dark:text-blue-400{% else %}text-red-700 dark:text-red-400{% endif %}">
+                <li><i class="fas fa-arrow-right mr-1"></i>Dr GL 2010 (Savings Deposits) &mdash; &#8358;{{ withdrawal.amount|floatformat:2|intcomma }}</li>
+                <li><i class="fas fa-arrow-right mr-1"></i>Cr GL 1010 (Cash In Hand) &mdash; &#8358;{{ withdrawal.amount|floatformat:2|intcomma }}</li>
+                <li class="pt-2 mt-2 border-t {% if sufficient_funds %}border-blue-200 dark:border-blue-700{% else %}border-red-200 dark:border-red-700{% endif %}">
+                    Balance after:
+                    <strong>&#8358;{{ account.balance|floatformat:2|intcomma }}</strong>
+                    &minus;
+                    <strong>&#8358;{{ withdrawal.amount|floatformat:2|intcomma }}</strong>
+                    =
+                    <strong class="{% if sufficient_funds %}text-green-700 dark:text-green-400{% else %}text-red-700 dark:text-red-400{% endif %}">
+                        &#8358;{{ balance_after|floatformat:2|intcomma }}
+                    </strong>
+                    {% if not sufficient_funds %}
+                    <span class="ml-2 text-xs font-semibold text-red-700 dark:text-red-400">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>Insufficient funds
+                    </span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+
+        {% if not sufficient_funds %}
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-xl p-4 mb-5">
+            <p class="text-sm font-semibold text-red-800 dark:text-red-300 flex items-center">
+                <i class="fas fa-ban mr-2"></i>Cannot Approve — Insufficient Balance
+            </p>
+            <p class="text-sm text-red-700 dark:text-red-400 mt-1">
+                The account balance (&#8358;{{ account.balance|floatformat:2|intcomma }}) is less than the
+                requested withdrawal (&#8358;{{ withdrawal.amount|floatformat:2|intcomma }}).
+                The submission must be revised before it can be approved.
+            </p>
+        </div>
+        {% endif %}
+
+        <!-- Decision -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-5">
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Your Decision</h2>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+                <label class="flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all
+                    {% if form.decision.value == 'approve' %}border-green-500 bg-green-50 dark:bg-green-900/20{% else %}border-gray-200 dark:border-gray-600 hover:border-green-400{% endif %}">
+                    <input type="radio" name="decision" value="approve"
+                           {% if form.decision.value == 'approve' %}checked{% endif %}
+                           class="text-green-600 focus:ring-green-500">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white">Approve</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Release funds and post journal entry</p>
+                    </div>
+                </label>
+
+                <label class="flex items-center space-x-3 p-4 border-2 rounded-xl cursor-pointer transition-all
+                    {% if form.decision.value == 'reject' %}border-red-500 bg-red-50 dark:bg-red-900/20{% else %}border-gray-200 dark:border-gray-600 hover:border-red-400{% endif %}">
+                    <input type="radio" name="decision" value="reject"
+                           {% if form.decision.value == 'reject' %}checked{% endif %}
+                           class="text-red-600 focus:ring-red-500">
+                    <div>
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white">Reject</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Deny the request, no balance change</p>
+                    </div>
+                </label>
+            </div>
+            {% if form.decision.errors %}
+            <p class="text-xs text-red-600 dark:text-red-400 mb-3"><i class="fas fa-exclamation-circle mr-1"></i>{{ form.decision.errors.0 }}</p>
+            {% endif %}
+
+            <!-- Transaction date -->
+            <div class="mb-4">
+                <label for="{{ form.transaction_date.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Transaction Date <span class="text-gray-400 text-xs font-normal">(optional — defaults to withdrawal date)</span>
+                </label>
+                {{ form.transaction_date }}
+                {% if form.transaction_date.errors %}
+                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.transaction_date.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Notes -->
+            <div>
+                <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Review Notes <span class="text-red-500 text-xs">* required when rejecting</span>
+                </label>
+                {{ form.notes }}
+                {% if form.notes.errors %}
+                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.notes.errors.0 }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Warning -->
+        <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 mb-5">
+            <p class="text-sm text-yellow-800 dark:text-yellow-300 flex items-start space-x-2">
+                <i class="fas fa-exclamation-triangle mt-0.5 flex-shrink-0"></i>
+                <span><strong>This action cannot be undone.</strong> Approval immediately debits the group savings account and posts a journal entry to the ledger.</span>
+            </p>
+        </div>
+
+        <!-- Submit -->
+        <div class="flex items-center justify-between">
+            <a href="{% url 'core:group_savings_withdrawal_detail' withdrawal.id %}"
+               class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <i class="fas fa-arrow-left mr-2 text-xs"></i>Back
+            </a>
+            <button type="submit" id="submitBtn"
+                    class="inline-flex items-center px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
+                <i class="fas fa-gavel mr-2"></i>Submit Decision
+            </button>
+        </div>
+
+    </form>
+</div>
+
+<script>
+document.getElementById('approveForm').addEventListener('submit', function() {
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing…';
+});
+</script>
+{% endblock %}

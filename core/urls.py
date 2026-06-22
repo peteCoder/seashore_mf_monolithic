@@ -117,6 +117,9 @@ from core.views.group_savings_views import (
     group_savings_post,
     group_savings_posting_detail,
     group_savings_posting_approve,
+    group_savings_withdrawal_create,
+    group_savings_withdrawal_detail,
+    group_savings_withdrawal_approve,
 )
 
 from core.views.user_views import (
@@ -443,6 +446,9 @@ urlpatterns = [
     path('group-savings/<uuid:account_id>/post/', group_savings_post, name='group_savings_post'),
     path('group-savings/postings/<uuid:posting_id>/', group_savings_posting_detail, name='group_savings_posting_detail'),
     path('group-savings/postings/<uuid:posting_id>/approve/', group_savings_posting_approve, name='group_savings_posting_approve'),
+    path('group-savings/<uuid:account_id>/withdraw/', group_savings_withdrawal_create, name='group_savings_withdrawal_create'),
+    path('group-savings/withdrawals/<uuid:withdrawal_id>/', group_savings_withdrawal_detail, name='group_savings_withdrawal_detail'),
+    path('group-savings/withdrawals/<uuid:withdrawal_id>/approve/', group_savings_withdrawal_approve, name='group_savings_withdrawal_approve'),
 
     # =========================================================================
     # USERS/STAFF MANAGEMENT

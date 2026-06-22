@@ -104,6 +104,7 @@
                             <a href="{% url 'core:group_savings_account_detail' account.id %}" class="text-primary-600 dark:text-primary-400 hover:underline text-sm">View</a>
                             {% if account.status == 'active' and checker.can_post_any_group_savings %}
                             · <a href="{% url 'core:group_savings_post' account.id %}" class="text-green-600 dark:text-green-400 hover:underline text-sm">Post</a>
+                            · <a href="{% url 'core:group_savings_withdrawal_create' account.id %}" class="text-red-600 dark:text-red-400 hover:underline text-sm">Withdraw</a>
                             {% endif %}
                             {% if account.status == 'pending' and checker.can_approve_group_savings %}
                             · <a href="{% url 'core:group_savings_account_approve' account.id %}" class="text-yellow-600 dark:text-yellow-400 hover:underline text-sm">Approve</a>

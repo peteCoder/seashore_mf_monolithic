@@ -414,11 +414,15 @@
                             </span>
                         </div>
                         <p class="text-base font-bold text-green-600 dark:text-green-400">&#8358;{{ gsa.balance|floatformat:2|intcomma }}</p>
-                        <div class="flex gap-2 mt-2">
+                        <div class="flex gap-1.5 mt-2">
                             {% if gsa.status == 'active' %}
                             <a href="{% url 'core:group_savings_post' gsa.id %}"
                                class="flex-1 text-center text-xs px-2 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition-colors">
                                 <i class="fas fa-plus mr-1"></i>Post
+                            </a>
+                            <a href="{% url 'core:group_savings_withdrawal_create' gsa.id %}"
+                               class="flex-1 text-center text-xs px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-medium transition-colors">
+                                <i class="fas fa-arrow-up mr-1"></i>Withdraw
                             </a>
                             {% endif %}
                             <a href="{% url 'core:group_savings_account_detail' gsa.id %}"

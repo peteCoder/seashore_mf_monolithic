@@ -29,10 +29,11 @@ from django.utils import timezone
 
 from core.models import (
     ClientGroup, Client, GroupSavingsAccount, GroupSavingsPosting, GroupSavingsPostingItem,
-    SavingsProduct,
+    GroupSavingsWithdrawal, SavingsProduct,
 )
 from core.forms.group_savings_forms import (
     GroupSavingsAccountForm, GroupSavingsPostingApproveForm,
+    GroupSavingsWithdrawalForm, GroupSavingsWithdrawalApproveForm,
 )
 from core.permissions import PermissionChecker
 from core.services.notification_service import notify_role
@@ -439,7 +440,14 @@ def group_savings_posting_approve(request, posting_id):
                         f'₦{posting.total_amount:,.2f} credited to {account.account_number}.'
                     )
                 except (ValidationError, ValueError) as exc:
-                    messages.error(request, str(exc))
+                    messages.error(request, f'Approval failed: {exc}')
+                    return redirect('core:group_savings_posting_approve', posting_id=posting.id)
+                except Exception as exc:
+                    messages.error(
+                        request,
+                        f'Could not complete approval — journal entry failed: {exc}. '
+                        'Please verify the Chart of Accounts has GL codes 1010 and 2010 active.'
+                    )
                     return redirect('core:group_savings_posting_approve', posting_id=posting.id)
 
             else:
@@ -463,4 +471,202 @@ def group_savings_posting_approve(request, posting_id):
         'items': items,
         'form': form,
         'checker': checker,
+    })
+
+
+# =============================================================================
+# WITHDRAWAL — CREATE
+# =============================================================================
+
+@login_required
+@db_transaction.atomic
+def group_savings_withdrawal_create(request, account_id):
+    """Submit a withdrawal request from a group savings account."""
+    checker = PermissionChecker(request.user)
+
+    account = get_object_or_404(
+        GroupSavingsAccount.objects.select_related('group', 'branch'),
+        id=account_id,
+    )
+
+    if account.status != 'active':
+        messages.error(request, 'Can only withdraw from an active group savings account.')
+        return redirect('core:group_savings_account_detail', account_id=account.id)
+
+    if not checker.can_post_group_savings(account):
+        raise PermissionDenied
+
+    if request.method == 'POST':
+        form = GroupSavingsWithdrawalForm(request.POST)
+        if form.is_valid():
+            withdrawal = form.save(commit=False)
+            withdrawal.group_savings_account = account
+            withdrawal.submitted_by = request.user
+            withdrawal.status = 'pending'
+            withdrawal.save()
+
+            notify_role(
+                roles='manager',
+                branch=account.branch,
+                notification_type='deposit_pending',
+                title='Group Savings Withdrawal Awaiting Approval',
+                message=(
+                    f'{request.user.get_full_name()} submitted a withdrawal request '
+                    f'of ₦{withdrawal.amount:,.2f} from group savings account '
+                    f'{account.account_number} ({account.group.name}). '
+                    f'Ref: {withdrawal.withdrawal_ref}. Awaiting your approval.'
+                ),
+                exclude_user=request.user,
+            )
+            messages.success(
+                request,
+                f'Withdrawal request {withdrawal.withdrawal_ref} submitted '
+                f'(₦{withdrawal.amount:,.2f}). Awaiting manager approval.'
+            )
+            return redirect('core:group_savings_withdrawal_detail', withdrawal_id=withdrawal.id)
+    else:
+        form = GroupSavingsWithdrawalForm(
+            initial={'withdrawal_date': timezone.now().date()}
+        )
+
+    recent_withdrawals = account.withdrawals.select_related('submitted_by').order_by(
+        '-withdrawal_date', '-created_at'
+    )[:10]
+
+    return render(request, 'groups/savings/withdrawal_form.html', {
+        'page_title': f'Withdraw — {account.group.name}',
+        'account': account,
+        'form': form,
+        'checker': checker,
+        'recent_withdrawals': recent_withdrawals,
+    })
+
+
+# =============================================================================
+# WITHDRAWAL — DETAIL
+# =============================================================================
+
+@login_required
+def group_savings_withdrawal_detail(request, withdrawal_id):
+    """Read-only detail of a single group savings withdrawal."""
+    checker = PermissionChecker(request.user)
+
+    withdrawal = get_object_or_404(
+        GroupSavingsWithdrawal.objects.select_related(
+            'group_savings_account__group',
+            'group_savings_account__branch',
+            'submitted_by', 'approved_by', 'rejected_by', 'transaction',
+        ),
+        id=withdrawal_id,
+    )
+    account = withdrawal.group_savings_account
+
+    if not checker.can_view_group_savings_account(account):
+        raise PermissionDenied
+
+    return render(request, 'groups/savings/withdrawal_detail.html', {
+        'page_title': f'Withdrawal {withdrawal.withdrawal_ref}',
+        'withdrawal': withdrawal,
+        'account': account,
+        'checker': checker,
+        'can_approve': checker.can_approve_group_savings(),
+    })
+
+
+# =============================================================================
+# WITHDRAWAL — APPROVE
+# =============================================================================
+
+@login_required
+@db_transaction.atomic
+def group_savings_withdrawal_approve(request, withdrawal_id):
+    """Approve or reject a pending group savings withdrawal."""
+    checker = PermissionChecker(request.user)
+    if not checker.can_approve_group_savings():
+        raise PermissionDenied
+
+    withdrawal = get_object_or_404(
+        GroupSavingsWithdrawal.objects.select_related(
+            'group_savings_account__group',
+            'group_savings_account__branch',
+            'submitted_by',
+        ).select_for_update(),
+        id=withdrawal_id,
+    )
+    account = withdrawal.group_savings_account
+
+    if checker.is_manager() and account.branch != request.user.branch:
+        raise PermissionDenied
+
+    if withdrawal.status != 'pending':
+        messages.warning(request, 'This withdrawal has already been processed.')
+        return redirect('core:group_savings_withdrawal_detail', withdrawal_id=withdrawal.id)
+
+    if request.method == 'POST':
+        form = GroupSavingsWithdrawalApproveForm(request.POST)
+        if form.is_valid():
+            decision = form.cleaned_data['decision']
+            notes = form.cleaned_data.get('notes', '')
+            raw_date = form.cleaned_data.get('transaction_date')
+            txn_date = raw_date or withdrawal.withdrawal_date
+
+            if decision == 'approve':
+                try:
+                    txn = account.withdraw(
+                        amount=withdrawal.amount,
+                        processed_by=request.user,
+                        description=(
+                            f'Group savings withdrawal {withdrawal.withdrawal_ref} — '
+                            f'{account.group.name}: {withdrawal.purpose}'
+                        ),
+                        transaction_date=txn_date,
+                    )
+                    withdrawal.status = 'approved'
+                    withdrawal.approved_by = request.user
+                    withdrawal.approved_at = timezone.now()
+                    withdrawal.transaction = txn
+                    withdrawal.save(update_fields=[
+                        'status', 'approved_by', 'approved_at', 'transaction', 'updated_at'
+                    ])
+                    messages.success(
+                        request,
+                        f'Withdrawal {withdrawal.withdrawal_ref} approved. '
+                        f'₦{withdrawal.amount:,.2f} debited from {account.account_number}.'
+                    )
+                except (ValidationError, ValueError) as exc:
+                    messages.error(request, f'Approval failed: {exc}')
+                    return redirect('core:group_savings_withdrawal_approve', withdrawal_id=withdrawal.id)
+                except Exception as exc:
+                    messages.error(
+                        request,
+                        f'Could not complete withdrawal — journal entry failed: {exc}. '
+                        'Please verify the Chart of Accounts has GL codes 1010 and 2010 active.'
+                    )
+                    return redirect('core:group_savings_withdrawal_approve', withdrawal_id=withdrawal.id)
+            else:
+                withdrawal.status = 'rejected'
+                withdrawal.rejected_by = request.user
+                withdrawal.rejected_at = timezone.now()
+                withdrawal.rejection_reason = notes
+                withdrawal.save(update_fields=[
+                    'status', 'rejected_by', 'rejected_at', 'rejection_reason', 'updated_at'
+                ])
+                messages.warning(request, f'Withdrawal {withdrawal.withdrawal_ref} rejected.')
+
+            return redirect('core:group_savings_withdrawal_detail', withdrawal_id=withdrawal.id)
+    else:
+        form = GroupSavingsWithdrawalApproveForm(
+            initial={'transaction_date': withdrawal.withdrawal_date}
+        )
+
+    balance_after = account.balance - withdrawal.amount
+
+    return render(request, 'groups/savings/withdrawal_approve.html', {
+        'page_title': f'Approve Withdrawal — {withdrawal.withdrawal_ref}',
+        'withdrawal': withdrawal,
+        'account': account,
+        'form': form,
+        'checker': checker,
+        'balance_after': balance_after,
+        'sufficient_funds': balance_after >= 0,
     })

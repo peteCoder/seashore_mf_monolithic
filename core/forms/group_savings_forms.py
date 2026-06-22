@@ -7,7 +7,7 @@ Forms for creating and managing GroupSavingsAccount and GroupSavingsPosting.
 from django import forms
 from django.utils import timezone
 
-from core.models import GroupSavingsAccount, GroupSavingsPosting, SavingsProduct, ClientGroup
+from core.models import GroupSavingsAccount, GroupSavingsPosting, GroupSavingsWithdrawal, SavingsProduct, ClientGroup
 
 
 class GroupSavingsAccountForm(forms.ModelForm):
@@ -81,6 +81,82 @@ class GroupSavingsPostingForm(forms.Form):
         widget=forms.NumberInput(attrs={'class': 'form-input', 'readonly': 'readonly', 'step': '0.01'}),
         required=False,
     )
+
+
+class GroupSavingsWithdrawalForm(forms.ModelForm):
+    class Meta:
+        model = GroupSavingsWithdrawal
+        fields = ['amount', 'withdrawal_date', 'purpose', 'notes']
+        widgets = {
+            'amount': forms.NumberInput(attrs={
+                'class': (
+                    'w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 '
+                    'text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white '
+                    'focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors'
+                ),
+                'step': '0.01', 'min': '0.01', 'placeholder': '0.00',
+            }),
+            'withdrawal_date': forms.DateInput(attrs={
+                'type': 'date',
+                'class': (
+                    'w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 '
+                    'text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white '
+                    'focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors'
+                ),
+            }),
+            'purpose': forms.TextInput(attrs={
+                'class': (
+                    'w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 '
+                    'text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white '
+                    'focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors'
+                ),
+                'placeholder': 'e.g. Group investment, emergency fund disbursement…',
+            }),
+            'notes': forms.Textarea(attrs={
+                'rows': 3,
+                'class': (
+                    'w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 '
+                    'text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white '
+                    'focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors'
+                ),
+                'placeholder': 'Additional details (optional)…',
+            }),
+        }
+
+
+class GroupSavingsWithdrawalApproveForm(forms.Form):
+    DECISION_CHOICES = [
+        ('approve', 'Approve'),
+        ('reject',  'Reject'),
+    ]
+    decision = forms.ChoiceField(choices=DECISION_CHOICES, widget=forms.RadioSelect)
+    transaction_date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': (
+            'w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 '
+            'text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white '
+            'focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors'
+        )}),
+        help_text='Defaults to withdrawal date if left blank.',
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'rows': 3,
+            'class': (
+                'w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 '
+                'text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white '
+                'focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors'
+            ),
+            'placeholder': 'Reason for rejection (required when rejecting)…',
+        }),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('decision') == 'reject' and not cleaned.get('notes'):
+            raise forms.ValidationError('Please provide a reason for rejection.')
+        return cleaned
 
 
 class GroupSavingsPostingApproveForm(forms.Form):
