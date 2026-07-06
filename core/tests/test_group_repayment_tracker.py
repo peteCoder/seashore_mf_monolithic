@@ -111,11 +111,16 @@ class TestGroupRepaymentTracker(TestCase):
         self.assertNotIn('Group A3 Other Day', names)
         self.assertNotIn('Group A4 Inactive', names)
 
-    def test_collect_repayment_link_rendered(self):
+    def test_collect_payment_link_points_to_combined_collection(self):
+        """
+        The tracker's "Collect Payment" button must lead to the combined
+        loan-repayment + savings collection flow, not the loans-only one.
+        """
         self.client.force_login(self.admin)
         response = self.client.get(reverse('core:group_repayment_tracker'))
         content = response.content.decode()
-        self.assertIn(reverse('core:group_collection_detail', args=[self.group_a1.id]), content)
+        self.assertIn(reverse('core:group_combined_collection', args=[self.group_a1.id]), content)
+        self.assertNotIn(reverse('core:group_collection_detail', args=[self.group_a1.id]), content)
 
 
 class TestGroupRepaymentTrackerDashboardAlert(TestCase):
