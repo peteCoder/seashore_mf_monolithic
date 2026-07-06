@@ -1,0 +1,98 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Group Repayment Tracker - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Group Repayment Tracker</h1>
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        Groups meeting today &mdash; {{ today|date:"l, d M Y" }}
+      </p>
+    </div>
+    <a href="{% url 'core:group_list' %}"
+       class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition">
+      <i class="fas fa-users mr-2"></i>All Groups
+    </a>
+  </div>
+
+  <!-- Count -->
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 text-sm text-gray-600 dark:text-gray-400">
+    <i class="fas fa-calendar-day mr-1"></i>
+    <span class="font-semibold text-gray-900 dark:text-white">{{ total_count }}</span>
+    group{{ total_count|pluralize }} meeting today
+    {% if checker.is_manager or checker.is_hr %}in your branch{% elif checker.is_staff %}you're in charge of{% endif %}
+  </div>
+
+  <!-- Groups Table -->
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+    {% if groups %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+        <thead class="bg-gray-50 dark:bg-gray-900/50">
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Group</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Branch</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Loan Officer</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Members</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Meeting Schedule</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
+          {% for group in groups %}
+          <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <td class="px-4 py-3 whitespace-nowrap">
+              <a href="{% url 'core:group_detail' group.id %}"
+                 class="font-medium text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400">
+                {{ group.name }}
+              </a>
+              <p class="text-xs text-gray-500 dark:text-gray-400">{{ group.code }}</p>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300">
+              {{ group.branch.name }}
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300">
+              {{ group.loan_officer.get_full_name|default:"Not assigned" }}
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-center text-gray-700 dark:text-gray-300">
+              {{ group.active_members }}
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-gray-700 dark:text-gray-300">
+              {{ group.get_meeting_schedule_text }}
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap text-center">
+              <div class="flex items-center justify-center gap-3">
+                <a href="{% url 'core:group_collection_detail' group.id %}"
+                   class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition">
+                  <i class="fas fa-hand-holding-usd"></i>Collect Repayment
+                </a>
+                <a href="{% url 'core:group_detail' group.id %}"
+                   class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 text-xs font-medium">
+                  View
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-16 text-gray-500 dark:text-gray-400">
+      <i class="fas fa-calendar-check text-5xl text-green-400 mb-4"></i>
+      <p class="text-lg font-medium">No groups meeting today</p>
+      {% if checker.is_staff %}
+      <p class="text-sm mt-1">None of the groups you manage meet on {{ today|date:"l" }}s.</p>
+      {% elif checker.is_manager or checker.is_hr %}
+      <p class="text-sm mt-1">No groups in your branch meet on {{ today|date:"l" }}s.</p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

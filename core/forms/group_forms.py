@@ -201,6 +201,30 @@ class ClientGroupSearchForm(forms.Form):
         empty_label="All Loan Officers"
     )
 
+    meeting_day = forms.ChoiceField(
+        choices=[('', 'All Meeting Days')] + ClientGroup.DAY_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={
+            'class': SELECT_CLASS,
+        })
+    )
+
+    date_from = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': TEXT_INPUT_CLASS,
+            'type': 'date',
+        })
+    )
+
+    date_to = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': TEXT_INPUT_CLASS,
+            'type': 'date',
+        })
+    )
+
 
 # =============================================================================
 # ADD MEMBER FORM

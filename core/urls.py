@@ -170,7 +170,7 @@ from core.views.accounting_views import (
     subsidiary_ledger,
 )
 
-from core.views.tracker_views import loan_repayment_tracker
+from core.views.tracker_views import loan_repayment_tracker, group_repayment_tracker
 
 from core.views.loan_views import (
     loan_list,
@@ -401,6 +401,7 @@ urlpatterns = [
     # =========================================================================
     path('groups/', group_list, name='group_list'),
     path('groups/create/', group_create, name='group_create'),
+    path('groups/repayment-tracker/', group_repayment_tracker, name='group_repayment_tracker'),
     path('groups/<uuid:group_id>/', group_detail, name='group_detail'),
     path('groups/<uuid:group_id>/edit/', group_update, name='group_update'),
     path('groups/<uuid:group_id>/transactions/', group_transactions, name='group_transactions'),

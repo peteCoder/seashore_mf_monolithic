@@ -93,8 +93,8 @@ class Command(BaseCommand):
                             help='New account API key')
         parser.add_argument('--new-secret', required=True,
                             help='New account API secret')
-        parser.add_argument('--skip-existing', action='store_true', default=True,
-                            help='Skip assets already in new account (default: on, safe to re-run)')
+        parser.add_argument('--skip-existing', action='store_true', default=False,
+                            help='Skip assets already in new account using Admin API check (uses 1 API call per asset — hits rate limits on large sets; omit to re-upload everything safely)')
 
     def handle(self, *args, **options):
         dry_run       = options['dry_run']

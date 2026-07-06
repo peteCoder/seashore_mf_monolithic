@@ -306,6 +306,15 @@
                                               {% endif %}">
                                         <i class="fas fa-layer-group mr-1.5 text-xs"></i>Groups
                                     </a>
+                                    <a href="{% url 'core:group_repayment_tracker' %}"
+                                       class="block px-3 py-2 text-sm rounded-lg transition-colors
+                                              {% if request.resolver_match.url_name == 'group_repayment_tracker' %}
+                                              text-amber-600 dark:text-amber-400 font-medium
+                                              {% else %}
+                                              text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white
+                                              {% endif %}">
+                                        <i class="fas fa-calendar-day mr-1.5 text-xs"></i>Group Repayment Tracker
+                                    </a>
                                     <a href="{% url 'core:group_savings_account_list' %}"
                                        class="block px-3 py-2 text-sm rounded-lg transition-colors
                                               {% if 'group_savings' in request.resolver_match.url_name %}
@@ -452,6 +461,7 @@
                                     <i class="fas fa-chevron-right text-xs transition-transform" :class="{ 'rotate-90': collectionsExpanded }"></i>
                                 </button>
                                 <div x-show="collectionsExpanded" x-collapse class="ml-8 mt-1 space-y-1">
+                                    <a href="{% url 'core:group_repayment_tracker' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Repayment Tracker (Today)</a>
                                     <a href="{% url 'core:group_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Select Group</a>
                                     <a href="{% url 'core:group_collection_list' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">All Sessions</a>
                                 </div>
@@ -776,6 +786,18 @@
                 <span>Groups</span>
             </a>
 
+            <a href="{% url 'core:group_repayment_tracker' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if request.resolver_match.url_name == 'group_repayment_tracker' %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-calendar-day w-5 mr-3 text-base"></i>
+                <span>Group Repayment Tracker</span>
+            </a>
+
             <a href="{% url 'core:assignment_list' %}"
                @click="mobileMenuOpen = false"
                class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
@@ -916,6 +938,7 @@
                     <i class="fas fa-chevron-right text-xs transition-transform" :class="{ 'rotate-90': collectionsExpanded }"></i>
                 </button>
                 <div x-show="collectionsExpanded" x-collapse class="ml-8 mt-1 space-y-1">
+                    <a href="{% url 'core:group_repayment_tracker' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Repayment Tracker (Today)</a>
                     <a href="{% url 'core:group_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Select Group</a>
                     <a href="{% url 'core:group_collection_list' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">All Sessions</a>
                 </div>

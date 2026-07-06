@@ -54,6 +54,7 @@ from .notification_views import (
 
 from .tracker_views import (
     loan_repayment_tracker,
+    group_repayment_tracker,
 )
 
 from .collateral_views import (
@@ -147,6 +148,7 @@ __all__ = [
     "notification_mark_all_read",
     # Tracker Views
     "loan_repayment_tracker",
+    "group_repayment_tracker",
     # Collateral Views
     "loan_collaterals",
     "loan_add_collateral",

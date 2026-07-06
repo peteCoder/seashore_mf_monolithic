@@ -7,7 +7,51 @@ Forms for creating and managing GroupSavingsAccount and GroupSavingsPosting.
 from django import forms
 from django.utils import timezone
 
-from core.models import GroupSavingsAccount, GroupSavingsPosting, GroupSavingsWithdrawal, SavingsProduct, ClientGroup
+from core.models import (
+    GroupSavingsAccount, GroupSavingsPosting, GroupSavingsWithdrawal, SavingsProduct, ClientGroup, Branch,
+)
+
+TEXT_INPUT_CLASS = (
+    'w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 '
+    'bg-white dark:bg-gray-700 text-gray-900 dark:text-white '
+    'focus:border-primary-500 focus:ring-2 focus:ring-primary-200'
+)
+SELECT_CLASS = TEXT_INPUT_CLASS
+
+
+class GroupSavingsAccountSearchForm(forms.Form):
+    """Form for searching and filtering group savings accounts"""
+
+    search = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': TEXT_INPUT_CLASS,
+            'placeholder': 'Account number or group name...',
+        })
+    )
+
+    branch = forms.ModelChoiceField(
+        queryset=Branch.objects.filter(is_active=True),
+        required=False,
+        empty_label="All Branches",
+        widget=forms.Select(attrs={'class': SELECT_CLASS})
+    )
+
+    status = forms.ChoiceField(
+        choices=[('', 'All Statuses')] + GroupSavingsAccount.STATUS_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={'class': SELECT_CLASS})
+    )
+
+    date_from = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': TEXT_INPUT_CLASS, 'type': 'date'})
+    )
+
+    date_to = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': TEXT_INPUT_CLASS, 'type': 'date'})
+    )
 
 
 class GroupSavingsAccountForm(forms.ModelForm):

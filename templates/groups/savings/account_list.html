@@ -47,23 +47,38 @@
         <form method="get" class="flex flex-wrap gap-3 items-end">
             <div class="flex-1 min-w-48">
                 <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Search</label>
-                <input type="text" name="search" value="{{ search }}"
-                       placeholder="Account number or group name…"
-                       class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                {{ search_form.search }}
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Branch</label>
+                {{ search_form.branch }}
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Status</label>
-                <select name="status" class="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                    <option value="">All</option>
-                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
-                    <option value="active"  {% if status_filter == 'active'  %}selected{% endif %}>Active</option>
-                    <option value="closed"  {% if status_filter == 'closed'  %}selected{% endif %}>Closed</option>
-                </select>
+                {{ search_form.status }}
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">From</label>
+                {{ search_form.date_from }}
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">To</label>
+                {{ search_form.date_to }}
             </div>
             <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium">
                 <i class="fas fa-search mr-1"></i>Filter
             </button>
+            <a href="{% url 'core:group_savings_account_list' %}" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium">
+                Clear
+            </a>
         </form>
+
+        <!-- Filtered results count -->
+        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
+            <i class="fas fa-piggy-bank mr-1"></i>
+            <span class="font-semibold text-gray-900 dark:text-white">{{ summary.total }}</span>
+            account{{ summary.total|pluralize }} found matching the current filters
+        </div>
     </div>
 
     <!-- Table -->
@@ -127,10 +142,13 @@
         </div>
         {% if page_obj.has_other_pages %}
         <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                &middot; <span class="font-medium">{{ summary.total }}</span> matching result{{ summary.total|pluralize }}
+            </p>
             <div class="flex gap-2">
-                {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&search={{ search }}&status={{ status_filter }}" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-700">Previous</a>{% endif %}
-                {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&search={{ search }}&status={{ status_filter }}" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-700">Next</a>{% endif %}
+                {% if page_obj.has_previous %}<a href="{% querystring page=page_obj.previous_page_number %}" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-700">Previous</a>{% endif %}
+                {% if page_obj.has_next %}<a href="{% querystring page=page_obj.next_page_number %}" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-700">Next</a>{% endif %}
             </div>
         </div>
         {% endif %}

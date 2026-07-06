@@ -24,7 +24,7 @@ from core.forms.savings_forms import (
     SavingsAccountForm, SavingsAccountSearchForm, SavingsAccountApprovalForm,
     SavingsDepositPostingForm, BulkSavingsDepositPostingForm,
     SavingsWithdrawalPostingForm, BulkSavingsWithdrawalPostingForm,
-    ApproveSavingsTransactionForm
+    ApproveSavingsTransactionForm, SavingsTransactionSearchForm
 )
 from core.permissions import PermissionChecker
 
@@ -681,6 +681,8 @@ def savings_transaction_list(request):
     transaction_type = request.GET.get('type', 'all')  # all, deposit, withdrawal
     status_filter = request.GET.get('status', '')  # pending, approved, rejected
 
+    search_form = SavingsTransactionSearchForm(request.GET or None)
+
     # Get deposit postings
     deposit_postings = SavingsDepositPosting.objects.select_related(
         'savings_account', 'client', 'branch', 'submitted_by', 'reviewed_by'
@@ -716,6 +718,40 @@ def savings_transaction_list(request):
         deposit_postings = deposit_postings.filter(status=status_filter)
         withdrawal_postings = withdrawal_postings.filter(status=status_filter)
 
+    # Search / branch / date-range filtering (applied to both querysets before
+    # they're combined into a plain list, since Loan/withdrawal postings are
+    # different models and can't be filtered together after combining)
+    if search_form.is_valid():
+        search = search_form.cleaned_data.get('search')
+        if search:
+            deposit_postings = deposit_postings.filter(
+                Q(posting_ref__icontains=search) |
+                Q(savings_account__account_number__icontains=search) |
+                Q(client__first_name__icontains=search) |
+                Q(client__last_name__icontains=search)
+            )
+            withdrawal_postings = withdrawal_postings.filter(
+                Q(posting_ref__icontains=search) |
+                Q(savings_account__account_number__icontains=search) |
+                Q(client__first_name__icontains=search) |
+                Q(client__last_name__icontains=search)
+            )
+
+        branch = search_form.cleaned_data.get('branch')
+        if branch:
+            deposit_postings = deposit_postings.filter(branch=branch)
+            withdrawal_postings = withdrawal_postings.filter(branch=branch)
+
+        date_from = search_form.cleaned_data.get('date_from')
+        if date_from:
+            deposit_postings = deposit_postings.filter(submitted_at__date__gte=date_from)
+            withdrawal_postings = withdrawal_postings.filter(submitted_at__date__gte=date_from)
+
+        date_to = search_form.cleaned_data.get('date_to')
+        if date_to:
+            deposit_postings = deposit_postings.filter(submitted_at__date__lte=date_to)
+            withdrawal_postings = withdrawal_postings.filter(submitted_at__date__lte=date_to)
+
     # Combine postings based on type filter
     if transaction_type == 'deposit':
         # Only deposits
@@ -729,6 +765,9 @@ def savings_transaction_list(request):
 
     # Sort ascending — oldest at top, most recent at bottom
     postings.sort(key=lambda x: x.submitted_at, reverse=False)
+
+    # Count matching the current filters, across all paginated pages
+    total_count = len(postings)
 
     # Excel export (exports all filtered postings, no pagination limit)
     if request.GET.get('export') == 'excel':
@@ -788,6 +827,8 @@ def savings_transaction_list(request):
         'postings': page_obj,
         'transaction_type': transaction_type,
         'status_filter': status_filter,
+        'search_form': search_form,
+        'total_count': total_count,
         'summary': summary,
         'checker': checker,
     }

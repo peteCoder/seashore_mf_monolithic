@@ -81,11 +81,11 @@ def loan_list(request):
 
         date_from = search_form.cleaned_data.get('date_from')
         if date_from:
-            loans = loans.filter(application_date__date__gte=date_from)
+            loans = loans.filter(application_date__gte=date_from)
 
         date_to = search_form.cleaned_data.get('date_to')
         if date_to:
-            loans = loans.filter(application_date__date__lte=date_to)
+            loans = loans.filter(application_date__lte=date_to)
 
     # Annotate with payment progress
     loans = loans.annotate(

@@ -104,6 +104,14 @@ def client_list(request):
         if approval_status:
             clients = clients.filter(approval_status=approval_status)
 
+        date_from = search_form.cleaned_data.get('date_from')
+        if date_from:
+            clients = clients.filter(registration_date__gte=date_from)
+
+        date_to = search_form.cleaned_data.get('date_to')
+        if date_to:
+            clients = clients.filter(registration_date__lte=date_to)
+
     # Prefetch related data for performance
     clients = clients.select_related('branch', 'group', 'assigned_staff').order_by('-created_at')
 

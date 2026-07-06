@@ -74,6 +74,18 @@ def group_list(request):
         if loan_officer:
             groups = groups.filter(loan_officer=loan_officer)
 
+        meeting_day = search_form.cleaned_data.get('meeting_day')
+        if meeting_day:
+            groups = groups.filter(meeting_day=meeting_day)
+
+        date_from = search_form.cleaned_data.get('date_from')
+        if date_from:
+            groups = groups.filter(registration_date__gte=date_from)
+
+        date_to = search_form.cleaned_data.get('date_to')
+        if date_to:
+            groups = groups.filter(registration_date__lte=date_to)
+
     # Annotate with member count and pending requests
     groups = groups.annotate(
         pending_requests_count=Count(

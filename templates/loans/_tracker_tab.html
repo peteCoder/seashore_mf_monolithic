@@ -2,7 +2,7 @@
 Partial: a single tab pill for the repayment tracker.
 Variables: key, label, count, color (red|amber|blue|green)
 {% endcomment %}
-<a href="?tab={{ key }}"
+<a href="{% querystring tab=key %}"
    class="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 whitespace-nowrap transition
    {% if tab == key %}
      {% if color == 'red' %}border-red-500 text-red-600 dark:text-red-400

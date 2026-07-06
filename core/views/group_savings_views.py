@@ -34,6 +34,7 @@ from core.models import (
 from core.forms.group_savings_forms import (
     GroupSavingsAccountForm, GroupSavingsPostingApproveForm,
     GroupSavingsWithdrawalForm, GroupSavingsWithdrawalApproveForm,
+    GroupSavingsAccountSearchForm,
 )
 from core.permissions import PermissionChecker
 from core.services.notification_service import notify_role
@@ -52,17 +53,32 @@ def group_savings_account_list(request):
         GroupSavingsAccount.objects.select_related('group', 'branch', 'savings_product', 'created_by')
     )
 
-    search = request.GET.get('search', '').strip()
-    if search:
-        qs = qs.filter(
-            Q(account_number__icontains=search) |
-            Q(group__name__icontains=search) |
-            Q(group__code__icontains=search)
-        )
+    search_form = GroupSavingsAccountSearchForm(request.GET or None)
 
-    status = request.GET.get('status', '')
-    if status:
-        qs = qs.filter(status=status)
+    if search_form.is_valid():
+        search = search_form.cleaned_data.get('search')
+        if search:
+            qs = qs.filter(
+                Q(account_number__icontains=search) |
+                Q(group__name__icontains=search) |
+                Q(group__code__icontains=search)
+            )
+
+        branch = search_form.cleaned_data.get('branch')
+        if branch:
+            qs = qs.filter(branch=branch)
+
+        status = search_form.cleaned_data.get('status')
+        if status:
+            qs = qs.filter(status=status)
+
+        date_from = search_form.cleaned_data.get('date_from')
+        if date_from:
+            qs = qs.filter(created_at__date__gte=date_from)
+
+        date_to = search_form.cleaned_data.get('date_to')
+        if date_to:
+            qs = qs.filter(created_at__date__lte=date_to)
 
     qs = qs.order_by('-created_at')
 
@@ -79,8 +95,7 @@ def group_savings_account_list(request):
     return render(request, 'groups/savings/account_list.html', {
         'page_title': 'Group Savings Accounts',
         'page_obj': page_obj,
-        'search': search,
-        'status_filter': status,
+        'search_form': search_form,
         'summary': summary,
         'checker': checker,
     })

@@ -176,6 +176,37 @@ class SavingsAccountSearchForm(forms.Form):
     )
 
 
+class SavingsTransactionSearchForm(forms.Form):
+    """Form for searching/filtering the savings transaction posting list"""
+
+    search = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': TEXT_INPUT_CLASS,
+            'placeholder': 'Posting ref, account number, or client name...'
+        })
+    )
+
+    branch = forms.ModelChoiceField(
+        queryset=Branch.objects.filter(is_active=True),
+        required=False,
+        widget=forms.Select(attrs={'class': SELECT_CLASS}),
+        empty_label='All Branches'
+    )
+
+    date_from = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': TEXT_INPUT_CLASS, 'type': 'date'}),
+        label='Submitted From'
+    )
+
+    date_to = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': TEXT_INPUT_CLASS, 'type': 'date'}),
+        label='Submitted To'
+    )
+
+
 class SavingsAccountApprovalForm(forms.Form):
     """Form for approving or rejecting savings account applications"""
 

@@ -526,6 +526,22 @@ class ClientSearchForm(forms.Form):
         })
     )
 
+    date_from = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-primary-500 focus:ring-2 focus:ring-primary-200',
+            'type': 'date',
+        })
+    )
+
+    date_to = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-primary-500 focus:ring-2 focus:ring-primary-200',
+            'type': 'date',
+        })
+    )
+
 
 
 class ClientApprovalForm(forms.Form):

@@ -45,6 +45,18 @@
                 </div>
             </div>
 
+            <!-- Advanced Filters Toggle -->
+            <div x-show="showFilters" x-cloak class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Registered From</label>
+                    {{ search_form.date_from }}
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Registered To</label>
+                    {{ search_form.date_to }}
+                </div>
+            </div>
+
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <button type="button" @click="showFilters = !showFilters"
                         class="text-primary-600 dark:text-primary-400 text-sm font-medium self-start">
@@ -68,6 +80,13 @@
                 </div>
             </div>
         </form>
+
+        <!-- Filtered results count -->
+        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
+            <i class="fas fa-users mr-1"></i>
+            <span class="font-semibold text-gray-900 dark:text-white">{{ total_count }}</span>
+            client{{ total_count|pluralize }} found matching the current filters
+        </div>
     </div>
 
     <!-- Client Table -->
@@ -162,12 +181,12 @@
         <div class="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6">
             <div class="flex-1 flex justify-between sm:hidden">
                 {% if clients.has_previous %}
-                <a href="?page={{ clients.previous_page_number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                <a href="{% querystring page=clients.previous_page_number export=None %}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                     Previous
                 </a>
                 {% endif %}
                 {% if clients.has_next %}
-                <a href="?page={{ clients.next_page_number }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                <a href="{% querystring page=clients.next_page_number export=None %}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                     Next
                 </a>
                 {% endif %}
@@ -176,17 +195,18 @@
                 <div>
                     <p class="text-sm text-gray-700 dark:text-gray-300">
                         Showing page <span class="font-medium">{{ clients.number }}</span> of <span class="font-medium">{{ clients.paginator.num_pages }}</span>
+                        &middot; <span class="font-medium">{{ total_count }}</span> matching result{{ total_count|pluralize }}
                     </p>
                 </div>
                 <div>
                     <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                         {% if clients.has_previous %}
-                        <a href="?page={{ clients.previous_page_number }}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <a href="{% querystring page=clients.previous_page_number export=None %}" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600">
                             <i class="fas fa-chevron-left"></i>
                         </a>
                         {% endif %}
                         {% if clients.has_next %}
-                        <a href="?page={{ clients.next_page_number }}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <a href="{% querystring page=clients.next_page_number export=None %}" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600">
                             <i class="fas fa-chevron-right"></i>
                         </a>
                         {% endif %}

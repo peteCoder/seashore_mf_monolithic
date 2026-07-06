@@ -13,7 +13,7 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-            <a href="?{% if transaction_type %}type={{ transaction_type }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}export=excel"
+            <a href="{% querystring export='excel' %}"
                class="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors flex items-center space-x-2 text-sm">
                 <i class="fas fa-file-excel"></i>
                 <span>Export Excel</span>
@@ -90,28 +90,77 @@
     <!-- Status Filter Tabs -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm mb-6">
         <div class="border-b border-gray-200 dark:border-gray-700">
-            <nav class="flex -mb-px">
-                <a href="{% url 'core:savings_transaction_list' %}"
-                   class="px-6 py-4 text-sm font-medium border-b-2 {% if not status_filter %}border-primary-500 text-primary-600 dark:text-primary-400{% else %}border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300{% endif %}">
+            <nav class="flex -mb-px overflow-x-auto">
+                <a href="{% querystring status=None page=None %}"
+                   class="px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap {% if not status_filter %}border-primary-500 text-primary-600 dark:text-primary-400{% else %}border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300{% endif %}">
                     All Postings
                 </a>
-                <a href="{% url 'core:savings_transaction_list' %}?status=pending_deposits"
-                   class="px-6 py-4 text-sm font-medium border-b-2 {% if status_filter == 'pending_deposits' %}border-primary-500 text-primary-600 dark:text-primary-400{% else %}border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300{% endif %}">
+                <a href="{% querystring status='pending_deposits' page=None %}"
+                   class="px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap {% if status_filter == 'pending_deposits' %}border-primary-500 text-primary-600 dark:text-primary-400{% else %}border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300{% endif %}">
                     Pending Deposits ({{ summary.pending_deposits }})
                 </a>
-                <a href="{% url 'core:savings_transaction_list' %}?status=pending_withdrawals"
-                   class="px-6 py-4 text-sm font-medium border-b-2 {% if status_filter == 'pending_withdrawals' %}border-primary-500 text-primary-600 dark:text-primary-400{% else %}border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300{% endif %}">
+                <a href="{% querystring status='pending_withdrawals' page=None %}"
+                   class="px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap {% if status_filter == 'pending_withdrawals' %}border-primary-500 text-primary-600 dark:text-primary-400{% else %}border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300{% endif %}">
                     Pending Withdrawals ({{ summary.pending_withdrawals }})
                 </a>
-                <a href="{% url 'core:savings_transaction_list' %}?status=approved"
-                   class="px-6 py-4 text-sm font-medium border-b-2 {% if status_filter == 'approved' %}border-primary-500 text-primary-600 dark:text-primary-400{% else %}border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300{% endif %}">
+                <a href="{% querystring status='approved' page=None %}"
+                   class="px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap {% if status_filter == 'approved' %}border-primary-500 text-primary-600 dark:text-primary-400{% else %}border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300{% endif %}">
                     Approved
                 </a>
-                <a href="{% url 'core:savings_transaction_list' %}?status=rejected"
-                   class="px-6 py-4 text-sm font-medium border-b-2 {% if status_filter == 'rejected' %}border-primary-500 text-primary-600 dark:text-primary-400{% else %}border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300{% endif %}">
+                <a href="{% querystring status='rejected' page=None %}"
+                   class="px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap {% if status_filter == 'rejected' %}border-primary-500 text-primary-600 dark:text-primary-400{% else %}border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300{% endif %}">
                     Rejected
                 </a>
             </nav>
+        </div>
+    </div>
+
+    <!-- Type / Search / Branch / Date Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+        <form method="get">
+            {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Type</label>
+                    <select name="type" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-primary-500 focus:ring-2 focus:ring-primary-200">
+                        <option value="all" {% if transaction_type == 'all' %}selected{% endif %}>All Types</option>
+                        <option value="deposit" {% if transaction_type == 'deposit' %}selected{% endif %}>Deposits</option>
+                        <option value="withdrawal" {% if transaction_type == 'withdrawal' %}selected{% endif %}>Withdrawals</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Search</label>
+                    {{ search_form.search }}
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Branch</label>
+                    {{ search_form.branch }}
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Submitted From</label>
+                    {{ search_form.date_from }}
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Submitted To</label>
+                    {{ search_form.date_to }}
+                </div>
+            </div>
+            <div class="flex items-center justify-end space-x-2">
+                <a href="{% url 'core:savings_transaction_list' %}"
+                   class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm">
+                    Clear
+                </a>
+                <button type="submit" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+
+        <!-- Filtered results count -->
+        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">
+            <i class="fas fa-list mr-1"></i>
+            <span class="font-semibold text-gray-900 dark:text-white">{{ total_count }}</span>
+            posting{{ total_count|pluralize }} found matching the current filters
         </div>
     </div>
 
@@ -260,13 +309,13 @@
         <div class="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6">
             <div class="flex-1 flex justify-between sm:hidden">
                 {% if postings.has_previous %}
-                <a href="?page={{ postings.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+                <a href="{% querystring page=postings.previous_page_number %}"
                    class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                     Previous
                 </a>
                 {% endif %}
                 {% if postings.has_next %}
-                <a href="?page={{ postings.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+                <a href="{% querystring page=postings.next_page_number %}"
                    class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                     Next
                 </a>
@@ -276,18 +325,19 @@
                 <div>
                     <p class="text-sm text-gray-700 dark:text-gray-300">
                         Showing page <span class="font-medium">{{ postings.number }}</span> of <span class="font-medium">{{ postings.paginator.num_pages }}</span>
+                        &middot; <span class="font-medium">{{ total_count }}</span> matching result{{ total_count|pluralize }}
                     </p>
                 </div>
                 <div>
                     <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                         {% if postings.has_previous %}
-                        <a href="?page={{ postings.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+                        <a href="{% querystring page=postings.previous_page_number %}"
                            class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600">
                             <i class="fas fa-chevron-left"></i>
                         </a>
                         {% endif %}
                         {% if postings.has_next %}
-                        <a href="?page={{ postings.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+                        <a href="{% querystring page=postings.next_page_number %}"
                            class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600">
                             <i class="fas fa-chevron-right"></i>
                         </a>

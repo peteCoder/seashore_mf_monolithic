@@ -244,6 +244,32 @@ def dashboard_view(request):
             'action_text': 'View Due Today',
         })
 
+    # Groups meeting today (repayment collection day), scoped by role.
+    # NOTE: deliberately not using checker.can_view_all_branches() — for this
+    # feature HR is branch-scoped like a manager, not system-wide like admin/director.
+    groups_meeting_today = ClientGroup.objects.filter(
+        meeting_day=today_date.strftime('%A').lower(),
+        status='active',
+    )
+    if checker.is_admin() or checker.is_director():
+        pass  # all branches
+    elif checker.is_hr() or checker.is_manager():
+        groups_meeting_today = groups_meeting_today.filter(branch=checker.branch)
+    elif checker.is_staff():
+        groups_meeting_today = groups_meeting_today.filter(branch=checker.branch, loan_officer=user)
+    else:
+        groups_meeting_today = groups_meeting_today.none()
+
+    groups_meeting_today_count = groups_meeting_today.count()
+    if groups_meeting_today_count > 0:
+        alerts.append({
+            'type': 'info',
+            'icon': '👥',
+            'message': f"{groups_meeting_today_count} group(s) meeting today",
+            'action_url': reverse('core:group_repayment_tracker'),
+            'action_text': 'View Group Repayment Tracker',
+        })
+
     # Pending approvals alert
     if pending_items.get('clients', 0) > 0:
         alerts.append({
@@ -292,6 +318,7 @@ def dashboard_view(request):
         # Repayment tracker quick stats
         'overdue_installments': overdue_installments,
         'due_today_installments': due_today_installments,
+        'groups_meeting_today_count': groups_meeting_today_count,
         
         # Recent activities
         'recent_clients': recent_clients,

@@ -21,7 +21,7 @@ from django.db.models import Count, Exists, OuterRef, Sum, Q
 from django.shortcuts import render
 from django.utils import timezone
 
-from core.models import LoanRepaymentSchedule, Loan
+from core.models import LoanRepaymentSchedule, Loan, Branch, ClientGroup
 from core.permissions import PermissionChecker, Permissions
 
 
@@ -143,7 +143,16 @@ def loan_repayment_tracker(request):
     week_end  = today + timedelta(days=7)
     month_end = today + timedelta(days=30)
 
+    # ── Branch filter (only meaningful for roles that can see multiple branches) ──
+    branches = Branch.objects.filter(is_active=True).order_by('name') if checker.can_view_all_branches() else Branch.objects.none()
+    selected_branch = None
+    branch_id = request.GET.get('branch', '').strip()
+    if branch_id and checker.can_view_all_branches():
+        selected_branch = branches.filter(id=branch_id).first()
+
     base_qs = _base_schedule_qs(request.user)
+    if selected_branch:
+        base_qs = base_qs.filter(loan__branch=selected_branch)
 
     # ── Overdue ────────────────────────────────────────────────────────────
     overdue_rows = (
@@ -172,9 +181,11 @@ def loan_repayment_tracker(request):
     # ── Active loans with NO schedule rows ─────────────────────────────────
     # These are completely invisible to the schedule-based tracker. Show them
     # as a warning so managers can investigate and rebuild their schedules.
+    loans_no_schedule_qs = _loans_without_schedule(request.user, checker=checker)
+    if selected_branch:
+        loans_no_schedule_qs = loans_no_schedule_qs.filter(branch=selected_branch)
     loans_no_schedule = list(
-        _loans_without_schedule(request.user, checker=checker)
-        .order_by('next_repayment_date', 'client__first_name')
+        loans_no_schedule_qs.order_by('next_repayment_date', 'client__first_name')
     )
     loans_no_schedule_today = [
         l for l in loans_no_schedule
@@ -219,7 +230,8 @@ def loan_repayment_tracker(request):
         loan__outstanding_balance__gt=0,
     ).exclude(status__in=['paid', 'waived'])
     if checker.can_view_all_branches():
-        pass  # no extra filter
+        if selected_branch:
+            par_total_qs = par_total_qs.filter(loan__branch=selected_branch)
     elif checker.is_manager() and checker.branch:
         par_total_qs = par_total_qs.filter(loan__branch=checker.branch)
     elif checker.is_staff():
@@ -242,12 +254,28 @@ def loan_repayment_tracker(request):
     if tab not in ('overdue', 'today', 'week', 'month'):
         tab = 'overdue'
 
+    # Count of rows matching the current filters (branch + tab), shown beneath
+    # the filter bar. "Today" bumps in schedule-less loans, same as its summary.
+    tab_counts = {
+        'overdue': overdue_summary['count'],
+        'today':   today_summary['count'],
+        'week':    week_summary['count'],
+        'month':   month_summary['count'],
+    }
+    active_tab_count = tab_counts[tab]
+
     context = {
         'page_title': 'Repayment Tracker',
+        'checker': checker,
         'today': today,
         'week_end': week_end,
         'month_end': month_end,
         'tab': tab,
+        'active_tab_count': active_tab_count,
+
+        # Branch filter
+        'branches': branches,
+        'selected_branch': selected_branch,
 
         # Row data
         'overdue_rows':    overdue_rows,
@@ -273,3 +301,52 @@ def loan_repayment_tracker(request):
         'total_outstanding_all':total_outstanding_all,
     }
     return render(request, 'loans/repayment_tracker.html', context)
+
+
+# ---------------------------------------------------------------------------
+# Group repayment tracker
+# ---------------------------------------------------------------------------
+
+@login_required
+def group_repayment_tracker(request):
+    """
+    Groups whose meeting day is today — i.e. groups a collector should visit
+    today to collect loan repayments.
+
+    Scoping is deliberately NOT the standard can_view_all_branches()/
+    is_admin_or_director() grouping (which bundles HR in with admin/director):
+      - Admin / Director:  every active group meeting today, any branch.
+      - HR / Manager:      active groups meeting today within their own branch.
+      - Staff:             active groups meeting today, in their own branch,
+                            that they are the assigned loan officer for.
+    """
+    checker = PermissionChecker(request.user)
+    if request.user.user_role not in ('admin', 'director', 'hr', 'manager', 'staff'):
+        raise PermissionDenied
+
+    today = timezone.localdate()
+    today_name = today.strftime('%A').lower()
+
+    groups = ClientGroup.objects.filter(
+        meeting_day=today_name,
+        status='active',
+    ).select_related('branch', 'loan_officer')
+
+    if checker.is_admin() or checker.is_director():
+        pass  # all branches
+    elif checker.is_hr() or checker.is_manager():
+        groups = groups.filter(branch=checker.branch)
+    elif checker.is_staff():
+        groups = groups.filter(branch=checker.branch, loan_officer=request.user)
+
+    groups = groups.order_by('branch__name', 'name')
+    total_count = groups.count()
+
+    context = {
+        'page_title': 'Group Repayment Tracker',
+        'checker': checker,
+        'today': today,
+        'groups': groups,
+        'total_count': total_count,
+    }
+    return render(request, 'groups/repayment_tracker.html', context)
