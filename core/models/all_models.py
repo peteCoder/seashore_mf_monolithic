@@ -4601,34 +4601,76 @@ class Loan(BaseModel):
             transaction_date=disburse_dt,
         )
 
-        # Persist repayment schedule rows (only if not already created)
-        try:
-            if not LoanRepaymentSchedule.objects.filter(loan=self).exists():
-                schedule_items = generate_repayment_schedule(self)
-            else:
-                schedule_items = []
-            if schedule_items:
-                schedule_objects = [
-                    LoanRepaymentSchedule(
-                        loan=self,
-                        installment_number=item['installment_number'],
-                        due_date=item['due_date'],
-                        principal_amount=item['principal_amount'],
-                        interest_amount=item['interest_amount'],
-                        total_amount=item['total_amount'],
-                        outstanding_amount=item['total_amount'],
-                        status='pending',
+        # Persist repayment schedule rows (only if not already created).
+        # A loan must never go 'active' with zero schedule rows — it would
+        # still owe money but be structurally invisible to the repayment
+        # tracker (which is built entirely from LoanRepaymentSchedule rows).
+        # This previously failed silently: an empty schedule_items list, or
+        # any exception here, was swallowed and disbursement still "succeeded".
+        if not LoanRepaymentSchedule.objects.filter(loan=self).exists():
+            # Self-heal: number_of_installments defaults to 0 and is normally
+            # set by calculate_loan_details() at loan creation. Some legacy
+            # loans slipped through with it still 0, which silently produced
+            # an empty schedule. Recompute just this field (not the full
+            # calculate_loan_details(), to avoid disturbing an already-recorded
+            # total_repayment/outstanding_balance) before generating the schedule.
+            if not self.number_of_installments or self.number_of_installments <= 0:
+                freq_map = {
+                    'daily':       self.duration_months * 20,
+                    'weekly':      self.duration_months * 4,
+                    'fortnightly': self.duration_months * 2,
+                    'monthly':     self.duration_months,
+                    'yearly':      max(1, self.duration_months // 12),
+                }
+                recalculated_n = freq_map.get(self.repayment_frequency, self.duration_months)
+                if recalculated_n and recalculated_n > 0:
+                    self.number_of_installments = recalculated_n
+                    if not self.installment_amount and self.total_repayment:
+                        self.installment_amount = MoneyCalculator.round_money(
+                            self.total_repayment / recalculated_n
+                        )
+                    # self.save() already ran above (before this block), so
+                    # the recalculated fields must be persisted explicitly.
+                    self.save(update_fields=['number_of_installments', 'installment_amount'])
+                    logger.warning(
+                        f"Loan {self.loan_number} had number_of_installments=0 at "
+                        f"disbursement; recalculated to {recalculated_n} before "
+                        f"generating its repayment schedule."
                     )
-                    for item in schedule_items
-                ]
-                LoanRepaymentSchedule.objects.bulk_create(schedule_objects)
-                logger.info(
-                    f"Repayment schedule persisted for loan {self.loan_number}: "
-                    f"{len(schedule_objects)} installments"
+
+            try:
+                schedule_items = generate_repayment_schedule(self)
+            except Exception as e:
+                raise ValueError(
+                    f"Could not generate repayment schedule for loan "
+                    f"{self.loan_number}: {e}"
+                ) from e
+
+            if not schedule_items:
+                raise ValueError(
+                    f"Could not generate a repayment schedule for loan "
+                    f"{self.loan_number} (number_of_installments="
+                    f"{self.number_of_installments}). Check the loan product's "
+                    f"duration/frequency configuration before disbursing."
                 )
-        except Exception as e:
-            logger.error(
-                f"Failed to persist repayment schedule for loan {self.loan_number}: {str(e)}"
+
+            schedule_objects = [
+                LoanRepaymentSchedule(
+                    loan=self,
+                    installment_number=item['installment_number'],
+                    due_date=item['due_date'],
+                    principal_amount=item['principal_amount'],
+                    interest_amount=item['interest_amount'],
+                    total_amount=item['total_amount'],
+                    outstanding_amount=item['total_amount'],
+                    status='pending',
+                )
+                for item in schedule_items
+            ]
+            LoanRepaymentSchedule.objects.bulk_create(schedule_objects)
+            logger.info(
+                f"Repayment schedule persisted for loan {self.loan_number}: "
+                f"{len(schedule_objects)} installments"
             )
 
         # Create journal entry (Dr Loan Receivable, Cr Cash)

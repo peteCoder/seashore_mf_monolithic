@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q, Sum, F, Case, When, DecimalField
+from django.db.models import Q, Sum, F, Case, When, DecimalField, Count
 from django.utils import timezone
 from decimal import Decimal
 
@@ -87,13 +87,23 @@ def loan_list(request):
         if date_to:
             loans = loans.filter(application_date__lte=date_to)
 
-    # Annotate with payment progress
+    # Annotate with payment progress and installment counts (paid = amount_paid
+    # covers total_amount + penalty_amount, same definition as
+    # LoanRepaymentSchedule.computed_status == 'paid' used on the detail page)
     loans = loans.annotate(
         payment_progress=Case(
             When(total_repayment=0, then=0),
             default=(F('amount_paid') / F('total_repayment')) * 100,
             output_field=DecimalField()
-        )
+        ),
+        total_installments=Count('repayment_schedule', distinct=True),
+        paid_installments=Count(
+            'repayment_schedule',
+            filter=Q(repayment_schedule__amount_paid__gte=(
+                F('repayment_schedule__total_amount') + F('repayment_schedule__penalty_amount')
+            )),
+            distinct=True
+        ),
     ).order_by('-application_date')
 
     # Pagination
@@ -163,7 +173,7 @@ def loan_detail(request, loan_id):
     from core.models import LoanRepaymentSchedule as _LRS
     db_schedule = _LRS.objects.filter(loan=loan).order_by('installment_number')
     if db_schedule.exists():
-        repayment_schedule = db_schedule
+        repayment_schedule = list(db_schedule)
     else:
         from core.utils.helpers import generate_repayment_schedule
         preview = generate_repayment_schedule(loan)
@@ -171,6 +181,15 @@ def loan_detail(request, loan_id):
         for item in preview:
             item['computed_status'] = item.get('status', 'pending')
         repayment_schedule = preview
+
+    # Successful repayments = installments fully paid by the client, per the
+    # always-current computed_status (the stored `status` field is only a
+    # cache refreshed at save() time).
+    total_installments = len(repayment_schedule)
+    paid_installments_count = sum(
+        1 for row in repayment_schedule
+        if (row['computed_status'] if isinstance(row, dict) else row.computed_status) == 'paid'
+    )
 
     # Get repayment postings
     repayment_postings = loan.repayment_postings.select_related(
@@ -195,6 +214,8 @@ def loan_detail(request, loan_id):
         ),
         'payment_progress_pct': loan.payment_progress_percentage,
         'pending_postings': loan.repayment_postings.filter(status='pending').count(),
+        'paid_installments_count': paid_installments_count,
+        'total_installments': total_installments,
     }
 
     # Get guarantor information
@@ -635,12 +656,15 @@ def loan_disburse(request, loan_id):
             loan.bank_account_name = form.cleaned_data.get('bank_account_name', '')
             loan.disbursement_notes = form.cleaned_data.get('disbursement_notes', '')
 
-            success, message = loan.disburse(
-                disbursed_by=request.user,
-                method=form.cleaned_data['disbursement_method'],
-                reference=form.cleaned_data.get('disbursement_reference', ''),
-                disbursement_date=form.cleaned_data.get('disbursement_date'),
-            )
+            try:
+                success, message = loan.disburse(
+                    disbursed_by=request.user,
+                    method=form.cleaned_data['disbursement_method'],
+                    reference=form.cleaned_data.get('disbursement_reference', ''),
+                    disbursement_date=form.cleaned_data.get('disbursement_date'),
+                )
+            except ValueError as e:
+                success, message = False, str(e)
 
             if success:
                 messages.success(request, f"Loan disbursed successfully. {message}")

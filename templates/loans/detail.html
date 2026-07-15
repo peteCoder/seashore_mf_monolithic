@@ -133,7 +133,7 @@
             <button @click="activeTab = 'schedule'"
                     :class="activeTab === 'schedule' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
                     class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
-                Repayment Schedule
+                Repayment Schedule ({{ summary.paid_installments_count }}/{{ summary.total_installments }} paid)
             </button>
             <button @click="activeTab = 'postings'"
                     :class="activeTab === 'postings' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
@@ -169,7 +169,7 @@
     <div x-show="activeTab === 'overview'" x-cloak class="space-y-6">
         <!-- Loan Summary Card -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
                 <div>
                     <p class="text-sm text-gray-600 dark:text-gray-400">Principal Amount</p>
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">₦{{ loan.principal_amount|floatformat:2|intcomma }}</p>
@@ -185,6 +185,14 @@
                 <div>
                     <p class="text-sm text-gray-600 dark:text-gray-400">Outstanding Balance</p>
                     <p class="text-2xl font-bold text-red-600 dark:text-red-400">₦{{ loan.outstanding_balance|floatformat:2|intcomma }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Amount Paid</p>
+                    <p class="text-2xl font-bold text-green-600 dark:text-green-400">₦{{ loan.amount_paid|floatformat:2|intcomma }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Arms Paid</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ summary.paid_installments_count }}/{{ summary.total_installments }}</p>
                 </div>
             </div>
 

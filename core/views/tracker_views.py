@@ -17,7 +17,8 @@ from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Exists, OuterRef, Sum, Q
+from django.core.paginator import Paginator
+from django.db.models import Count, Exists, OuterRef, Sum, Q, F
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -74,6 +75,29 @@ def _loans_without_schedule(user, checker=None):
         )
     ).filter(
         has_schedule=False,
+    ).select_related('client', 'client__assigned_staff', 'branch', 'loan_product')
+    if checker.can_view_all_branches():
+        return qs
+    if checker.is_manager() and checker.branch:
+        return qs.filter(branch=checker.branch)
+    if checker.is_staff():
+        return qs.filter(client__assigned_staff=user)
+    return qs.none()
+
+
+def _base_loan_qs(user, checker=None):
+    """
+    Return every active/overdue/disbursed loan with an outstanding balance,
+    scoped by the user's role — regardless of whether it has schedule rows
+    or when its next installment is due. Backs the "All Active Loans" tab,
+    which exists so a loan that's current/ahead-of-schedule (next due date
+    beyond the other tabs' 30-day lookahead) can still always be found.
+    """
+    if checker is None:
+        checker = PermissionChecker(user)
+    qs = Loan.objects.filter(
+        status__in=['active', 'overdue', 'disbursed'],
+        outstanding_balance__gt=0,
     ).select_related('client', 'client__assigned_staff', 'branch', 'loan_product')
     if checker.can_view_all_branches():
         return qs
@@ -192,6 +216,29 @@ def loan_repayment_tracker(request):
         if l.next_repayment_date and l.next_repayment_date <= today
     ]
 
+    # ── All Active Loans (regardless of when their next installment is due) ──
+    # Loans that are current/ahead-of-schedule naturally have their next due
+    # date beyond the 30-day lookahead of the other tabs and would otherwise
+    # never appear anywhere in the tracker. This tab is a catch-all so any
+    # active loan can always be found here.
+    all_active_loans_qs = _base_loan_qs(request.user, checker=checker)
+    if selected_branch:
+        all_active_loans_qs = all_active_loans_qs.filter(branch=selected_branch)
+    all_active_loans_qs = all_active_loans_qs.annotate(
+        total_installments=Count('repayment_schedule', distinct=True),
+        paid_installments=Count(
+            'repayment_schedule',
+            filter=Q(repayment_schedule__amount_paid__gte=(
+                F('repayment_schedule__total_amount') + F('repayment_schedule__penalty_amount')
+            )),
+            distinct=True
+        ),
+    ).order_by('next_repayment_date', 'client__first_name')
+    all_active_loans_count = all_active_loans_qs.count()
+
+    all_paginator = Paginator(all_active_loans_qs, 25)
+    all_active_loans_page = all_paginator.get_page(request.GET.get('all_page'))
+
     # ── Summary aggregates ─────────────────────────────────────────────────
     def _agg(qs):
         agg = qs.aggregate(
@@ -251,7 +298,7 @@ def loan_repayment_tracker(request):
 
     # ── Active tab from querystring ────────────────────────────────────────
     tab = request.GET.get('tab', 'overdue')
-    if tab not in ('overdue', 'today', 'week', 'month'):
+    if tab not in ('overdue', 'today', 'week', 'month', 'all'):
         tab = 'overdue'
 
     # Count of rows matching the current filters (branch + tab), shown beneath
@@ -261,6 +308,7 @@ def loan_repayment_tracker(request):
         'today':   today_summary['count'],
         'week':    week_summary['count'],
         'month':   month_summary['count'],
+        'all':     all_active_loans_count,
     }
     active_tab_count = tab_counts[tab]
 
@@ -282,6 +330,8 @@ def loan_repayment_tracker(request):
         'due_today_rows':  due_today_rows,
         'due_week_rows':   due_week_rows,
         'due_month_rows':  due_month_rows,
+        'all_active_loans':       all_active_loans_page,
+        'all_active_loans_count': all_active_loans_count,
 
         # Loans with no schedule rows (invisible to main tracker)
         'loans_no_schedule':       loans_no_schedule,

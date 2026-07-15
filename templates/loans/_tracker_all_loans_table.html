@@ -1,0 +1,108 @@
+{% comment %}
+Partial: "All Active Loans" tab — one row per loan (not per installment),
+regardless of when its next installment is due. Catch-all so a
+current/ahead-of-schedule loan can always be found somewhere in the tracker.
+Variables: loans (a Page of Loan, annotated with total_installments/paid_installments)
+{% endcomment %}
+{% load humanize %}
+<div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+  <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+    <thead class="bg-gray-50 dark:bg-gray-700/50">
+      <tr>
+        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Client</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Staff</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Loan #</th>
+        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Principal</th>
+        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Outstanding</th>
+        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Arms Paid</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Next Due</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Status</th>
+        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">Action</th>
+      </tr>
+    </thead>
+    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
+      {% for loan in loans %}
+      <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
+        <td class="px-4 py-3 whitespace-nowrap">
+          <a href="{% url 'core:client_detail' loan.client.id %}"
+             class="font-medium text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400">
+            {{ loan.client.get_full_name }}
+          </a>
+          {% if loan.branch %}
+          <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{{ loan.branch.name }}</p>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3 whitespace-nowrap">
+          {% if loan.client.assigned_staff %}
+          <span class="font-medium text-gray-800 dark:text-gray-200">{{ loan.client.assigned_staff.get_full_name }}</span>
+          {% else %}
+          <span class="text-gray-400 dark:text-gray-500">—</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3 whitespace-nowrap">
+          <a href="{% url 'core:loan_detail' loan.id %}"
+             class="font-mono text-xs text-primary-600 dark:text-primary-400 hover:underline">
+            {{ loan.loan_number }}
+          </a>
+        </td>
+        <td class="px-4 py-3 whitespace-nowrap text-right text-gray-600 dark:text-gray-400">₦{{ loan.principal_amount|intcomma }}</td>
+        <td class="px-4 py-3 whitespace-nowrap text-right font-semibold text-purple-600 dark:text-purple-400">₦{{ loan.outstanding_balance|intcomma }}</td>
+        <td class="px-4 py-3 whitespace-nowrap text-center text-gray-600 dark:text-gray-400">{{ loan.paid_installments }}/{{ loan.total_installments }}</td>
+        <td class="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
+          {{ loan.next_repayment_date|date:"d M Y"|default:"—" }}
+        </td>
+        <td class="px-4 py-3 whitespace-nowrap">
+          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                       {% if loan.status == 'active' %}bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300
+                       {% elif loan.status == 'overdue' %}bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300
+                       {% else %}bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300{% endif %}">
+            {{ loan.get_status_display }}
+          </span>
+        </td>
+        <td class="px-4 py-3 whitespace-nowrap text-center">
+          <div class="flex items-center justify-center gap-3">
+            <a href="{% url 'core:loan_detail' loan.id %}"
+               class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition">
+              <i class="fas fa-arrow-right"></i>View
+            </a>
+            <a href="{% url 'core:loan_repayment_post_for_loan' loan.id %}"
+               class="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 text-xs font-medium">
+              Repay
+            </a>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="9" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+          <i class="fas fa-folder-open text-4xl mb-2"></i>
+          <p>No active loans found</p>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if loans.has_other_pages %}
+<div class="flex items-center justify-between px-2 py-4">
+  <p class="text-sm text-gray-600 dark:text-gray-400">
+    Page <span class="font-medium">{{ loans.number }}</span> of <span class="font-medium">{{ loans.paginator.num_pages }}</span>
+    &middot; <span class="font-medium">{{ loans.paginator.count }}</span> loan{{ loans.paginator.count|pluralize }}
+  </p>
+  <div class="flex gap-2">
+    {% if loans.has_previous %}
+    <a href="{% querystring all_page=loans.previous_page_number %}"
+       class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+      Previous
+    </a>
+    {% endif %}
+    {% if loans.has_next %}
+    <a href="{% querystring all_page=loans.next_page_number %}"
+       class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+      Next
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

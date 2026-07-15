@@ -214,6 +214,7 @@
         {% include 'loans/_tracker_tab.html' with key="today" label="Due Today" count=today_summary.count color="amber" %}
         {% include 'loans/_tracker_tab.html' with key="week" label="Next 7 Days" count=week_summary.count color="blue" %}
         {% include 'loans/_tracker_tab.html' with key="month" label="Next 30 Days" count=month_summary.count color="green" %}
+        {% include 'loans/_tracker_tab.html' with key="all" label="All Active Loans" count=all_active_loans_count color="purple" %}
       </nav>
     </div>
 
@@ -391,6 +392,20 @@
       <div class="text-center py-16 text-gray-500 dark:text-gray-400">
         <i class="fas fa-calendar text-5xl text-green-400 mb-4"></i>
         <p class="text-lg font-medium">No repayments in the next 30 days</p>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ── ALL ACTIVE LOANS TAB ── -->
+    {% if tab == 'all' %}
+    <div class="p-4 sm:p-6">
+      {% if all_active_loans %}
+      {% include 'loans/_tracker_all_loans_table.html' with loans=all_active_loans %}
+      {% else %}
+      <div class="text-center py-16 text-gray-500 dark:text-gray-400">
+        <i class="fas fa-folder-open text-5xl text-purple-400 mb-4"></i>
+        <p class="text-lg font-medium">No active loans found</p>
       </div>
       {% endif %}
     </div>

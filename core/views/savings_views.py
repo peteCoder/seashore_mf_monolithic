@@ -54,9 +54,9 @@ def savings_account_list(request):
     accounts = checker.filter_savings_accounts(accounts)
 
     # Search and filters
-    form = SavingsAccountSearchForm(request.GET)
-    if form.is_valid():
-        search = form.cleaned_data.get('search')
+    search_form = SavingsAccountSearchForm(request.GET)
+    if search_form.is_valid():
+        search = search_form.cleaned_data.get('search')
         if search:
             accounts = accounts.filter(
                 Q(account_number__icontains=search) |
@@ -65,34 +65,30 @@ def savings_account_list(request):
                 Q(client__client_id__icontains=search)
             )
 
-        status = form.cleaned_data.get('status')
+        status = search_form.cleaned_data.get('status')
         if status:
             accounts = accounts.filter(status=status)
 
-        savings_product = form.cleaned_data.get('savings_product')
+        savings_product = search_form.cleaned_data.get('savings_product')
         if savings_product:
             accounts = accounts.filter(savings_product=savings_product)
 
-        branch = form.cleaned_data.get('branch')
+        branch = search_form.cleaned_data.get('branch')
         if branch:
             accounts = accounts.filter(branch=branch)
 
-        date_from = form.cleaned_data.get('date_from')
+        date_from = search_form.cleaned_data.get('date_from')
         if date_from:
             accounts = accounts.filter(date_opened__gte=date_from)
 
-        date_to = form.cleaned_data.get('date_to')
+        date_to = search_form.cleaned_data.get('date_to')
         if date_to:
             accounts = accounts.filter(date_opened__lte=date_to)
 
     accounts = accounts.order_by('-created_at')
 
-    # Pagination
-    paginator = Paginator(accounts, 25)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
-    # Summary
+    # Summary (computed on the filtered-but-unpaginated queryset, so
+    # total_accounts reflects the current filter selection across all pages)
     summary = {
         'total_accounts': accounts.count(),
         'active_accounts': accounts.filter(status='active').count(),
@@ -100,10 +96,15 @@ def savings_account_list(request):
         'total_balance': accounts.aggregate(Sum('balance'))['balance__sum'] or Decimal('0.00'),
     }
 
+    # Pagination
+    paginator = Paginator(accounts, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
         'page_title': 'Savings Accounts',
         'accounts': page_obj,
-        'form': form,
+        'search_form': search_form,
         'summary': summary,
         'checker': checker,
     }
