@@ -15,6 +15,7 @@ from django.views.decorators.http import require_POST
 from core.models import FollowUpTask, Loan
 from core.forms.followup_forms import FollowUpTaskForm, FollowUpTaskCompleteForm
 from core.permissions import PermissionChecker
+from core.services.notification_service import notify
 
 
 # =============================================================================
@@ -101,6 +102,20 @@ def loan_add_followup(request, loan_id):
             task.created_by = request.user
             task.status = 'pending'
             task.save()
+            if task.assigned_to != request.user:
+                notify(
+                    user=task.assigned_to,
+                    notification_type='followup_assigned',
+                    title='Follow-up Task Assigned',
+                    message=(
+                        f'You have been assigned a {task.get_follow_up_type_display()} '
+                        f'follow-up for loan {loan.loan_number} ({loan.client.get_full_name()}), '
+                        f'due {task.due_date.strftime("%d %b %Y")}.'
+                    ),
+                    related_loan=loan,
+                    related_client=loan.client,
+                    is_urgent=(task.priority == 'urgent'),
+                )
             messages.success(
                 request,
                 f'Follow-up task assigned to {task.assigned_to.get_full_name()} due {task.due_date.strftime("%d %b %Y")}.'
@@ -145,9 +160,24 @@ def followup_update(request, task_id):
         return redirect('core:followup_list')
 
     if request.method == 'POST':
+        previous_assignee = task.assigned_to
         form = FollowUpTaskForm(request.POST, instance=task, branch=task.loan.branch)
         if form.is_valid():
             form.save()
+            if task.assigned_to != previous_assignee and task.assigned_to != request.user:
+                notify(
+                    user=task.assigned_to,
+                    notification_type='followup_assigned',
+                    title='Follow-up Task Assigned',
+                    message=(
+                        f'You have been assigned a {task.get_follow_up_type_display()} '
+                        f'follow-up for loan {task.loan.loan_number} '
+                        f'({task.loan.client.get_full_name()}), due {task.due_date.strftime("%d %b %Y")}.'
+                    ),
+                    related_loan=task.loan,
+                    related_client=task.loan.client,
+                    is_urgent=(task.priority == 'urgent'),
+                )
             messages.success(request, 'Follow-up task updated.')
             return redirect('core:followup_list')
     else:

@@ -747,29 +747,34 @@ def export_client_statement_excel(client, transactions, date_from, date_to,
 
     rows = []
     for t in transactions:
+        # Reversed transactions (e.g. a duplicate corrected after the fact)
+        # stay in the export for the audit trail but are flagged and don't
+        # count toward Money In/Out, matching the on-screen statement.
+        is_reversed = t.status == 'reversed'
         rows.append({
             'Date': t.transaction_date.strftime('%Y-%m-%d') if hasattr(t.transaction_date, 'strftime') else str(t.transaction_date),
             'Reference': t.transaction_ref or '',
             'Type': t.get_transaction_type_display(),
             'Description': t.description or '',
-            'Money In (₦)': float(t.amount) if t.transaction_type not in _OUTFLOW else 0.0,
-            'Money Out (₦)': float(t.amount) if t.transaction_type in _OUTFLOW else 0.0,
+            'Status': 'Reversed' if is_reversed else '',
+            'Money In (₦)': 0.0 if is_reversed else (float(t.amount) if t.transaction_type not in _OUTFLOW else 0.0),
+            'Money Out (₦)': 0.0 if is_reversed else (float(t.amount) if t.transaction_type in _OUTFLOW else 0.0),
         })
 
     # Summary rows
-    rows.append({'Date':'','Reference':'','Type':'','Description':'TOTAL IN','Money In (₦)':float(total_in),'Money Out (₦)':''})
-    rows.append({'Date':'','Reference':'','Type':'','Description':'TOTAL OUT','Money In (₦)':'','Money Out (₦)':float(total_out)})
-    rows.append({'Date':'','Reference':'','Type':'','Description':'NET POSITION','Money In (₦)':float(net_position),'Money Out (₦)':''})
+    rows.append({'Date':'','Reference':'','Type':'','Description':'TOTAL IN','Status':'','Money In (₦)':float(total_in),'Money Out (₦)':''})
+    rows.append({'Date':'','Reference':'','Type':'','Description':'TOTAL OUT','Status':'','Money In (₦)':'','Money Out (₦)':float(total_out)})
+    rows.append({'Date':'','Reference':'','Type':'','Description':'NET POSITION','Status':'','Money In (₦)':float(net_position),'Money Out (₦)':''})
 
     df = pd.DataFrame(rows)
     df.to_excel(writer, sheet_name='Statement', index=False)
 
     date_range = f'{date_from.strftime("%B %d, %Y")} to {date_to.strftime("%B %d, %Y")}'
-    _style_sheet(writer.sheets['Statement'], 6,
+    _style_sheet(writer.sheets['Statement'], 7,
                  title=f'ACCOUNT STATEMENT — {client.get_full_name()} ({client.client_id})',
                  subtitle=f'Period: {date_range}',
-                 currency_cols=[5, 6],
-                 col_widths={'A':14,'B':20,'C':22,'D':40,'E':18,'F':18})
+                 currency_cols=[6, 7],
+                 col_widths={'A':14,'B':20,'C':22,'D':40,'E':12,'F':18,'G':18})
 
     writer.close()
     output.seek(0)

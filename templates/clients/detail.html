@@ -767,16 +767,27 @@
                         </thead>
                         <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                             {% for transaction in recent_transactions %}
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                            <tr class="cursor-pointer transition-colors
+                                       {% if transaction.status == 'reversed' %}bg-red-50/60 dark:bg-red-900/10 hover:bg-red-100/60 dark:hover:bg-red-900/20
+                                       {% else %}hover:bg-gray-50 dark:hover:bg-gray-700{% endif %}"
                                 onclick="window.location='{% url 'core:transaction_detail' transaction.id %}'">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ transaction.transaction_date|date:"Y-m-d H:i" }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ transaction.get_transaction_type_display }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                    {{ transaction.get_transaction_type_display }}
+                                    {% if transaction.status == 'reversed' %}
+                                    <span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100/70 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+                                          title="Reversed — excluded from balances, kept for the audit trail">
+                                        Reversed
+                                    </span>
+                                    {% endif %}
+                                </td>
                                 <td class="px-6 py-4 text-sm text-gray-900 dark:text-white">{{ transaction.description }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     {% if transaction.processed_by %}{{ transaction.processed_by.get_full_name }}{% else %}—{% endif %}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium
-                                           {% if transaction.transaction_type == 'debit' %}text-red-600 dark:text-red-400
+                                           {% if transaction.status == 'reversed' %}line-through text-red-400 dark:text-red-500/70
+                                           {% elif transaction.transaction_type == 'debit' %}text-red-600 dark:text-red-400
                                            {% else %}text-green-600 dark:text-green-400{% endif %}">
                                     {{ transaction.transaction_type|slice:":1"|upper }}₦{{ transaction.amount|floatformat:2|intcomma }}
                                 </td>

@@ -6986,6 +6986,7 @@ class Notification(BaseModel):
         ('assignment_request_approved', 'Assignment Request Approved'),
         ('assignment_request_rejected', 'Assignment Request Rejected'),
         ('branch_changed', 'Branch Assignment Updated'),
+        ('followup_assigned', 'Follow-up Task Assigned'),
         ('group_assigned', 'Group Assignment Updated'),
         ('group_removed', 'Removed from Group'),
         ('group_unassigned', 'Group Unassigned from Staff'),

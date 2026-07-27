@@ -31,7 +31,7 @@ WHAT IT DOES NOT TOUCH
 - LoanRepaymentPosting  — never modified.
 - Transaction records   — never modified.
 - Loan.amount_paid / Loan.outstanding_balance — never modified.
-
+ 
 Usage
 -----
     python manage.py rebuild_loan_schedules --dry-run

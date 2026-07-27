@@ -887,8 +887,12 @@ def client_statement(request, client_id):
     # Evaluate queryset once so Python iteration caches the results
     transactions = list(transactions)
 
-    total_out = sum(t.amount for t in transactions if t.transaction_type in _OUTFLOW)
-    total_in  = sum(t.amount for t in transactions if t.transaction_type not in _OUTFLOW)
+    # Reversed transactions (e.g. a duplicate disbursement corrected after the
+    # fact) stay visible on the statement for the audit trail, but must not
+    # count toward the running totals — they no longer reflect real movement.
+    _countable = [t for t in transactions if t.status != 'reversed']
+    total_out = sum(t.amount for t in _countable if t.transaction_type in _OUTFLOW)
+    total_in  = sum(t.amount for t in _countable if t.transaction_type not in _OUTFLOW)
 
     if request.GET.get('export') == 'excel':
         from core.utils.excel_export import export_client_statement_excel

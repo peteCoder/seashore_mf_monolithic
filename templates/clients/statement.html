@@ -211,6 +211,12 @@
                                 {% else %}bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300{% endif %}">
                                 {{ txn.get_transaction_type_display }}
                             </span>
+                            {% if txn.status == 'reversed' %}
+                            <span class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
+                                  title="Reversed — excluded from totals, kept for the audit trail">
+                                Reversed
+                            </span>
+                            {% endif %}
                         </td>
                         <!-- Description (hidden on mobile) -->
                         <td class="px-4 py-3 text-gray-600 dark:text-gray-400 max-w-xs truncate hidden md:table-cell">
@@ -219,7 +225,7 @@
                         <!-- Debit (Out) -->
                         <td class="px-4 py-3 text-right font-semibold whitespace-nowrap">
                             {% if txn.transaction_type == 'loan_disbursement' or txn.transaction_type == 'withdrawal' %}
-                            <span class="text-red-600 dark:text-red-400">₦{{ txn.amount|floatformat:2|intcomma }}</span>
+                            <span class="{% if txn.status == 'reversed' %}line-through text-gray-400 dark:text-gray-500{% else %}text-red-600 dark:text-red-400{% endif %}">₦{{ txn.amount|floatformat:2|intcomma }}</span>
                             {% else %}
                             <span class="text-gray-300 dark:text-gray-600">—</span>
                             {% endif %}
@@ -227,7 +233,7 @@
                         <!-- Credit (In) -->
                         <td class="px-4 py-3 text-right font-semibold whitespace-nowrap">
                             {% if txn.transaction_type != 'loan_disbursement' and txn.transaction_type != 'withdrawal' %}
-                            <span class="text-green-600 dark:text-green-400">₦{{ txn.amount|floatformat:2|intcomma }}</span>
+                            <span class="{% if txn.status == 'reversed' %}line-through text-gray-400 dark:text-gray-500{% else %}text-green-600 dark:text-green-400{% endif %}">₦{{ txn.amount|floatformat:2|intcomma }}</span>
                             {% else %}
                             <span class="text-gray-300 dark:text-gray-600">—</span>
                             {% endif %}
