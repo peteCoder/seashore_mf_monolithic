@@ -503,6 +503,7 @@ def post_loan_upfront_fees_journal(loan, processed_by, transaction_obj):
             Cr  4160 Tech Fee Income              [tech_fee]
             Cr  4120 Loan Form Fee Income         [loan_form_fee]
             Cr  4165 Loan Maintenance Fee Income  [loan_maintenance_fee]
+            Cr  4190 Admin Fee Income             [admin_fee]
 
     Args:
         loan: Loan object (must have fee breakdown fields populated)
@@ -528,12 +529,14 @@ def post_loan_upfront_fees_journal(loan, processed_by, transaction_obj):
     ]
 
     maintenance_fee = getattr(loan, 'loan_maintenance_fee', Decimal('0.00')) or Decimal('0.00')
+    admin_fee = getattr(loan, 'admin_fee', Decimal('0.00')) or Decimal('0.00')
     fee_credit_lines = [
         ('4150', loan.risk_premium_fee, 'Risk premium fee'),
         ('4150', loan.rp_income_fee,    'RP income fee'),
         ('4160', loan.tech_fee,         'Technology fee'),
         ('4120', loan.loan_form_fee,    'Loan form fee'),
         ('4165', maintenance_fee,       'Loan maintenance fee'),
+        ('4190', admin_fee,             'Admin fee'),
     ]
 
     for account_code, amount, description in fee_credit_lines:

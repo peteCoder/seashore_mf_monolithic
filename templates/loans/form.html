@@ -577,6 +577,16 @@ document.addEventListener('DOMContentLoaded', function() {
             totalFees += fees.loan_maintenance_fee.amount;
         }
 
+        // Admin Fee
+        if (fees.admin_fee && fees.admin_fee.enabled) {
+            feeItems.push({
+                name: 'Admin Fee',
+                percentage: 'Flat',
+                amount: fees.admin_fee.amount
+            });
+            totalFees += fees.admin_fee.amount;
+        }
+
         // Update calculator display
         document.getElementById('calculatorResults').classList.remove('hidden');
         document.getElementById('calculatorPlaceholder').classList.add('hidden');

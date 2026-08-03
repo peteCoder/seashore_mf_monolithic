@@ -940,6 +940,15 @@ class Command(BaseCommand):
                 'is_control_account': False,
                 'allows_manual_entries': False,
             },
+            {
+                'gl_code': '4190',
+                'account_name': 'Admin Fee Income',
+                'account_type': income_type,
+                'account_category': fee_income_cat,
+                'description': 'Flat admin fee charged at loan disbursement',
+                'is_control_account': False,
+                'allows_manual_entries': False,
+            },
 
             # ====================================================================
             # OTHER INCOME (42xx)

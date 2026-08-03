@@ -23,6 +23,7 @@ _DECIMAL_PCT_FIELDS = [
 # Amount fields where users may type comma thousand-separators (e.g. 1,000,000).
 _AMOUNT_FIELDS = [
     'min_principal_amount', 'max_principal_amount', 'loan_form_fee_amount',
+    'loan_maintenance_fee_amount', 'admin_fee_amount',
 ]
 
 
@@ -56,6 +57,7 @@ class LoanProductForm(forms.ModelForm):
             'required_guarantors',
             'min_client_age', 'max_client_age',
             'loan_maintenance_fee_enabled', 'loan_maintenance_fee_amount',
+            'admin_fee_enabled', 'admin_fee_amount',
         ]
 
         widgets = {
@@ -155,6 +157,12 @@ class LoanProductForm(forms.ModelForm):
                 'class': TEXT_INPUT_CLASS,
                 'step': '0.01',
                 'placeholder': '200.00',
+            }),
+            'admin_fee_enabled': forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
+            'admin_fee_amount': forms.NumberInput(attrs={
+                'class': TEXT_INPUT_CLASS,
+                'step': '0.01',
+                'placeholder': '2500.00',
             }),
         }
 

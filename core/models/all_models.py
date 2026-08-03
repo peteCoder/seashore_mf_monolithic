@@ -2005,6 +2005,16 @@ class LoanProduct(BaseModel, StatusTrackingMixin):
         validators=[MinValueValidator(Decimal('0.00'))]
     )
 
+    # Admin Fee (flat amount only). Disabled by default — turned on when the
+    # ₦2,500 admin fee policy takes effect (expected 2026-08-01).
+    admin_fee_enabled = models.BooleanField(default=False)
+    admin_fee_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('2500.00'),
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
+
     # =========================================================================
     # LOAN LIMITS
     # =========================================================================
@@ -2246,6 +2256,12 @@ class LoanProduct(BaseModel, StatusTrackingMixin):
         else:
             fees['loan_maintenance_fee'] = Decimal('0.00')
 
+        # Admin Fee
+        if self.admin_fee_enabled:
+            fees['admin_fee'] = self.admin_fee_amount
+        else:
+            fees['admin_fee'] = Decimal('0.00')
+
         # Total
         fees['total_upfront_fees'] = MoneyCalculator.sum_amounts(
             fees['risk_premium_fee'],
@@ -2253,8 +2269,9 @@ class LoanProduct(BaseModel, StatusTrackingMixin):
             fees['tech_fee'],
             fees['loan_form_fee'],
             fees['loan_maintenance_fee'],
+            fees['admin_fee'],
         )
-        
+
         return fees
     
     def is_amount_valid(self, amount):
@@ -2349,6 +2366,9 @@ class LoanProduct(BaseModel, StatusTrackingMixin):
 
         if self.loan_maintenance_fee_enabled:
             fees_text.append(f"Maintenance Fee: ₦{self.loan_maintenance_fee_amount:,.2f}")
+
+        if self.admin_fee_enabled:
+            fees_text.append(f"Admin Fee: ₦{self.admin_fee_amount:,.2f}")
 
         return ", ".join(fees_text) if fees_text else "No fees"
 
@@ -3856,6 +3876,9 @@ class Loan(BaseModel):
     loan_maintenance_fee = models.DecimalField(
         max_digits=15, decimal_places=2, default=Decimal('0.00')
     )
+    admin_fee = models.DecimalField(
+        max_digits=15, decimal_places=2, default=Decimal('0.00')
+    )
     total_upfront_fees = models.DecimalField(
         max_digits=15, decimal_places=2, default=Decimal('0.00')
     )
@@ -4277,6 +4300,7 @@ class Loan(BaseModel):
             self.tech_fee             = fees['tech_fee']
             self.loan_form_fee        = fees['loan_form_fee']
             self.loan_maintenance_fee = fees['loan_maintenance_fee']
+            self.admin_fee            = fees['admin_fee']
             self.total_upfront_fees   = fees['total_upfront_fees']
 
         # — repayment dates (preview only — disburse() recalculates from actual date)

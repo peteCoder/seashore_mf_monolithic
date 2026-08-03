@@ -458,6 +458,20 @@ def loan_pay_fees(request, loan_id):
                 'amount': fees.get('loan_form_fee', Decimal('0.00'))
             })
 
+        if loan.loan_product.loan_maintenance_fee_enabled:
+            fee_breakdown.append({
+                'name': 'Loan Maintenance Fee',
+                'rate': 'Fixed',
+                'amount': fees.get('loan_maintenance_fee', Decimal('0.00'))
+            })
+
+        if loan.loan_product.admin_fee_enabled:
+            fee_breakdown.append({
+                'name': 'Admin Fee',
+                'rate': 'Fixed',
+                'amount': fees.get('admin_fee', Decimal('0.00'))
+            })
+
     context = {
         'page_title': f'Pay Fees - {loan.loan_number}',
         'loan': loan,
@@ -1308,6 +1322,10 @@ def loan_product_api(request, product_id):
             'loan_maintenance_fee': {
                 'enabled': product.loan_maintenance_fee_enabled,
                 'amount': float(product.loan_maintenance_fee_amount) if product.loan_maintenance_fee_enabled else 0,
+            },
+            'admin_fee': {
+                'enabled': product.admin_fee_enabled,
+                'amount': float(product.admin_fee_amount) if product.admin_fee_enabled else 0,
             },
         },
 

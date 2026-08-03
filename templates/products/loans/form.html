@@ -243,7 +243,7 @@
             </div>
 
             <!-- Loan Maintenance Fee -->
-            <div>
+            <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
                 <div class="flex items-center mb-3">
                     <label class="flex items-center cursor-pointer">
                         {{ form.loan_maintenance_fee_enabled }}
@@ -260,6 +260,28 @@
                         <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.loan_maintenance_fee_amount.errors.0 }}</p>
                         {% endif %}
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Flat fee charged at disbursement. Posts to GL 4165 — Loan Maintenance Fee Income.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Fee -->
+            <div>
+                <div class="flex items-center mb-3">
+                    <label class="flex items-center cursor-pointer">
+                        {{ form.admin_fee_enabled }}
+                        <span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Enable Admin Fee</span>
+                    </label>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Admin Fee Amount (&#8358;)
+                        </label>
+                        {{ form.admin_fee_amount }}
+                        {% if form.admin_fee_amount.errors %}
+                        <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.admin_fee_amount.errors.0 }}</p>
+                        {% endif %}
+                        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Flat fee charged at disbursement. Posts to GL 4190 — Admin Fee Income.</p>
                     </div>
                 </div>
             </div>
