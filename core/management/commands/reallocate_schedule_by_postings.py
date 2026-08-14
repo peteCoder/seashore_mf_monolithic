@@ -24,13 +24,28 @@ but landed on the wrong installment.
 
 WHAT THIS COMMAND DOES
 -----------------------
-For every active/overdue/disbursed loan with approved postings:
+For every active/overdue/disbursed loan with a nonzero amount_paid:
 
-1. Sums all approved postings into one total-received figure and
-   reallocates every row from scratch, oldest installment first (see
+1. Reallocates every row from scratch, oldest installment first, using
+   loan.amount_paid as the total-received figure (see
    allocate_schedule_from_total()).
 2. Compares the re-derived per-row amounts against what is currently
    stored and reports/updates any row that differs.
+
+WHY loan.amount_paid AND NOT SUM(LoanRepaymentPosting)
+--------------------------------------------------------
+This command used to total a loan's received amount by summing its
+approved LoanRepaymentPosting records. That's unreliable: postings can be
+duplicated (seen in production — a bulk "Group combined collection" bug
+created 2-3 posting rows sharing one transaction_id for a single real
+payment) and don't get un-approved when their underlying Transaction is
+later reversed. Either case inflates the total and can incorrectly mark a
+row 'paid' using money that was never actually received.
+loan.amount_paid is incremented/decremented in lockstep with real
+Transaction records (see Loan.record_repayment() and
+services/reversal_service.py) and isn't subject to either failure mode, so
+it's the trustworthy source — the same one record_repayment()'s own
+self-healing reallocation already uses.
 
 SAFE vs NEEDS REVIEW
 ---------------------
@@ -57,14 +72,13 @@ Usage
 """
 
 from decimal import Decimal
-from collections import defaultdict
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from django.db import transaction as db_transaction
 from django.db.models import Prefetch
 from django.utils import timezone
 
-from core.models import Loan, LoanRepaymentSchedule, LoanRepaymentPosting
+from core.models import Loan, LoanRepaymentSchedule
 from core.utils.repayment_allocation import allocate_schedule_from_total
 
 
@@ -99,23 +113,16 @@ class Command(BaseCommand):
             f'\n=== reallocate_schedule_by_postings [{mode}] ===\n'
         ))
 
-        # ── Load loans + schedules + postings in bulk ─────────────────────
+        # ── Load loans + schedules in bulk ─────────────────────────────────
         schedule_prefetch = Prefetch(
             'repayment_schedule',
             queryset=LoanRepaymentSchedule.objects.order_by('installment_number'),
             to_attr='ordered_schedule',
         )
-        posting_prefetch = Prefetch(
-            'repayment_postings',
-            queryset=LoanRepaymentPosting.objects.filter(
-                status='approved'
-            ).order_by('payment_date', 'created_at'),
-            to_attr='approved_postings',
-        )
 
         loan_qs = Loan.objects.filter(
             status__in=['active', 'overdue', 'disbursed'],
-        ).prefetch_related(schedule_prefetch, posting_prefetch)
+        ).prefetch_related(schedule_prefetch)
 
         if loan_id:
             loan_qs = loan_qs.filter(id=loan_id)
@@ -132,14 +139,13 @@ class Command(BaseCommand):
         self.stdout.write(f'Scope : {scope}\n')
 
         for loan in loan_qs:
-            rows     = loan.ordered_schedule
-            postings = loan.approved_postings
+            rows = loan.ordered_schedule
 
-            if not rows or not postings:
+            if not rows or not loan.amount_paid:
                 continue
 
             rows_inspected += len(rows)
-            changes = _compute_reallocation(rows, postings, today)
+            changes = _compute_reallocation(rows, loan.amount_paid, today)
             if not changes:
                 continue
 
@@ -226,20 +232,19 @@ class Command(BaseCommand):
 # CORE ALGORITHM
 # =============================================================================
 
-def _compute_reallocation(rows, postings, today):
+def _compute_reallocation(rows, total_received, today):
     """
     Given a loan's schedule rows (ordered by installment_number) and its
-    approved postings (ordered by payment_date), compute the correct
-    per-row amount_paid via the shared oldest-first allocation algorithm
-    (allocate_schedule_from_total — the same one record_repayment() and
-    rebuild_loan_schedules.py use).
+    total amount received (loan.amount_paid — see module docstring for why
+    this is used instead of summing LoanRepaymentPosting records), compute
+    the correct per-row amount_paid via the shared oldest-first allocation
+    algorithm (allocate_schedule_from_total — the same one
+    record_repayment() and rebuild_loan_schedules.py use).
 
     Returns a list of (row, old_amount_paid, new_amount_paid,
                         old_status, new_status)
     for every row where the new allocation differs from what is stored.
     """
-    total_received = sum(p.amount for p in postings)
-
     # Capture "before" state up front — allocate_schedule_from_total() may
     # mutate row.paid_date on the same objects (harmless in dry-run since
     # nothing is saved unless the caller explicitly does so), but

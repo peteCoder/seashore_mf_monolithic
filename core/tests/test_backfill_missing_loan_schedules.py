@@ -74,6 +74,12 @@ class TestBackfillMissingLoanSchedules(TestCase):
             payment_date=timezone.now().date() - timedelta(days=100),
             status='approved', submitted_by=self.manager,
         )
+        # The command allocates against loan.amount_paid (the trustworthy
+        # running total kept in sync by record_repayment()), not against a
+        # sum of LoanRepaymentPosting records — so the fixture must set it
+        # explicitly to match the posting created above.
+        Loan.objects.filter(id=loan.id).update(amount_paid=installment_amount)
+        loan.refresh_from_db()
 
         call_command('backfill_missing_loan_schedules', '--commit', stdout=StringIO())
 

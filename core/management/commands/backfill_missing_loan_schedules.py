@@ -58,10 +58,10 @@ from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 from django.db import transaction as db_transaction, close_old_connections
-from django.db.models import Exists, OuterRef, Prefetch
+from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
-from core.models import Loan, LoanRepaymentSchedule, LoanRepaymentPosting
+from core.models import Loan, LoanRepaymentSchedule
 from core.utils.helpers import generate_repayment_schedule
 from core.utils.money import MoneyCalculator
 from core.management.commands.rebuild_loan_schedules import _compute_allocation
@@ -124,15 +124,6 @@ class Command(BaseCommand):
                 Loan.objects
                 .filter(id__in=batch)
                 .select_related('loan_product', 'client')
-                .prefetch_related(
-                    Prefetch(
-                        'repayment_postings',
-                        queryset=LoanRepaymentPosting.objects.filter(
-                            status='approved'
-                        ).order_by('payment_date', 'created_at'),
-                        to_attr='approved_postings',
-                    )
-                )
             )
 
             for loan in loans:
@@ -206,14 +197,20 @@ class Command(BaseCommand):
                         ]
                         LoanRepaymentSchedule.objects.bulk_create(schedule_objects)
 
-                        # Allocate existing approved postings against the new rows
+                        # Allocate the loan's real total received against the new
+                        # rows. Uses loan.amount_paid rather than summing
+                        # LoanRepaymentPosting records — postings can be
+                        # duplicated or stale-after-reversal (see
+                        # reallocate_schedule_by_postings.py's docstring for the
+                        # production case that proved this), so amount_paid is
+                        # the trustworthy source, kept in sync by
+                        # Loan.record_repayment() and reversal_service.py.
                         saved_rows = list(
                             LoanRepaymentSchedule.objects
                             .filter(loan=loan)
                             .order_by('installment_number')
                         )
-                        postings = getattr(loan, 'approved_postings', [])
-                        changes, next_due = _compute_allocation(saved_rows, postings, today)
+                        changes, next_due = _compute_allocation(saved_rows, loan.amount_paid, today)
                         for row, new_paid in changes:
                             row.amount_paid = new_paid
                             row.save(update_fields=[

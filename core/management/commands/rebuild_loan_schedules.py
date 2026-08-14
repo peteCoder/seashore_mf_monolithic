@@ -212,9 +212,12 @@ class Command(BaseCommand):
                             .filter(loan=loan)
                             .order_by('installment_number')
                         )
-                        postings = getattr(loan, 'approved_postings', [])
+                        # loan.amount_paid, not sum(postings) — postings can be
+                        # duplicated or stale-after-reversal (see
+                        # reallocate_schedule_by_postings.py's docstring for
+                        # the production case that proved this).
                         changes, next_due = _compute_allocation(
-                            saved_rows, postings, today
+                            saved_rows, loan.amount_paid, today
                         )
                         for row, new_paid in changes:
                             row.amount_paid = new_paid
@@ -270,13 +273,19 @@ class Command(BaseCommand):
 # ALLOCATION LOGIC
 # =============================================================================
 
-def _compute_allocation(rows, postings, today):
+def _compute_allocation(rows, total_received, today):
     """
     Oldest-first allocation: payments always fill rows sequentially from
     Row 1 upward, regardless of payment date.
 
     This guarantees that Partial/Overdue only ever appear at the last
     covered row — never in the middle of a schedule with Paid rows after them.
+
+    total_received should be loan.amount_paid, not sum(LoanRepaymentPosting
+    records) — postings can be duplicated or stale-after-reversal (see
+    reallocate_schedule_by_postings.py's docstring for the production case
+    that proved this), which would inflate the total and mark rows 'paid'
+    using money that was never actually received.
 
     Thin wrapper around the shared allocate_schedule_from_total() — the same
     function Loan.record_repayment() uses on every live repayment, so a bulk
@@ -287,5 +296,4 @@ def _compute_allocation(rows, postings, today):
     changes  — list of (row, new_amount_paid) for rows that differ.
     next_due — due_date of the first not-fully-paid row.
     """
-    total_received = sum(p.amount for p in postings)
     return allocate_schedule_from_total(rows, total_received, today)
