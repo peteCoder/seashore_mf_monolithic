@@ -543,6 +543,9 @@
                                     <a href="{% url 'core:report_general_ledger' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                                         General Ledger
                                     </a>
+                                    <a href="{% url 'core:report_loan_repayments' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                                        Loan Repayments (Principal/Interest)
+                                    </a>
                                     <a href="{% url 'core:report_cash_flow' %}" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                                         Cash Flow
                                     </a>
@@ -1007,6 +1010,9 @@
                     </a>
                     <a href="{% url 'core:report_general_ledger' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                         General Ledger
+                    </a>
+                    <a href="{% url 'core:report_loan_repayments' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                        Loan Repayments (Principal/Interest)
                     </a>
                     <a href="{% url 'core:report_cash_flow' %}" @click="mobileMenuOpen = false" class="block px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                         Cash Flow

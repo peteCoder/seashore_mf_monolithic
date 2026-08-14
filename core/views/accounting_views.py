@@ -1826,6 +1826,110 @@ def report_savings_maturity(request):
 
 
 # =============================================================================
+# LOAN REPAYMENTS REPORT (PRINCIPAL vs INTEREST)
+# =============================================================================
+
+@login_required
+def report_loan_repayments(request):
+    """
+    Loan Repayments Report — Principal vs Interest
+
+    Lists every loan_repayment transaction in a date range with its
+    principal/interest split, exactly as recorded on
+    Transaction.principal_amount / Transaction.interest_amount at the moment
+    of collection (see Loan.record_repayment()). This is the single-table
+    view of what otherwise has to be pieced together from the general
+    ledger (GL 1810 Loan Receivable - Principal vs GL 4010/1820 interest).
+
+    Permissions: Manager, Director, Admin
+    """
+    checker = PermissionChecker(request.user)
+    if not (checker.is_manager() or checker.is_admin_or_director()):
+        messages.error(request, 'You do not have permission to view financial reports.')
+        raise PermissionDenied
+
+    today     = timezone.now().date()
+    date_from = request.GET.get('date_from')
+    date_to   = request.GET.get('date_to')
+    branch_id = request.GET.get('branch')
+    search    = request.GET.get('search', '').strip()
+
+    # Default: current month
+    if not date_from:
+        date_from = today.replace(day=1).isoformat()
+    if not date_to:
+        date_to = today.isoformat()
+
+    try:
+        df = datetime.strptime(date_from, '%Y-%m-%d').date()
+        dt = datetime.strptime(date_to,   '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        df = today.replace(day=1)
+        dt = today
+
+    repayments = Transaction.objects.filter(
+        transaction_type='loan_repayment',
+        status='completed',
+        transaction_date__date__gte=df,
+        transaction_date__date__lte=dt,
+    ).select_related('client', 'loan', 'branch', 'processed_by').order_by('-transaction_date')
+
+    if branch_id:
+        repayments = repayments.filter(branch_id=branch_id)
+    elif checker.is_manager():
+        # Branch-scoped manager sees only their own branch by default
+        repayments = repayments.filter(branch=request.user.branch)
+
+    if search:
+        repayments = repayments.filter(
+            Q(loan__loan_number__icontains=search) |
+            Q(transaction_ref__icontains=search) |
+            Q(client__first_name__icontains=search) |
+            Q(client__last_name__icontains=search)
+        )
+
+    totals = repayments.aggregate(
+        total_amount=Sum('amount'),
+        total_principal=Sum('principal_amount'),
+        total_interest=Sum('interest_amount'),
+    )
+    total_amount    = totals['total_amount'] or Decimal('0.00')
+    total_principal = totals['total_principal'] or Decimal('0.00')
+    total_interest  = totals['total_interest'] or Decimal('0.00')
+    count = repayments.count()
+
+    # Cap the on-screen table for performance; Excel export is never capped.
+    DISPLAY_LIMIT = 500
+    display_rows = list(repayments[:DISPLAY_LIMIT])
+    truncated = count > DISPLAY_LIMIT
+
+    branches = Branch.objects.filter(is_active=True).order_by('name')
+
+    context = {
+        'page_title':      'Loan Repayments — Principal vs Interest',
+        'repayments':      display_rows,
+        'count':           count,
+        'truncated':       truncated,
+        'display_limit':   DISPLAY_LIMIT,
+        'total_amount':    total_amount,
+        'total_principal': total_principal,
+        'total_interest':  total_interest,
+        'date_from':       date_from,
+        'date_to':         date_to,
+        'selected_branch': branch_id,
+        'search':          search,
+        'branches':        branches,
+        'today':           today,
+    }
+
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_loan_repayments_excel
+        return export_loan_repayments_excel(repayments, context)
+
+    return render(request, 'accounting/report_loan_repayments.html', context)
+
+
+# =============================================================================
 # SYSTEM AUDIT LOG
 # =============================================================================
 

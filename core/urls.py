@@ -166,6 +166,7 @@ from core.views.accounting_views import (
     report_par_aging,
     report_loan_officer_performance,
     report_savings_maturity,
+    report_loan_repayments,
     audit_log,
     subsidiary_ledger,
 )
@@ -606,6 +607,7 @@ urlpatterns = [
     path('accounting/reports/par-aging/', report_par_aging, name='report_par_aging'),
     path('accounting/reports/loan-officer-performance/', report_loan_officer_performance, name='report_loan_officer_performance'),
     path('accounting/reports/savings-maturity/', report_savings_maturity, name='report_savings_maturity'),
+    path('accounting/reports/loan-repayments/', report_loan_repayments, name='report_loan_repayments'),
     path('accounting/audit-log/', audit_log, name='audit_log'),
 
     # =========================================================================

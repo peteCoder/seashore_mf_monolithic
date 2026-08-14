@@ -6,6 +6,7 @@ Professional Excel exports for accounting reports
 """
 
 from django.http import HttpResponse
+from django.utils import timezone
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
@@ -693,6 +694,60 @@ def export_savings_maturity_excel(context):
     writer.close()
     output.seek(0)
     response = create_excel_response(f'savings_maturity_{context["today"].strftime("%Y%m%d")}.xlsx')
+    response.write(output.read())
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Loan Repayments — Principal vs Interest
+# ---------------------------------------------------------------------------
+
+def export_loan_repayments_excel(repayments_qs, context):
+    """
+    Export Loan Repayments Report to Excel.
+
+    `repayments_qs` is the full (uncapped) filtered queryset — the on-screen
+    table is capped for performance, but the export always contains every
+    matching repayment.
+    """
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='openpyxl')
+
+    rows = []
+    for txn in repayments_qs:
+        rows.append({
+            'Date': timezone.localtime(txn.transaction_date).strftime('%Y-%m-%d'),
+            'Txn Ref': txn.transaction_ref,
+            'Loan No.': txn.loan.loan_number if txn.loan else '',
+            'Client': txn.client.get_full_name() if txn.client else '',
+            'Branch': txn.branch.name if txn.branch else '',
+            'Amount (₦)': float(txn.amount),
+            'Principal (₦)': float(txn.principal_amount or 0),
+            'Interest (₦)': float(txn.interest_amount or 0),
+            'Processed By': txn.processed_by.get_full_name() if txn.processed_by else '',
+        })
+
+    rows.append({
+        'Date': '', 'Txn Ref': '', 'Loan No.': '', 'Client': '', 'Branch': 'TOTAL',
+        'Amount (₦)': float(context['total_amount']),
+        'Principal (₦)': float(context['total_principal']),
+        'Interest (₦)': float(context['total_interest']),
+        'Processed By': '',
+    })
+
+    cols = ['Date','Txn Ref','Loan No.','Client','Branch','Amount (₦)','Principal (₦)','Interest (₦)','Processed By']
+    df = pd.DataFrame(rows) if rows else pd.DataFrame(columns=cols)
+    df.to_excel(writer, sheet_name='Loan Repayments', index=False)
+
+    _style_sheet(writer.sheets['Loan Repayments'], 9,
+                 title='LOAN REPAYMENTS — PRINCIPAL VS INTEREST',
+                 subtitle=f'Period: {context["date_from"]} to {context["date_to"]}  |  {context["count"]} repayment(s)',
+                 currency_cols=[6, 7, 8],
+                 col_widths={'A':14,'B':24,'C':22,'D':26,'E':18,'F':16,'G':16,'H':16,'I':22})
+
+    writer.close()
+    output.seek(0)
+    response = create_excel_response(f'loan_repayments_{context["date_from"]}_{context["date_to"]}.xlsx')
     response.write(output.read())
     return response
 

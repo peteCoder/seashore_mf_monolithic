@@ -50,6 +50,7 @@ from django.utils import timezone
 from core.models import Loan, LoanRepaymentSchedule, LoanRepaymentPosting
 from core.models.all_models import PublicHoliday
 from core.utils.helpers import generate_repayment_schedule, next_week_business_day
+from core.utils.repayment_allocation import allocate_schedule_from_total
 
 
 class Command(BaseCommand):
@@ -277,36 +278,14 @@ def _compute_allocation(rows, postings, today):
     This guarantees that Partial/Overdue only ever appear at the last
     covered row — never in the middle of a schedule with Paid rows after them.
 
+    Thin wrapper around the shared allocate_schedule_from_total() — the same
+    function Loan.record_repayment() uses on every live repayment, so a bulk
+    rebuild here and an individual payment posted through the app can never
+    compute two different answers for the same loan.
+
     Returns (changes, next_due).
     changes  — list of (row, new_amount_paid) for rows that differ.
     next_due — due_date of the first not-fully-paid row.
     """
-    row_total  = {r.id: r.total_amount + r.penalty_amount for r in rows}
-    allocation = {r.id: Decimal('0.00') for r in rows}
-
-    # Sum all approved postings into one total, then fill rows from oldest first.
     total_received = sum(p.amount for p in postings)
-    remaining = total_received
-
-    for row in rows:
-        if remaining <= Decimal('0.00'):
-            break
-        owed  = row_total[row.id] - allocation[row.id]
-        apply = min(remaining, owed)
-        allocation[row.id] += apply
-        remaining -= apply
-
-    changes  = []
-    next_due = None
-    for row in rows:
-        new_paid = allocation[row.id].quantize(Decimal('0.01'))
-        full     = row_total[row.id]
-        if next_due is None and new_paid < full:
-            next_due = row.due_date
-        if new_paid == row.amount_paid:
-            continue
-        if new_paid >= full and not row.paid_date:
-            row.paid_date = today
-        changes.append((row, new_paid))
-
-    return changes, next_due
+    return allocate_schedule_from_total(rows, total_received, today)

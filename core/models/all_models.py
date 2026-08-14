@@ -42,6 +42,7 @@ from core.utils.accounting_helpers import (
     post_savings_deposit_journal,
     post_savings_withdrawal_journal,
 )
+from core.utils.repayment_allocation import allocate_schedule_from_total
 
 import logging
 import calendar
@@ -4727,96 +4728,59 @@ class Loan(BaseModel):
                 f"Amount exceeds outstanding balance of ₦{self.outstanding_balance:,.2f}"
             )
 
-        # --- principal / interest split (schedule-based, then pro-rata fallback) ---
-        interest_portion  = Decimal('0.00')
-        principal_portion = Decimal('0.00')
-        remaining         = amount
-
-        # ₦100 tolerance: absorb denomination rounding excess onto the current
-        # row rather than drifting it to the next installment.
-        # Covers ₦25 (₦7,375 instalment / ₦7,400 collection) and ₦66.67
-        # (₦9,833.33 instalment / ₦9,900 collection) cases common in field.
-        _DENOMINATION_TOLERANCE = Decimal('100.00')
-
-        # Resolve the payment anchor date for date-matched allocation.
-        import datetime as _dt_alloc
-        if isinstance(transaction_date, _dt_alloc.datetime):
-            _pay_date = transaction_date.date()
-        elif isinstance(transaction_date, _dt_alloc.date):
-            _pay_date = transaction_date
-        else:
-            _pay_date = timezone.now().date()
-
-        # Load all unpaid/partial rows, then reorder so the row whose due_date
-        # is closest to the payment date comes first (date-matched allocation).
-        # This means a payment collected on May 18 is applied to the May 18
-        # installment, not to the oldest overdue one.  Any remaining balance
-        # after the anchor row flows forward through subsequent rows.
-        # Rows that are older than the anchor (genuinely missed collections)
-        # are intentionally skipped — they remain overdue.
-        all_open = list(
-            self.repayment_schedule
-            .filter(status__in=['pending', 'partial', 'overdue'])
-            .order_by('installment_number')
+        # --- principal / interest split ---------------------------------------
+        # Every repayment is split in the loan's fixed interest:principal ratio
+        # (total_interest / total_repayment), applied directly to the actual
+        # amount collected — NOT to a pre-written schedule-row amount. Agents
+        # commonly collect a rounded figure (e.g. ₦5,000) rather than the exact
+        # scheduled installment (e.g. ₦4,916.67); this way the split scales
+        # exactly with whatever cash comes in, so there is never a "leftover"
+        # that has to be arbitrarily assigned to principal or interest.
+        #
+        # This was previously computed by walking the repayment schedule
+        # row-by-row (interest-first per row, with a ₦100 tolerance rule for
+        # small overshoots). That approach made the split depend on exactly
+        # how a payment lined up against the fixed schedule table, which is
+        # what caused inconsistent splits for otherwise-identical rounded
+        # payments. See core/tests/test_repayment_proportional_split.py.
+        interest_ratio    = (
+            self.total_interest / self.total_repayment
+            if self.total_repayment else Decimal('0')
         )
+        interest_portion  = (amount * interest_ratio).quantize(Decimal('0.01'))
+        principal_portion = amount - interest_portion
 
-        if all_open:
-            anchor     = min(all_open, key=lambda r: abs((r.due_date - _pay_date).days))
-            anchor_idx = all_open.index(anchor)
-            ordered_rows = all_open[anchor_idx:]   # anchor + everything after; skip older missed rows
+        # --- schedule-row bookkeeping (arrears / PAR / next-due tracking only) -
+        # The schedule is recomputed as a pure function of the loan's TOTAL
+        # amount received so far, oldest installment first — not patched
+        # incrementally on top of whatever the rows currently show. See
+        # core/utils/repayment_allocation.py for why: this makes the
+        # schedule self-healing. If an earlier payment was ever misallocated
+        # (an older code path, a manual correction, a restructuring), the
+        # very next payment recorded on this loan re-derives every row's
+        # amount_paid from the ground-truth total and corrects it — a row
+        # wrongly marked 'paid' can and will be pulled back to 'pending' if
+        # the oldest-first math says it hasn't actually been reached yet.
+        # This has no influence on the principal/interest split computed
+        # above — a row's own status is driven purely by amount_paid vs
+        # (total_amount + penalty_amount), see LoanRepaymentSchedule.save().
+        if isinstance(transaction_date, _dt.datetime):
+            completion_date = transaction_date.date()
+        elif isinstance(transaction_date, _dt.date):
+            completion_date = transaction_date
         else:
-            ordered_rows = []
+            completion_date = timezone.now().date()
 
-        if ordered_rows:
-            for row in ordered_rows:
-                if remaining <= 0:
-                    break
-                row_int_owed   = row.interest_amount  - min(row.amount_paid, row.interest_amount)
-                row_prin_owed  = row.principal_amount - max(row.amount_paid - row.interest_amount, Decimal('0.00'))
-                row_total_owed = row_int_owed + row_prin_owed
-
-                excess = remaining - row_total_owed
-                if Decimal('0') < excess <= _DENOMINATION_TOLERANCE:
-                    int_taken  = row_int_owed
-                    prin_taken = row_prin_owed + excess
-                    remaining  = Decimal('0.00')
-                else:
-                    int_taken  = min(remaining, row_int_owed)
-                    remaining -= int_taken
-                    prin_taken = min(remaining, row_prin_owed)
-                    remaining -= prin_taken
-
-                interest_portion  += int_taken
-                principal_portion += prin_taken
-
-                row_applied = int_taken + prin_taken
-                if row_applied > 0:
-                    new_amount_paid = row.amount_paid + row_applied
-                    # Cap at the row total to satisfy the DB CHECK constraint
-                    # (schedule_amount_paid_valid). Any denomination-tolerance
-                    # excess is already absorbed into principal_portion above.
-                    row.amount_paid = min(new_amount_paid, row.total_amount + row.penalty_amount)
-                    if row_applied >= row_total_owed:
-                        import datetime as _row_dt
-                        if isinstance(transaction_date, _row_dt.datetime):
-                            row.paid_date = transaction_date.date()
-                        elif isinstance(transaction_date, _row_dt.date):
-                            row.paid_date = transaction_date
-                        else:
-                            row.paid_date = timezone.now().date()
-                    row.save(update_fields=['amount_paid', 'paid_date', 'outstanding_amount', 'status', 'updated_at'])
-
-            principal_portion += remaining          # any leftover → principal
-        else:
-            # pro-rata fallback
-            interest_ratio    = self.total_interest / self.total_repayment if self.total_repayment else Decimal('0')
-            interest_portion  = (amount * interest_ratio).quantize(Decimal('0.01'))
-            principal_portion = amount - interest_portion
-
-        # drift guard
-        drift = amount - (principal_portion + interest_portion)
-        if drift != 0:
-            principal_portion += drift
+        all_rows = list(self.repayment_schedule.order_by('installment_number'))
+        # self.amount_paid still holds the PRE-this-payment total here — the
+        # loan-level balances are updated further below.
+        total_received = self.amount_paid + amount
+        schedule_changes, next_due = allocate_schedule_from_total(
+            all_rows, total_received, completion_date,
+        )
+        for row, new_paid in schedule_changes:
+            row.amount_paid = new_paid
+            row.save(update_fields=['amount_paid', 'paid_date', 'outstanding_amount', 'status', 'updated_at'])
 
         # --- update loan balances ---
         old_balance = self.outstanding_balance
@@ -4840,9 +4804,15 @@ class Loan(BaseModel):
         # --- timely-repayments percentage ---
         self._recalculate_timely_repayments_pct()
 
-        # --- advance next_repayment_date ---
-        if self.next_repayment_date:
-            self.next_repayment_date = self.calculate_next_payment_date(self.next_repayment_date)
+        # --- next_repayment_date ---
+        # Set directly from the reallocation above (due_date of the first
+        # not-yet-fully-paid row) rather than blindly incrementing by one
+        # period from whatever it previously was — same self-healing
+        # principle as the schedule rows: this always reflects where the
+        # schedule actually stands right now, not an assumption about what
+        # "should" come next.
+        if next_due:
+            self.next_repayment_date = next_due
 
         # --- status
         # Loan status stays 'active' while there is an outstanding balance.

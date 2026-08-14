@@ -2,41 +2,48 @@
 Management command: reallocate_schedule_by_postings
 ====================================================
 
-Re-allocates LoanRepaymentSchedule.amount_paid across rows using
-DATE-MATCHED logic instead of oldest-first.
+Re-allocates LoanRepaymentSchedule.amount_paid across rows using the
+shared oldest-first allocation algorithm — the same one
+Loan.record_repayment() runs on every live repayment and
+rebuild_loan_schedules.py uses for its bulk rebuilds (see
+core/utils/repayment_allocation.py). This command exists to apply that
+SAME reallocation to loans manually, on demand, WITHOUT also regenerating
+schedule dates (due_date, first_repayment_date, holiday-landing
+corrections) the way rebuild_loan_schedules.py does — useful when a loan's
+dates are already correct and the only problem is which row a historical
+payment landed on.
 
 PROBLEM BEING FIXED
 -------------------
-The original record_repayment() always paid the OLDEST outstanding
-installment first.  When collections come in slightly late (±1 week)
-and each payment is ₦25 over the installment amount, payments drift
-forward — money collected "for May 18" ends up closing the May 4 row
-instead, leaving the May 18 row with only ₦175 toward it.
-
-This causes the repayment tracker to show rows as overdue even though
-a posting WAS made on or near that due date.
+An older version of record_repayment() could "anchor" a payment to
+whichever schedule row's due_date was closest to the payment date instead
+of always filling the oldest unpaid row first. That let a later
+installment get marked 'paid' while earlier ones were skipped entirely —
+a schedule showing 'Paid' after 'Overdue' rows, money that was collected
+but landed on the wrong installment.
 
 WHAT THIS COMMAND DOES
 -----------------------
-For every active/overdue loan with approved postings:
+For every active/overdue/disbursed loan with approved postings:
 
-1. Re-derives how each posting's amount should be split across schedule
-   rows using date-matched allocation:
-   - For each posting (sorted by payment_date), find the unpaid/partial
-     row whose due_date is CLOSEST to the posting date.
-   - Apply the payment to that row first, then proceed FORWARD.
-   - Rows older than the anchor are intentionally NOT covered by that
-     posting — they stay as unpaid/overdue (reflecting that those
-     collection visits were actually missed).
-
+1. Sums all approved postings into one total-received figure and
+   reallocates every row from scratch, oldest installment first (see
+   allocate_schedule_from_total()).
 2. Compares the re-derived per-row amounts against what is currently
-   stored and updates any row that differs.
+   stored and reports/updates any row that differs.
 
-DENOMINATION TOLERANCE
-----------------------
-If a payment amount exceeds a row's outstanding by ≤ ₦50 (e.g.
-₦7,400 vs ₦7,375), the excess is absorbed onto the current row
-rather than drifting forward.
+SAFE vs NEEDS REVIEW
+---------------------
+A loan is [SAFE] if the reallocation only fills previously-empty/partial
+rows further — no row that's currently 'paid' gets undone. Those are
+applied automatically on --commit.
+
+A loan is [NEEDS REVIEW] if the reallocation would flip a currently-'paid'
+row back to overdue/partial/pending — i.e. it exposes that the money
+marked against that row actually belongs to an earlier, still-unpaid
+installment. Since this changes what looks like a completed collection
+into a missed one, these are SKIPPED unless --force is also passed, after
+reviewing them individually with --loan-id.
 
 SAFE TO RUN REPEATEDLY — all checks are idempotent.
 
@@ -46,6 +53,7 @@ Usage
   python manage.py reallocate_schedule_by_postings --dry-run --loan-id <UUID>
   python manage.py reallocate_schedule_by_postings --commit
   python manage.py reallocate_schedule_by_postings --commit --loan-id <UUID>
+  python manage.py reallocate_schedule_by_postings --commit --force --loan-id <UUID>
 """
 
 from decimal import Decimal
@@ -57,6 +65,7 @@ from django.db.models import Prefetch
 from django.utils import timezone
 
 from core.models import Loan, LoanRepaymentSchedule, LoanRepaymentPosting
+from core.utils.repayment_allocation import allocate_schedule_from_total
 
 
 
@@ -221,38 +230,31 @@ def _compute_reallocation(rows, postings, today):
     """
     Given a loan's schedule rows (ordered by installment_number) and its
     approved postings (ordered by payment_date), compute the correct
-    per-row amount_paid using date-matched allocation.
+    per-row amount_paid via the shared oldest-first allocation algorithm
+    (allocate_schedule_from_total — the same one record_repayment() and
+    rebuild_loan_schedules.py use).
 
     Returns a list of (row, old_amount_paid, new_amount_paid,
                         old_status, new_status)
     for every row where the new allocation differs from what is stored.
     """
-    row_total  = {r.id: r.total_amount + r.penalty_amount for r in rows}
-    allocation = {r.id: Decimal('0.00') for r in rows}
-
-    # Oldest-first: sum all payments then fill rows sequentially from Row 1.
-    # This ensures Partial/Overdue only ever appear at the last covered row.
     total_received = sum(p.amount for p in postings)
-    remaining = total_received
-    for row in rows:
-        if remaining <= Decimal('0.00'):
-            break
-        owed  = row_total[row.id] - allocation[row.id]
-        apply = min(remaining, owed)
-        allocation[row.id] += apply
-        remaining -= apply
 
-    # Identify rows where the re-allocation differs from stored amount_paid
+    # Capture "before" state up front — allocate_schedule_from_total() may
+    # mutate row.paid_date on the same objects (harmless in dry-run since
+    # nothing is saved unless the caller explicitly does so), but
+    # amount_paid/computed_status must be read as they stood beforehand.
+    old_paid_by_id   = {r.id: r.amount_paid for r in rows}
+    old_status_by_id = {r.id: r.computed_status for r in rows}
+    row_total_by_id  = {r.id: r.total_amount + r.penalty_amount for r in rows}
+
+    schedule_changes, _next_due = allocate_schedule_from_total(
+        rows, total_received, today,
+    )
+
     changes = []
-    for row in rows:
-        new_paid = allocation[row.id].quantize(Decimal('0.01'))
-        old_paid = row.amount_paid
-
-        if new_paid == old_paid:
-            continue  # nothing to do
-
-        # Compute new status for reporting
-        full = row_total[row.id]
+    for row, new_paid in schedule_changes:
+        full = row_total_by_id[row.id]
         if new_paid >= full:
             new_status = 'paid'
         elif new_paid > Decimal('0.00'):
@@ -262,6 +264,9 @@ def _compute_reallocation(rows, postings, today):
         else:
             new_status = 'pending'
 
-        changes.append((row, old_paid, new_paid, row.computed_status, new_status))
+        changes.append((
+            row, old_paid_by_id[row.id], new_paid,
+            old_status_by_id[row.id], new_status,
+        ))
 
     return changes
