@@ -12,7 +12,7 @@ No notification records are created here — data is derived entirely from
 LoanRepaymentSchedule so it is always up-to-date.
 """
 
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
@@ -174,9 +174,31 @@ def loan_repayment_tracker(request):
     if branch_id and checker.can_view_all_branches():
         selected_branch = branches.filter(id=branch_id).first()
 
+    # ── Due-date filter ────────────────────────────────────────────────────
+    # Optional date_from/date_to narrows every tab's rows down to
+    # installments due within the chosen range. Summaries below are computed
+    # directly from these same (now-filtered) querysets, so the totals shown
+    # automatically reflect the filter too — there's no separate "amount"
+    # calculation to keep in sync.
+    def _parse_date(raw):
+        raw = (raw or '').strip()
+        if not raw:
+            return None
+        try:
+            return date.fromisoformat(raw)
+        except ValueError:
+            return None
+
+    date_from = _parse_date(request.GET.get('date_from'))
+    date_to   = _parse_date(request.GET.get('date_to'))
+
     base_qs = _base_schedule_qs(request.user)
     if selected_branch:
         base_qs = base_qs.filter(loan__branch=selected_branch)
+    if date_from:
+        base_qs = base_qs.filter(due_date__gte=date_from)
+    if date_to:
+        base_qs = base_qs.filter(due_date__lte=date_to)
 
     # ── Overdue ────────────────────────────────────────────────────────────
     overdue_rows = (
@@ -208,6 +230,10 @@ def loan_repayment_tracker(request):
     loans_no_schedule_qs = _loans_without_schedule(request.user, checker=checker)
     if selected_branch:
         loans_no_schedule_qs = loans_no_schedule_qs.filter(branch=selected_branch)
+    if date_from:
+        loans_no_schedule_qs = loans_no_schedule_qs.filter(next_repayment_date__gte=date_from)
+    if date_to:
+        loans_no_schedule_qs = loans_no_schedule_qs.filter(next_repayment_date__lte=date_to)
     loans_no_schedule = list(
         loans_no_schedule_qs.order_by('next_repayment_date', 'client__first_name')
     )
@@ -224,6 +250,10 @@ def loan_repayment_tracker(request):
     all_active_loans_qs = _base_loan_qs(request.user, checker=checker)
     if selected_branch:
         all_active_loans_qs = all_active_loans_qs.filter(branch=selected_branch)
+    if date_from:
+        all_active_loans_qs = all_active_loans_qs.filter(next_repayment_date__gte=date_from)
+    if date_to:
+        all_active_loans_qs = all_active_loans_qs.filter(next_repayment_date__lte=date_to)
     all_active_loans_qs = all_active_loans_qs.annotate(
         total_installments=Count('repayment_schedule', distinct=True),
         paid_installments=Count(
@@ -324,6 +354,10 @@ def loan_repayment_tracker(request):
         # Branch filter
         'branches': branches,
         'selected_branch': selected_branch,
+
+        # Due-date filter
+        'date_from': date_from,
+        'date_to': date_to,
 
         # Row data
         'overdue_rows':    overdue_rows,
