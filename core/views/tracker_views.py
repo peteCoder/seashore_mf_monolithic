@@ -22,7 +22,7 @@ from django.db.models import Count, Exists, OuterRef, Sum, Q, F
 from django.shortcuts import render
 from django.utils import timezone
 
-from core.models import LoanRepaymentSchedule, Loan, Branch, ClientGroup
+from core.models import LoanRepaymentSchedule, Loan, Branch, ClientGroup, PublicHoliday
 from core.permissions import PermissionChecker, Permissions
 
 
@@ -411,17 +411,24 @@ def group_repayment_tracker(request):
     today = timezone.localdate()
     today_name = today.strftime('%A').lower()
 
-    groups = ClientGroup.objects.filter(
-        meeting_day=today_name,
-        status='active',
-    ).select_related('branch', 'loan_officer')
+    # On a public holiday there's no collection to make, so no groups are
+    # shown regardless of their meeting_day — mirrors the dashboard alert.
+    holiday_today = PublicHoliday.objects.filter(date=today).first()
 
-    if checker.is_admin() or checker.is_director():
-        pass  # all branches
-    elif checker.is_hr() or checker.is_manager():
-        groups = groups.filter(branch=checker.branch)
-    elif checker.is_staff():
-        groups = groups.filter(branch=checker.branch, loan_officer=request.user)
+    if holiday_today:
+        groups = ClientGroup.objects.none()
+    else:
+        groups = ClientGroup.objects.filter(
+            meeting_day=today_name,
+            status='active',
+        ).select_related('branch', 'loan_officer')
+
+        if checker.is_admin() or checker.is_director():
+            pass  # all branches
+        elif checker.is_hr() or checker.is_manager():
+            groups = groups.filter(branch=checker.branch)
+        elif checker.is_staff():
+            groups = groups.filter(branch=checker.branch, loan_officer=request.user)
 
     groups = groups.order_by('branch__name', 'name')
     total_count = groups.count()
@@ -432,5 +439,6 @@ def group_repayment_tracker(request):
         'today': today,
         'groups': groups,
         'total_count': total_count,
+        'holiday_today': holiday_today,
     }
     return render(request, 'groups/repayment_tracker.html', context)

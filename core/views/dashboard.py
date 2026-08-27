@@ -20,9 +20,10 @@ from decimal import Decimal
 
 from core.models import (
     Client, Loan, SavingsAccount, Transaction,
-    Branch, ClientGroup, User, LoanRepaymentSchedule,
+    Branch, ClientGroup, User, PublicHoliday,
 )
 from core.permissions import PermissionChecker
+from core.views.tracker_views import _base_schedule_qs
 
 
 @login_required
@@ -211,26 +212,29 @@ def dashboard_view(request):
     
     alerts = []
     
-    # Repayment tracker counts (schedule-based, always fresh)
+    # Repayment tracker counts (schedule-based, always fresh).
+    # Reuses tracker_views._base_schedule_qs so the dashboard's numbers can
+    # never drift from what the Repayment Tracker page itself shows — it
+    # scopes staff to their assigned clients and managers to their branch,
+    # rather than a flat branch-only filter that showed staff their whole
+    # branch's overdue count instead of just their own clients'.
     today_date = timezone.localdate()
-    tracker_base = LoanRepaymentSchedule.objects.filter(
-        status__in=['pending', 'partial', 'overdue'],
-        outstanding_amount__gt=0,
-        loan__status__in=['active', 'overdue', 'disbursed'],
-        loan__outstanding_balance__gt=0,
-    )
-    if not checker.can_view_all_branches() and hasattr(user, 'branch') and user.branch:
-        tracker_base = tracker_base.filter(loan__branch=user.branch)
+    tracker_base = _base_schedule_qs(user)
 
-    overdue_installments = tracker_base.filter(due_date__lt=today_date).count()
+    overdue_rows_qs = tracker_base.filter(due_date__lt=today_date)
+    overdue_installments = overdue_rows_qs.count()
     due_today_installments = tracker_base.filter(due_date=today_date).count()
 
-    # Overdue loans alert (schedule-based)
+    # Overdue loans alert (schedule-based). Loan count comes from distinct
+    # loans behind the overdue rows above, not Loan.status == 'overdue' —
+    # that field is a stale DB cache only refreshed on save() and is
+    # effectively always 0 (see tracker_views._base_schedule_qs docstring).
     if overdue_installments > 0:
+        overdue_loan_count = overdue_rows_qs.values('loan_id').distinct().count()
         alerts.append({
             'type': 'warning',
             'icon': '⚠️',
-            'message': f"{overdue_installments} overdue instalment(s) across {loan_stats['overdue']} loan(s)",
+            'message': f"{overdue_installments} overdue instalment(s) across {overdue_loan_count} loan(s)",
             'action_url': reverse('core:loan_repayment_tracker') + '?tab=overdue',
             'action_text': 'View Repayment Tracker',
         })
@@ -247,18 +251,25 @@ def dashboard_view(request):
     # Groups meeting today (repayment collection day), scoped by role.
     # NOTE: deliberately not using checker.can_view_all_branches() — for this
     # feature HR is branch-scoped like a manager, not system-wide like admin/director.
-    groups_meeting_today = ClientGroup.objects.filter(
-        meeting_day=today_date.strftime('%A').lower(),
-        status='active',
-    )
-    if checker.is_admin() or checker.is_director():
-        pass  # all branches
-    elif checker.is_hr() or checker.is_manager():
-        groups_meeting_today = groups_meeting_today.filter(branch=checker.branch)
-    elif checker.is_staff():
-        groups_meeting_today = groups_meeting_today.filter(branch=checker.branch, loan_officer=user)
+    # On a public holiday there's no collection to make, so the alert is
+    # suppressed entirely rather than listing groups that won't actually meet.
+    is_public_holiday_today = PublicHoliday.objects.filter(date=today_date).exists()
+
+    if is_public_holiday_today:
+        groups_meeting_today = ClientGroup.objects.none()
     else:
-        groups_meeting_today = groups_meeting_today.none()
+        groups_meeting_today = ClientGroup.objects.filter(
+            meeting_day=today_date.strftime('%A').lower(),
+            status='active',
+        )
+        if checker.is_admin() or checker.is_director():
+            pass  # all branches
+        elif checker.is_hr() or checker.is_manager():
+            groups_meeting_today = groups_meeting_today.filter(branch=checker.branch)
+        elif checker.is_staff():
+            groups_meeting_today = groups_meeting_today.filter(branch=checker.branch, loan_officer=user)
+        else:
+            groups_meeting_today = groups_meeting_today.none()
 
     groups_meeting_today_count = groups_meeting_today.count()
     if groups_meeting_today_count > 0:

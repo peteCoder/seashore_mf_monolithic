@@ -20,12 +20,19 @@
   </div>
 
   <!-- Count -->
+  {% if holiday_today %}
+  <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl shadow-sm p-4 text-sm text-amber-800 dark:text-amber-300">
+    <i class="fas fa-umbrella-beach mr-1"></i>
+    Today is a public holiday ({{ holiday_today.name }}) &mdash; no group meetings are shown.
+  </div>
+  {% else %}
   <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 text-sm text-gray-600 dark:text-gray-400">
     <i class="fas fa-calendar-day mr-1"></i>
     <span class="font-semibold text-gray-900 dark:text-white">{{ total_count }}</span>
     group{{ total_count|pluralize }} meeting today
     {% if checker.is_manager or checker.is_hr %}in your branch{% elif checker.is_staff %}you're in charge of{% endif %}
   </div>
+  {% endif %}
 
   <!-- Groups Table -->
   <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
@@ -80,6 +87,12 @@
           {% endfor %}
         </tbody>
       </table>
+    </div>
+    {% elif holiday_today %}
+    <div class="text-center py-16 text-gray-500 dark:text-gray-400">
+      <i class="fas fa-umbrella-beach text-5xl text-amber-400 mb-4"></i>
+      <p class="text-lg font-medium">No collections today &mdash; public holiday</p>
+      <p class="text-sm mt-1">{{ holiday_today.name }} ({{ holiday_today.date|date:"d M Y" }}). Groups scheduled to meet today are not shown.</p>
     </div>
     {% else %}
     <div class="text-center py-16 text-gray-500 dark:text-gray-400">
