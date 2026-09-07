@@ -12,7 +12,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from core.models import ClientGroup
+from core.models import ClientGroup, PublicHoliday
 from core.tests.factories import make_branch, make_user
 
 
@@ -122,6 +122,22 @@ class TestGroupRepaymentTracker(TestCase):
         self.assertIn(reverse('core:group_combined_collection', args=[self.group_a1.id]), content)
         self.assertNotIn(reverse('core:group_collection_detail', args=[self.group_a1.id]), content)
 
+    def test_no_groups_shown_on_public_holiday(self):
+        """
+        No group should be shown as "meeting today" — for any role — when
+        today is a recorded public holiday, regardless of meeting_day.
+        """
+        holiday = PublicHoliday.objects.create(date=timezone.localdate(), name='Test Holiday')
+        try:
+            self.client.force_login(self.admin)
+            response = self.client.get(reverse('core:group_repayment_tracker'))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context['total_count'], 0)
+            self.assertEqual(list(response.context['groups']), [])
+            self.assertEqual(response.context['holiday_today'], holiday)
+        finally:
+            holiday.delete()
+
 
 class TestGroupRepaymentTrackerDashboardAlert(TestCase):
 
@@ -146,3 +162,15 @@ class TestGroupRepaymentTrackerDashboardAlert(TestCase):
         self.assertEqual(response.context['groups_meeting_today_count'], 1)
         action_urls = [a['action_url'] for a in response.context['alerts']]
         self.assertIn(reverse('core:group_repayment_tracker'), action_urls)
+
+    def test_dashboard_alert_suppressed_on_public_holiday(self):
+        holiday = PublicHoliday.objects.create(date=timezone.localdate(), name='Test Holiday')
+        try:
+            self.client.force_login(self.manager_a)
+            response = self.client.get(reverse('core:dashboard'))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context['groups_meeting_today_count'], 0)
+            action_urls = [a['action_url'] for a in response.context['alerts']]
+            self.assertNotIn(reverse('core:group_repayment_tracker'), action_urls)
+        finally:
+            holiday.delete()

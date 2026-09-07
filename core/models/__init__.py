@@ -90,10 +90,8 @@ from .all_models import (
     # Configuration
     PublicHoliday,
 
-
-
-
-    
+    # Communications
+    VoiceCallLog,
 )
 
 __all__ = [
@@ -176,6 +174,9 @@ __all__ = [
 
     # Configuration
     'PublicHoliday',
+
+    # Communications
+    'VoiceCallLog',
 ]
 
 

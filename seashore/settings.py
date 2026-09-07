@@ -79,6 +79,20 @@ AT_USERNAME  = config('AT_USERNAME',  default='sandbox')
 AT_API_KEY   = config('AT_API_KEY',   default='')
 AT_SENDER_ID = config('AT_SENDER_ID', default='')
 
+# AI voice call reminders — Twilio Voice (telephony) + ElevenLabs (TTS).
+# Staff-initiated only (a "Call Client" button on the client detail page) —
+# see core/voice_service.py. All blank by default, so nothing calls out
+# until every one of these is filled in.
+TWILIO_ACCOUNT_SID  = config('TWILIO_ACCOUNT_SID', default='')
+TWILIO_AUTH_TOKEN   = config('TWILIO_AUTH_TOKEN',  default='')
+TWILIO_FROM_NUMBER  = config('TWILIO_FROM_NUMBER', default='')
+ELEVENLABS_API_KEY  = config('ELEVENLABS_API_KEY', default='')
+# Default voice is ElevenLabs' public "Rachel" voice; override with your own.
+ELEVENLABS_VOICE_ID = config('ELEVENLABS_VOICE_ID', default='21m00Tcm4TlvDq8ikWAM')
+# Public base URL Twilio can reach for call webhooks (ngrok URL in dev, your
+# real domain in production) — localhost will not work for a live call.
+SITE_BASE_URL = config('SITE_BASE_URL', default='http://localhost:8000')
+
 
 # Application definition
 
@@ -330,6 +344,10 @@ CELERY_BEAT_SCHEDULE = {
         'task':     'core.tasks.sms_tasks.send_overdue_alerts',
         'schedule': crontab(hour=9, minute=0),   # 09:00 WAT daily
     },
+    # NOTE: AI voice call reminders (Twilio + ElevenLabs, core/voice_service.py)
+    # are staff-initiated only — a "Call Client" button on the client detail
+    # page (core/views/client_views.client_call_reminder) — and deliberately
+    # have no scheduled/automatic task here.
 }
 
 

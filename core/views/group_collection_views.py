@@ -375,6 +375,7 @@ def group_savings_collection(request, group_id):
     members_with_savings = Client.objects.filter(
         group=group,
         is_active=True,
+        is_deceased=False,
         savings_accounts__status='active'
     ).select_related('branch').prefetch_related('savings_accounts').distinct()
 
@@ -441,8 +442,12 @@ def group_savings_collection_post(request, group_id):
             try:
                 amount = Decimal(value.replace(',', ''))  # strip commas
                 if amount > 0:
+                    # client__is_deceased=False — safety net matching the
+                    # listing exclusion above; a deceased client's row
+                    # shouldn't be on the page to submit in the first place.
                     account = SavingsAccount.objects.get(
-                        id=account_id, client__group=group, status='active'
+                        id=account_id, client__group=group, status='active',
+                        client__is_deceased=False,
                     )
                     client = account.client
                     items_data.append({'client': client, 'account': account, 'amount': amount})
@@ -729,6 +734,16 @@ def group_savings_collection_approve(request, session_id):
                 errors = []
 
                 for item in items:
+                    # Covers the case where a client was marked deceased
+                    # after this session was submitted but before it was
+                    # approved — the listing/submission-time checks can't
+                    # catch that race, this is the last line of defence
+                    # before money actually moves.
+                    if item.client.is_deceased:
+                        errors.append(
+                            f'{item.client.get_full_name()}: deceased — deposit skipped, account is frozen.'
+                        )
+                        continue
                     try:
                         item.savings_account.deposit(
                             amount=item.amount,
@@ -814,9 +829,10 @@ def group_combined_collection(request, group_id):
         for loan in member.loans.filter(status__in=['active', 'overdue']):
             member_loan_data.append({'client': member, 'loan': loan})
 
-    # Members with active savings accounts
+    # Members with active savings accounts (deceased clients excluded —
+    # deposits are frozen on their accounts, see client_mark_deceased)
     members_with_savings = Client.objects.filter(
-        group=group, is_active=True,
+        group=group, is_active=True, is_deceased=False,
         savings_accounts__status='active'
     ).select_related('branch').prefetch_related('savings_accounts').distinct()
 
@@ -895,8 +911,10 @@ def group_combined_collection_post(request, group_id):
             try:
                 amount = Decimal(value.replace(',', ''))
                 if amount > 0:
+                    # client__is_deceased=False — see group_savings_collection_post.
                     account = SavingsAccount.objects.get(
-                        id=account_id, client__group=group, status='active'
+                        id=account_id, client__group=group, status='active',
+                        client__is_deceased=False,
                     )
                     savings_items_data.append({'account': account, 'client': account.client, 'amount': amount})
                     savings_total += amount
@@ -1080,6 +1098,14 @@ def group_combined_collection_approve(request, session_id):
                         errors.append(f'Loan {item.loan.loan_number}: {str(e)}')
 
                 for item in savings_items:
+                    # See group_savings_collection_approve — same race-condition
+                    # guard against a client marked deceased after submission
+                    # but before approval.
+                    if item.client.is_deceased:
+                        errors.append(
+                            f'Savings ({item.client.get_full_name()}): deceased — deposit skipped, account is frozen.'
+                        )
+                        continue
                     try:
                         item.savings_account.deposit(
                             amount=item.amount,

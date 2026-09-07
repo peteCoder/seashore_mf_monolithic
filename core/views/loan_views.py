@@ -1605,9 +1605,9 @@ def loan_write_off(request, loan_id):
     Write off a loan as bad debt.
 
     Creates a journal entry:
-      Dr 5050 Bad Debt Expense    = outstanding_balance + accrued_interest_balance
-      Cr 1810 Loan Receivable     = outstanding_balance
-      Cr 1820 Interest Receivable = accrued_interest_balance (if > 0)
+      Dr 5910 Provision for Bad Debts = outstanding_balance + accrued_interest_balance
+      Cr 1810 Loan Receivable         = outstanding_balance
+      Cr 1820 Interest Receivable     = accrued_interest_balance (if > 0)
 
     Sets loan.status = 'written_off' and zeroes the balances.
 
@@ -1650,7 +1650,14 @@ def loan_write_off(request, loan_id):
 
                 lines = [
                     {
-                        'account_code': '5050',
+                        # 5910 "Provision for Bad Debts" — the account this app's
+                        # actual Chart of Accounts uses for loan write-offs (under
+                        # the "59 - Loan Loss Provisions" category, alongside the
+                        # aging-bucket provision accounts 5920-5950). This used to
+                        # be hardcoded to '5050', a code that doesn't exist in the
+                        # Chart of Accounts at all — every write-off attempt failed
+                        # with "Account 5050 not found or inactive" until this fix.
+                        'account_code': '5910',
                         'debit': float(total_write_off),
                         'credit': 0,
                         'description': f'Bad debt write-off — {loan.loan_number}',

@@ -2189,3 +2189,572 @@ def subsidiary_ledger(request, client_id):
         'account_filter':  account_filter,
     }
     return render(request, 'accounting/subsidiary_ledger.html', context)
+
+
+# =============================================================================
+# STAFF REPORTS
+# =============================================================================
+# Unlike the Financial Reports above (Manager+ only, via checker.can_view_reports()),
+# these six are gated by checker.can_view_staff_reports() — staff CAN access
+# them, but only ever see their own data (no staff picker; any staff_id in
+# the querystring is ignored). Manager sees any staff in their own branch;
+# HR/Director/Admin see any staff, any branch. See _resolve_staff_scope().
+
+def _parse_report_date_range(request, default_days_back=None):
+    """Shared date_from/date_to parsing — defaults to the current month,
+    same convention as report_loan_officer_performance / report_loan_repayments."""
+    today = timezone.now().date()
+    date_from = request.GET.get('date_from')
+    date_to   = request.GET.get('date_to')
+    if not date_from:
+        date_from = today.replace(day=1).isoformat()
+    if not date_to:
+        date_to = today.isoformat()
+    try:
+        df = datetime.strptime(date_from, '%Y-%m-%d').date()
+        dt = datetime.strptime(date_to, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        df = today.replace(day=1)
+        dt = today
+        date_from, date_to = df.isoformat(), dt.isoformat()
+    return date_from, date_to, df, dt, today
+
+
+def _resolve_branch_id(request, checker):
+    """Effective branch filter — whatever was submitted for roles that can
+    see multiple branches, else the user's own branch (Manager), else None
+    (Staff — irrelevant, they're locked to self)."""
+    if checker.can_view_all_branches():
+        return request.GET.get('branch', '').strip() or None
+    elif checker.is_manager():
+        return str(request.user.branch_id) if request.user.branch_id else None
+    return None
+
+
+def _extra_officer_ids(model, field_name, branch_id):
+    """
+    IDs of non-staff-role users (a manager, occasionally HR) directly
+    attributed via `field_name` on `model` — e.g. a manager who has clients
+    assigned straight to them rather than only to their staff.
+
+    Confirmed a real, sizeable pattern in this data (not a hypothetical
+    edge case): 3 managers with 309 clients directly assigned to them, and
+    469 clients whose original_officer is a manager/HR, as of 2026-09.
+    Without this, those managers' portfolios would silently vanish from
+    every Staff Report instead of just not appearing in the picker.
+    """
+    from core.models import Client
+    qs = model.objects.filter(**{f'{field_name}__isnull': False}).exclude(**{f'{field_name}__user_role': 'staff'})
+    if branch_id:
+        qs = qs.filter(branch_id=branch_id)
+    # .order_by() clears the model's default Meta.ordering before .distinct() —
+    # otherwise the ordering column (e.g. Client's -created_at) leaks into the
+    # SELECT DISTINCT and .distinct() silently stops deduplicating anything.
+    return list(qs.order_by().values_list(f'{field_name}_id', flat=True).distinct())
+
+
+def _resolve_staff_scope(request, checker, branch_id, extra_officer_ids=None):
+    """
+    Shared staff/officer-picker resolution for all six Staff Reports.
+
+    `extra_officer_ids` (see _extra_officer_ids) folds in any non-staff
+    users who actually have data attributed to them, so a manager with
+    directly-assigned clients shows up here too, not just role='staff' users.
+
+    Returns (staff_options, selected_staff, staff_list):
+      - staff_options: None for staff role (no picker — locked to self),
+        otherwise the User queryset to populate the dropdown.
+      - selected_staff: the single User picked via ?staff=<id>, or None
+        ("All staff in scope"). Always request.user for staff role,
+        regardless of any submitted staff_id.
+      - staff_list: the concrete list of User rows the report should loop
+        over — [selected_staff] if one was picked/forced, else every staff
+        in staff_options.
+    """
+    from django.db.models import Q
+    from core.models import User
+
+    if checker.is_staff():
+        return None, request.user, [request.user]
+
+    staff_qs = User.objects.filter(is_active=True).filter(
+        Q(user_role='staff') | Q(id__in=extra_officer_ids or [])
+    ).select_related('branch')
+    if branch_id:
+        staff_qs = staff_qs.filter(branch_id=branch_id)
+    staff_qs = staff_qs.order_by('first_name', 'last_name')
+
+    selected_staff = None
+    staff_id = request.GET.get('staff', '').strip()
+    if staff_id:
+        selected_staff = staff_qs.filter(id=staff_id).first()
+
+    staff_list = [selected_staff] if selected_staff else list(staff_qs)
+    return staff_qs, selected_staff, staff_list
+
+
+# ---------------------------------------------------------------------------
+# A. Loan Report
+# ---------------------------------------------------------------------------
+
+@login_required
+def report_loans(request):
+    """
+    Loan Report — per-staff loan portfolio summary (No. of Loans / Principal
+    / Interest / Outstanding), filtered by staff + disbursement date range
+    + branch. Loans are attributed to whichever staff the client is
+    currently assigned to (client__assigned_staff), matching the convention
+    already used by report_loan_officer_performance.
+    """
+    from core.models import Client
+
+    checker = PermissionChecker(request.user)
+    if not checker.can_view_staff_reports():
+        messages.error(request, 'You do not have permission to view this report.')
+        raise PermissionDenied
+
+    date_from, date_to, df, dt, today = _parse_report_date_range(request)
+    branch_id = _resolve_branch_id(request, checker)
+    extra_ids = _extra_officer_ids(Client, 'assigned_staff', branch_id)
+    staff_options, selected_staff, staff_list = _resolve_staff_scope(request, checker, branch_id, extra_ids)
+
+    rows = []
+    for officer in staff_list:
+        loans = Loan.objects.filter(
+            client__assigned_staff=officer,
+            disbursement_date__date__gte=df,
+            disbursement_date__date__lte=dt,
+        )
+        agg = loans.aggregate(
+            principal=Sum('principal_amount'),
+            interest=Sum('total_interest'),
+            outstanding=Sum('outstanding_balance'),
+        )
+        rows.append({
+            'officer':     officer,
+            'nol':         loans.count(),
+            'principal':   agg['principal']   or Decimal('0.00'),
+            'interest':    agg['interest']    or Decimal('0.00'),
+            'outstanding': agg['outstanding'] or Decimal('0.00'),
+            'active':      loans.filter(status__in=['active', 'disbursed']).count(),
+            'overdue':     loans.filter(status='overdue').count(),
+            'completed':   loans.filter(status='completed').count(),
+        })
+
+    totals = {
+        'nol':         sum(r['nol'] for r in rows),
+        'principal':   sum(r['principal'] for r in rows),
+        'interest':    sum(r['interest'] for r in rows),
+        'outstanding': sum(r['outstanding'] for r in rows),
+        'active':      sum(r['active'] for r in rows),
+        'overdue':     sum(r['overdue'] for r in rows),
+        'completed':   sum(r['completed'] for r in rows),
+    }
+
+    branches = Branch.objects.filter(is_active=True).order_by('name') if checker.can_view_all_branches() else Branch.objects.none()
+
+    context = {
+        'page_title':      'Loan Report',
+        'rows':            rows,
+        'totals':          totals,
+        'date_from':       date_from,
+        'date_to':         date_to,
+        'branches':        branches,
+        'selected_branch': branch_id,
+        'staff_options':   staff_options,
+        'selected_staff':  selected_staff,
+        'checker':         checker,
+        'today':           today,
+    }
+
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_loan_report_excel
+        return export_loan_report_excel(context)
+
+    return render(request, 'accounting/report_loans.html', context)
+
+
+# ---------------------------------------------------------------------------
+# B. Staff Savings Portfolio
+# ---------------------------------------------------------------------------
+
+@login_required
+def report_staff_savings_portfolio(request):
+    """
+    Staff Savings Portfolio — per-staff savings balances broken down by this
+    app's real product categories (Regular, Children, Voluntary, Fixed
+    Deposit, Thrift, Group — NOT "future/mandatory", which don't exist in
+    this system). Filtered by staff + date range (account date_opened) + branch.
+    """
+    from core.models import Client, SavingsAccount
+
+    checker = PermissionChecker(request.user)
+    if not checker.can_view_staff_reports():
+        messages.error(request, 'You do not have permission to view this report.')
+        raise PermissionDenied
+
+    date_from, date_to, df, dt, today = _parse_report_date_range(request)
+    branch_id = _resolve_branch_id(request, checker)
+    extra_ids = _extra_officer_ids(Client, 'assigned_staff', branch_id)
+    staff_options, selected_staff, staff_list = _resolve_staff_scope(request, checker, branch_id, extra_ids)
+
+    CATEGORIES = [
+        ('regular',  'Regular'),
+        ('children', 'Children'),
+        ('target',   'Voluntary'),
+        ('fixed',    'Fixed Deposit'),
+        ('thrift',   'Thrift'),
+        ('group_savings', 'Group'),
+    ]
+
+    rows = []
+    for officer in staff_list:
+        accounts = SavingsAccount.objects.filter(
+            client__assigned_staff=officer,
+            date_opened__gte=df,
+            date_opened__lte=dt,
+        )
+        by_category = {}
+        # category_balances is a list in the SAME order as CATEGORIES, so the
+        # template can zip it against the header row positionally — Django
+        # templates have no clean way to do dict[loop_variable] lookups.
+        category_balances = []
+        for key, _label in CATEGORIES:
+            cat_qs = accounts.filter(savings_product__product_type=key)
+            agg = cat_qs.aggregate(balance=Sum('balance'))
+            balance = agg['balance'] or Decimal('0.00')
+            by_category[key] = {'count': cat_qs.count(), 'balance': balance}
+            category_balances.append(balance)
+        rows.append({
+            'officer':          officer,
+            'by_category':      by_category,
+            'category_balances': category_balances,
+            'total_accounts':   accounts.count(),
+            'total_balance':    accounts.aggregate(b=Sum('balance'))['b'] or Decimal('0.00'),
+        })
+
+    totals = {
+        'by_category': {
+            key: {
+                'count':   sum(r['by_category'][key]['count'] for r in rows),
+                'balance': sum(r['by_category'][key]['balance'] for r in rows),
+            } for key, _label in CATEGORIES
+        },
+        'category_balances': [
+            sum(r['by_category'][key]['balance'] for r in rows) for key, _label in CATEGORIES
+        ],
+        'total_accounts': sum(r['total_accounts'] for r in rows),
+        'total_balance':  sum(r['total_balance'] for r in rows),
+    }
+
+    branches = Branch.objects.filter(is_active=True).order_by('name') if checker.can_view_all_branches() else Branch.objects.none()
+
+    context = {
+        'page_title':      'Staff Savings Portfolio',
+        'categories':      CATEGORIES,
+        'rows':            rows,
+        'totals':          totals,
+        'date_from':       date_from,
+        'date_to':         date_to,
+        'branches':        branches,
+        'selected_branch': branch_id,
+        'staff_options':   staff_options,
+        'selected_staff':  selected_staff,
+        'checker':         checker,
+        'today':           today,
+    }
+
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_staff_savings_portfolio_excel
+        return export_staff_savings_portfolio_excel(context)
+
+    return render(request, 'accounting/report_staff_savings_portfolio.html', context)
+
+
+# ---------------------------------------------------------------------------
+# C + E. Disbursement Report (loan volume + distinct client reach)
+# ---------------------------------------------------------------------------
+
+@login_required
+def report_disbursement(request):
+    """
+    Disbursement Report — combines loan-level disbursement volume (count +
+    principal disbursed) with client reach (distinct clients who received a
+    disbursement in the period), per staff. Filtered by staff + disbursement
+    date range + branch.
+    """
+    from core.models import Client
+
+    checker = PermissionChecker(request.user)
+    if not checker.can_view_staff_reports():
+        messages.error(request, 'You do not have permission to view this report.')
+        raise PermissionDenied
+
+    date_from, date_to, df, dt, today = _parse_report_date_range(request)
+    branch_id = _resolve_branch_id(request, checker)
+    extra_ids = _extra_officer_ids(Client, 'assigned_staff', branch_id)
+    staff_options, selected_staff, staff_list = _resolve_staff_scope(request, checker, branch_id, extra_ids)
+
+    rows = []
+    for officer in staff_list:
+        loans = Loan.objects.filter(
+            client__assigned_staff=officer,
+            disbursement_date__date__gte=df,
+            disbursement_date__date__lte=dt,
+            status__in=['active', 'overdue', 'completed', 'disbursed'],
+        )
+        agg = loans.aggregate(principal=Sum('principal_amount'))
+        rows.append({
+            'officer':          officer,
+            'loans_disbursed':  loans.count(),
+            'principal_disbursed': agg['principal'] or Decimal('0.00'),
+            'clients_disbursed': loans.values('client_id').distinct().count(),
+        })
+
+    totals = {
+        'loans_disbursed':      sum(r['loans_disbursed'] for r in rows),
+        'principal_disbursed':  sum(r['principal_disbursed'] for r in rows),
+        'clients_disbursed':    sum(r['clients_disbursed'] for r in rows),
+    }
+
+    branches = Branch.objects.filter(is_active=True).order_by('name') if checker.can_view_all_branches() else Branch.objects.none()
+
+    context = {
+        'page_title':      'Disbursement Report',
+        'rows':            rows,
+        'totals':          totals,
+        'date_from':       date_from,
+        'date_to':         date_to,
+        'branches':        branches,
+        'selected_branch': branch_id,
+        'staff_options':   staff_options,
+        'selected_staff':  selected_staff,
+        'checker':         checker,
+        'today':           today,
+    }
+
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_disbursement_report_excel
+        return export_disbursement_report_excel(context)
+
+    return render(request, 'accounting/report_disbursement.html', context)
+
+
+# ---------------------------------------------------------------------------
+# D. Registration Report
+# ---------------------------------------------------------------------------
+
+@login_required
+def report_registration(request):
+    """
+    Registration Report — clients registered per staff, filtered by staff +
+    registration_date range + branch. Attributed to Client.original_officer
+    ("Original loan officer who registered this client"), not
+    assigned_staff, so a later reassignment doesn't rewrite who actually
+    registered the client.
+    """
+    from core.models import Client
+
+    checker = PermissionChecker(request.user)
+    if not checker.can_view_staff_reports():
+        messages.error(request, 'You do not have permission to view this report.')
+        raise PermissionDenied
+
+    date_from, date_to, df, dt, today = _parse_report_date_range(request)
+    branch_id = _resolve_branch_id(request, checker)
+    extra_ids = _extra_officer_ids(Client, 'original_officer', branch_id)
+    staff_options, selected_staff, staff_list = _resolve_staff_scope(request, checker, branch_id, extra_ids)
+
+    rows = []
+    for officer in staff_list:
+        clients = Client.objects.filter(
+            original_officer=officer,
+            registration_date__gte=df,
+            registration_date__lte=dt,
+        )
+        rows.append({
+            'officer':   officer,
+            'total':     clients.count(),
+            'approved':  clients.filter(approval_status='approved').count(),
+            'pending':   clients.filter(approval_status__in=['draft', 'pending']).count(),
+            'rejected':  clients.filter(approval_status='rejected').count(),
+        })
+
+    totals = {
+        'total':    sum(r['total'] for r in rows),
+        'approved': sum(r['approved'] for r in rows),
+        'pending':  sum(r['pending'] for r in rows),
+        'rejected': sum(r['rejected'] for r in rows),
+    }
+
+    branches = Branch.objects.filter(is_active=True).order_by('name') if checker.can_view_all_branches() else Branch.objects.none()
+
+    context = {
+        'page_title':      'Registration Report',
+        'rows':            rows,
+        'totals':          totals,
+        'date_from':       date_from,
+        'date_to':         date_to,
+        'branches':        branches,
+        'selected_branch': branch_id,
+        'staff_options':   staff_options,
+        'selected_staff':  selected_staff,
+        'checker':         checker,
+        'today':           today,
+    }
+
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_registration_report_excel
+        return export_registration_report_excel(context)
+
+    return render(request, 'accounting/report_registration.html', context)
+
+
+# ---------------------------------------------------------------------------
+# F. Unions (Groups) Report
+# ---------------------------------------------------------------------------
+
+@login_required
+def report_unions(request):
+    """
+    Unions Report — lists ClientGroup rows ("Unions"), filtered by staff
+    (loan_officer) + registration_date range + branch.
+    """
+    from core.models import ClientGroup
+
+    checker = PermissionChecker(request.user)
+    if not checker.can_view_staff_reports():
+        messages.error(request, 'You do not have permission to view this report.')
+        raise PermissionDenied
+
+    date_from, date_to, df, dt, today = _parse_report_date_range(request)
+    branch_id = _resolve_branch_id(request, checker)
+    extra_ids = _extra_officer_ids(ClientGroup, 'loan_officer', branch_id)
+    staff_options, selected_staff, staff_list = _resolve_staff_scope(request, checker, branch_id, extra_ids)
+
+    groups = ClientGroup.objects.filter(
+        loan_officer__in=staff_list,
+        registration_date__gte=df,
+        registration_date__lte=dt,
+    ).select_related('branch', 'loan_officer').order_by('branch__name', 'name')
+
+    totals = groups.aggregate(
+        total_members=Sum('total_members'),
+        active_members=Sum('active_members'),
+        total_savings=Sum('total_savings'),
+        total_loans_outstanding=Sum('total_loans_outstanding'),
+    )
+
+    branches = Branch.objects.filter(is_active=True).order_by('name') if checker.can_view_all_branches() else Branch.objects.none()
+
+    context = {
+        'page_title':      'Unions Report',
+        'groups':          groups,
+        'totals':          totals,
+        'date_from':       date_from,
+        'date_to':         date_to,
+        'branches':        branches,
+        'selected_branch': branch_id,
+        'staff_options':   staff_options,
+        'selected_staff':  selected_staff,
+        'checker':         checker,
+        'today':           today,
+    }
+
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_unions_report_excel
+        return export_unions_report_excel(context)
+
+    return render(request, 'accounting/report_unions.html', context)
+
+
+# ---------------------------------------------------------------------------
+# G. Overdue Report (staff-filterable PAR)
+# ---------------------------------------------------------------------------
+
+@login_required
+def report_overdue_by_staff(request):
+    """
+    Overdue Report — like report_par_aging, but staff-filterable and built
+    from LoanRepaymentSchedule directly (not the stale Loan.status field —
+    see tracker_views._base_schedule_qs for why). The date range bounds
+    which overdue installments' due_date falls in range — this is NOT a
+    historical "PAR as of a past date" reconstruction, which the schema
+    can't reliably support (no per-installment payment-date history).
+    """
+    from core.models import Client, LoanRepaymentSchedule
+
+    checker = PermissionChecker(request.user)
+    if not checker.can_view_staff_reports():
+        messages.error(request, 'You do not have permission to view this report.')
+        raise PermissionDenied
+
+    date_from, date_to, df, dt, today = _parse_report_date_range(request)
+    branch_id = _resolve_branch_id(request, checker)
+    extra_ids = _extra_officer_ids(Client, 'assigned_staff', branch_id)
+    staff_options, selected_staff, staff_list = _resolve_staff_scope(request, checker, branch_id, extra_ids)
+
+    base_qs = LoanRepaymentSchedule.objects.filter(
+        outstanding_amount__gt=0,
+        due_date__lt=today,
+        due_date__gte=df,
+        due_date__lte=dt,
+        loan__status__in=['active', 'overdue', 'disbursed'],
+        loan__outstanding_balance__gt=0,
+    ).exclude(status__in=['paid', 'waived'])
+
+    rows = []
+    for officer in staff_list:
+        overdue_rows = list(base_qs.filter(loan__client__assigned_staff=officer))
+        buckets = {'current': 0, 'par_1_30': 0, 'par_31_60': 0, 'par_61_90': 0, 'par_90plus': 0}
+        outstanding_total = Decimal('0.00')
+        for row in overdue_rows:
+            days = (today - row.due_date).days if row.due_date < today else 0
+            outstanding_total += row.outstanding_amount or Decimal('0.00')
+            if days == 0:
+                buckets['current'] += 1
+            elif days <= 30:
+                buckets['par_1_30'] += 1
+            elif days <= 60:
+                buckets['par_31_60'] += 1
+            elif days <= 90:
+                buckets['par_61_90'] += 1
+            else:
+                buckets['par_90plus'] += 1
+        rows.append({
+            'officer':      officer,
+            'buckets':      buckets,
+            'total_count':  len(overdue_rows),
+            'outstanding':  outstanding_total,
+        })
+
+    totals = {
+        'buckets': {
+            key: sum(r['buckets'][key] for r in rows)
+            for key in ('current', 'par_1_30', 'par_31_60', 'par_61_90', 'par_90plus')
+        },
+        'total_count': sum(r['total_count'] for r in rows),
+        'outstanding': sum(r['outstanding'] for r in rows),
+    }
+
+    branches = Branch.objects.filter(is_active=True).order_by('name') if checker.can_view_all_branches() else Branch.objects.none()
+
+    context = {
+        'page_title':      'Overdue Report',
+        'rows':            rows,
+        'totals':          totals,
+        'date_from':       date_from,
+        'date_to':         date_to,
+        'branches':        branches,
+        'selected_branch': branch_id,
+        'staff_options':   staff_options,
+        'selected_staff':  selected_staff,
+        'checker':         checker,
+        'today':           today,
+    }
+
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_overdue_by_staff_excel
+        return export_overdue_by_staff_excel(context)
+
+    return render(request, 'accounting/report_overdue_by_staff.html', context)

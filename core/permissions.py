@@ -58,6 +58,9 @@ class Permissions:
     CAN_DISBURSE_LOANS       = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER]
     CAN_PROCESS_TRANSACTIONS = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER, Roles.STAFF]
     CAN_VIEW_REPORTS         = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER]
+    # Staff Reports (loan/savings/disbursement/registration/unions/overdue) —
+    # unlike CAN_VIEW_REPORTS, staff CAN access these, but only their own data.
+    CAN_VIEW_STAFF_REPORTS   = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER, Roles.STAFF]
     CAN_VIEW_FINANCIALS      = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR]
 
     # ── creation ─────────────────────────────────────────────────────
@@ -187,6 +190,7 @@ class PermissionChecker:
     def can_process_transactions(self):     return self.role in Permissions.CAN_PROCESS_TRANSACTIONS
     def can_process_transaction(self):      return self.can_process_transactions()   # alias
     def can_view_reports(self):             return self.role in Permissions.CAN_VIEW_REPORTS
+    def can_view_staff_reports(self):       return self.role in Permissions.CAN_VIEW_STAFF_REPORTS
     def can_view_financials(self):          return self.role in Permissions.CAN_VIEW_FINANCIALS
     def can_view_profit_loss(self):         return self.role in (Roles.ADMIN, Roles.DIRECTOR)
 
@@ -233,6 +237,15 @@ class PermissionChecker:
     # DEACTIVATE  – active → inactive
     # -----------------------------------------------------------------
     def can_deactivate_client(self, client=None):
+        return self.role in Permissions.CAN_TOGGLE_CLIENT_STATUS
+
+    # -----------------------------------------------------------------
+    # DECEASED  – mark / unmark (same roles as activate/deactivate)
+    # -----------------------------------------------------------------
+    def can_mark_deceased(self, client=None):
+        return self.role in Permissions.CAN_TOGGLE_CLIENT_STATUS
+
+    def can_unmark_deceased(self, client=None):
         return self.role in Permissions.CAN_TOGGLE_CLIENT_STATUS
 
     # -----------------------------------------------------------------

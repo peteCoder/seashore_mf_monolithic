@@ -5,7 +5,13 @@
 ## render.yaml overrides the CMD per service via startCommand.
 ##
 ## Set sync:false vars in the Render dashboard → Environment before first deploy:
-##   SECRET_KEY, DATABASE_URL, REDIS_URL, CLOUDINARY_*, EMAIL_*, AT_API_KEY
+##   SECRET_KEY, DATABASE_URL, REDIS_URL, CLOUDINARY_*, EMAIL_*, AT_API_KEY,
+##   TWILIO_*, ELEVENLABS_API_KEY
+##
+## AI voice call reminders are staff-initiated only (a "Call Client" button
+## on the client detail page, handled synchronously by the web service —
+## see core/voice_service.py) — TWILIO_*/ELEVENLABS_* only need to be set
+## on seashore-web, not the Celery worker/beat services.
 
 services:
 
@@ -56,6 +62,18 @@ services:
         sync: false
       - key: AT_SENDER_ID
         sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID
+        sync: false
+      - key: SITE_BASE_URL
+        value: "https://seashore-monolithic.onrender.com"
 
   # ── Celery Worker (Docker) ─────────────────────────────────────────────────
   - type: worker

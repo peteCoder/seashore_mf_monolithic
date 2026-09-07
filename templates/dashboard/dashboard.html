@@ -306,6 +306,58 @@
         </div>
         {% endif %}
 
+        {% if client_overview %}
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-md border border-gray-100 dark:border-gray-700">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-base font-bold text-gray-900 dark:text-white">Client Overview</h3>
+                <a href="{% url 'core:client_list' %}" class="text-primary-600 dark:text-primary-400 text-xs font-semibold">View all</a>
+            </div>
+
+            {% if client_overview.registered %}
+            <div class="space-y-3">
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Registered</span>
+                        <span class="text-xs font-bold text-gray-900 dark:text-white tabular-nums">{{ client_overview.registered }}</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-500 rounded-full" style="width: {% widthratio client_overview.registered client_overview.registered 100 %}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Pending Approval</span>
+                        <span class="text-xs font-bold text-gray-900 dark:text-white tabular-nums">{{ client_overview.pending_approval }}</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-amber-500 rounded-full" style="width: {% widthratio client_overview.pending_approval client_overview.registered 100 %}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Closed</span>
+                        <span class="text-xs font-bold text-gray-900 dark:text-white tabular-nums">{{ client_overview.closed }}</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gray-400 dark:bg-gray-500 rounded-full" style="width: {% widthratio client_overview.closed client_overview.registered 100 %}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Deleted</span>
+                        <span class="text-xs font-bold text-gray-900 dark:text-white tabular-nums">{{ client_overview.deleted }}</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-red-500 rounded-full" style="width: {% widthratio client_overview.deleted client_overview.registered 100 %}%"></div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">No clients registered yet</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
     </div>
 
 </div>

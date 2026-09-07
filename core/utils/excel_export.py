@@ -1001,3 +1001,251 @@ def export_savings_transactions_excel(postings):
     response = create_excel_response(f'savings_transactions_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx')
     response.write(output.read())
     return response
+
+
+# ---------------------------------------------------------------------------
+# Staff Reports
+# ---------------------------------------------------------------------------
+
+def export_loan_report_excel(context):
+    """Export the Loan Report (per-staff NOL/Principal/Interest/Outstanding) to Excel."""
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='openpyxl')
+
+    rows = []
+    for r in context['rows']:
+        rows.append({
+            'Officer': r['officer'].get_full_name(),
+            'Branch': r['officer'].branch.name if r['officer'].branch else '',
+            'No. of Loans': r['nol'],
+            'Principal (₦)': float(r['principal']),
+            'Interest (₦)': float(r['interest']),
+            'Outstanding (₦)': float(r['outstanding']),
+            'Active': r['active'],
+            'Overdue': r['overdue'],
+            'Completed': r['completed'],
+        })
+    totals = context['totals']
+    rows.append({
+        'Officer': 'TOTAL', 'Branch': '',
+        'No. of Loans': totals['nol'],
+        'Principal (₦)': float(totals['principal']),
+        'Interest (₦)': float(totals['interest']),
+        'Outstanding (₦)': float(totals['outstanding']),
+        'Active': totals['active'], 'Overdue': totals['overdue'], 'Completed': totals['completed'],
+    })
+
+    df = pd.DataFrame(rows)
+    df.to_excel(writer, sheet_name='Loan Report', index=False)
+    _style_sheet(writer.sheets['Loan Report'], 9,
+                 title='LOAN REPORT',
+                 subtitle=f'Period: {context["date_from"]} to {context["date_to"]}',
+                 currency_cols=[4, 5, 6],
+                 col_widths={'A':28,'B':18,'C':14,'D':18,'E':16,'F':18,'G':10,'H':10,'I':12})
+
+    writer.close()
+    output.seek(0)
+    response = create_excel_response(f'loan_report_{context["date_from"]}_{context["date_to"]}.xlsx')
+    response.write(output.read())
+    return response
+
+
+def export_staff_savings_portfolio_excel(context):
+    """Export the Staff Savings Portfolio report to Excel."""
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='openpyxl')
+
+    labels = [label for _key, label in context['categories']]
+    rows = []
+    for r in context['rows']:
+        row = {'Officer': r['officer'].get_full_name(),
+               'Branch': r['officer'].branch.name if r['officer'].branch else ''}
+        for key, label in context['categories']:
+            row[f'{label} (₦)'] = float(r['by_category'][key]['balance'])
+        row['Total Accounts'] = r['total_accounts']
+        row['Total Balance (₦)'] = float(r['total_balance'])
+        rows.append(row)
+
+    totals = context['totals']
+    total_row = {'Officer': 'TOTAL', 'Branch': ''}
+    for key, label in context['categories']:
+        total_row[f'{label} (₦)'] = float(totals['by_category'][key]['balance'])
+    total_row['Total Accounts'] = totals['total_accounts']
+    total_row['Total Balance (₦)'] = float(totals['total_balance'])
+    rows.append(total_row)
+
+    ncols = 2 + len(labels) + 2
+    currency_cols = list(range(3, 3 + len(labels))) + [ncols]
+
+    df = pd.DataFrame(rows)
+    df.to_excel(writer, sheet_name='Savings Portfolio', index=False)
+    _style_sheet(writer.sheets['Savings Portfolio'], ncols,
+                 title='STAFF SAVINGS PORTFOLIO',
+                 subtitle=f'Period: {context["date_from"]} to {context["date_to"]}',
+                 currency_cols=currency_cols,
+                 col_widths={'A':28,'B':18})
+
+    writer.close()
+    output.seek(0)
+    response = create_excel_response(f'staff_savings_portfolio_{context["date_from"]}_{context["date_to"]}.xlsx')
+    response.write(output.read())
+    return response
+
+
+def export_disbursement_report_excel(context):
+    """Export the Disbursement Report (loan volume + client reach) to Excel."""
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='openpyxl')
+
+    rows = []
+    for r in context['rows']:
+        rows.append({
+            'Officer': r['officer'].get_full_name(),
+            'Branch': r['officer'].branch.name if r['officer'].branch else '',
+            'Loans Disbursed': r['loans_disbursed'],
+            'Principal Disbursed (₦)': float(r['principal_disbursed']),
+            'Distinct Clients Disbursed': r['clients_disbursed'],
+        })
+    totals = context['totals']
+    rows.append({
+        'Officer': 'TOTAL', 'Branch': '',
+        'Loans Disbursed': totals['loans_disbursed'],
+        'Principal Disbursed (₦)': float(totals['principal_disbursed']),
+        'Distinct Clients Disbursed': totals['clients_disbursed'],
+    })
+
+    df = pd.DataFrame(rows)
+    df.to_excel(writer, sheet_name='Disbursement', index=False)
+    _style_sheet(writer.sheets['Disbursement'], 5,
+                 title='DISBURSEMENT REPORT',
+                 subtitle=f'Period: {context["date_from"]} to {context["date_to"]}',
+                 currency_cols=[4],
+                 col_widths={'A':28,'B':18,'C':16,'D':22,'E':22})
+
+    writer.close()
+    output.seek(0)
+    response = create_excel_response(f'disbursement_report_{context["date_from"]}_{context["date_to"]}.xlsx')
+    response.write(output.read())
+    return response
+
+
+def export_registration_report_excel(context):
+    """Export the Registration Report to Excel."""
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='openpyxl')
+
+    rows = []
+    for r in context['rows']:
+        rows.append({
+            'Officer': r['officer'].get_full_name(),
+            'Branch': r['officer'].branch.name if r['officer'].branch else '',
+            'Total Registered': r['total'],
+            'Approved': r['approved'],
+            'Pending': r['pending'],
+            'Rejected': r['rejected'],
+        })
+    totals = context['totals']
+    rows.append({
+        'Officer': 'TOTAL', 'Branch': '',
+        'Total Registered': totals['total'], 'Approved': totals['approved'],
+        'Pending': totals['pending'], 'Rejected': totals['rejected'],
+    })
+
+    df = pd.DataFrame(rows)
+    df.to_excel(writer, sheet_name='Registration', index=False)
+    _style_sheet(writer.sheets['Registration'], 6,
+                 title='REGISTRATION REPORT',
+                 subtitle=f'Period: {context["date_from"]} to {context["date_to"]}',
+                 col_widths={'A':28,'B':18,'C':16,'D':12,'E':12,'F':12})
+
+    writer.close()
+    output.seek(0)
+    response = create_excel_response(f'registration_report_{context["date_from"]}_{context["date_to"]}.xlsx')
+    response.write(output.read())
+    return response
+
+
+def export_unions_report_excel(context):
+    """Export the Unions (ClientGroup) Report to Excel."""
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='openpyxl')
+
+    rows = []
+    for g in context['groups']:
+        rows.append({
+            'Union': g.name,
+            'Branch': g.branch.name if g.branch else '',
+            'Loan Officer': g.loan_officer.get_full_name() if g.loan_officer else '',
+            'Active Members': g.active_members,
+            'Total Members': g.total_members,
+            'Total Savings (₦)': float(g.total_savings or 0),
+            'Total Loans Outstanding (₦)': float(g.total_loans_outstanding or 0),
+            'Status': g.get_status_display(),
+            'Registered': g.registration_date.strftime('%Y-%m-%d') if g.registration_date else '',
+        })
+    totals = context['totals']
+    rows.append({
+        'Union': 'TOTAL', 'Branch': '', 'Loan Officer': '',
+        'Active Members': totals['active_members'] or 0,
+        'Total Members': totals['total_members'] or 0,
+        'Total Savings (₦)': float(totals['total_savings'] or 0),
+        'Total Loans Outstanding (₦)': float(totals['total_loans_outstanding'] or 0),
+        'Status': '', 'Registered': '',
+    })
+
+    df = pd.DataFrame(rows)
+    df.to_excel(writer, sheet_name='Unions', index=False)
+    _style_sheet(writer.sheets['Unions'], 9,
+                 title='UNIONS REPORT',
+                 subtitle=f'Period: {context["date_from"]} to {context["date_to"]}',
+                 currency_cols=[6, 7],
+                 col_widths={'A':26,'B':18,'C':22,'D':14,'E':14,'F':18,'G':22,'H':14,'I':14})
+
+    writer.close()
+    output.seek(0)
+    response = create_excel_response(f'unions_report_{context["date_from"]}_{context["date_to"]}.xlsx')
+    response.write(output.read())
+    return response
+
+
+def export_overdue_by_staff_excel(context):
+    """Export the staff-filterable Overdue Report to Excel."""
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='openpyxl')
+
+    rows = []
+    for r in context['rows']:
+        b = r['buckets']
+        rows.append({
+            'Officer': r['officer'].get_full_name(),
+            'Branch': r['officer'].branch.name if r['officer'].branch else '',
+            'Current': b['current'],
+            'PAR 1-30': b['par_1_30'],
+            'PAR 31-60': b['par_31_60'],
+            'PAR 61-90': b['par_61_90'],
+            'PAR 90+': b['par_90plus'],
+            'Total Overdue': r['total_count'],
+            'Outstanding (₦)': float(r['outstanding']),
+        })
+    totals = context['totals']
+    tb = totals['buckets']
+    rows.append({
+        'Officer': 'TOTAL', 'Branch': '',
+        'Current': tb['current'], 'PAR 1-30': tb['par_1_30'], 'PAR 31-60': tb['par_31_60'],
+        'PAR 61-90': tb['par_61_90'], 'PAR 90+': tb['par_90plus'],
+        'Total Overdue': totals['total_count'], 'Outstanding (₦)': float(totals['outstanding']),
+    })
+
+    df = pd.DataFrame(rows)
+    df.to_excel(writer, sheet_name='Overdue', index=False)
+    _style_sheet(writer.sheets['Overdue'], 9,
+                 title='OVERDUE REPORT',
+                 subtitle=f'Due {context["date_from"]} to {context["date_to"]}',
+                 currency_cols=[9],
+                 col_widths={'A':28,'B':18,'C':10,'D':10,'E':10,'F':10,'G':10,'H':14,'I':18})
+
+    writer.close()
+    output.seek(0)
+    response = create_excel_response(f'overdue_report_{context["date_from"]}_{context["date_to"]}.xlsx')
+    response.write(output.read())
+    return response

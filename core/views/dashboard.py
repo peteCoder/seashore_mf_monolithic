@@ -188,9 +188,27 @@ def dashboard_view(request):
             })
     
     # =========================================================================
+    # CLIENT OVERVIEW CHART (Manager+ — portfolio-wide, same audience as
+    # branch_stats above; staff's dashboard is personal/assigned-client
+    # scoped, so a branch/system overview chart doesn't apply to them)
+    # =========================================================================
+
+    client_overview = None
+    if checker.can_view_reports():
+        # 'draft' counts as pending here too — it's what client_approve()
+        # already treats as approvable (draft or pending -> approved/rejected).
+        client_overview = {
+            'registered':       client_stats['total'],
+            'closed':           clients.filter(is_active=False).count(),
+            'pending_approval': clients.filter(approval_status__in=['draft', 'pending']).count(),
+            'deleted':          checker.filter_clients(Client.all_objects.all())
+                                        .filter(deleted_at__isnull=False).count(),
+        }
+
+    # =========================================================================
     # RECENT ACTIVITIES
     # =========================================================================
-    
+
     recent_clients = clients.order_by('-created_at')[:5]
     recent_loans = loans.order_by('-created_at')[:5]
     recent_transactions = transactions.order_by('-transaction_date')[:10]
@@ -325,6 +343,7 @@ def dashboard_view(request):
         'savings_stats': savings_stats,
         'transaction_stats': transaction_stats,
         'branch_stats': branch_stats,
+        'client_overview': client_overview,
 
         # Repayment tracker quick stats
         'overdue_installments': overdue_installments,

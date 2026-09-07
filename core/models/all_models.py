@@ -1487,7 +1487,29 @@ class Client(BaseModel, StatusTrackingMixin, ApprovalWorkflowMixin):
         blank=True,
         help_text="Timestamp when the client account was closed"
     )
-    
+
+    # ============================================
+    # DECEASED
+    # ============================================
+    # Deliberately orthogonal to is_active/closed_at — marking a client
+    # deceased does NOT require their loans/savings to be resolved first
+    # (see client_mark_deceased). The existing deactivate flow still blocks
+    # on active loans as before; it'll just stop blocking once those are
+    # actually written off / insurance-claimed.
+    is_deceased = models.BooleanField(default=False, db_index=True)
+    deceased_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Date of death, if known"
+    )
+    marked_deceased_by = models.ForeignKey(
+        'User',
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='clients_marked_deceased',
+    )
+    marked_deceased_at = models.DateTimeField(null=True, blank=True)
+
     # ============================================
     # NOTES
     # ============================================
@@ -9351,6 +9373,93 @@ class PublicHoliday(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.date})"
+
+
+class VoiceCallLog(BaseModel):
+    """
+    Record of an outbound AI-voice phone call placed to a client to remind
+    them of a loan repayment that is due or overdue.
+
+    A call is placed via Twilio Voice; the spoken message is synthesised
+    with ElevenLabs and hosted (via Cloudinary, already used elsewhere in
+    this app) so Twilio's <Play> verb can fetch it when the call connects —
+    see core/voice_service.py for the full pipeline. Twilio posts call
+    status updates back to our webhook as the call progresses; those update
+    this row's status/duration/completed_at fields — see
+    core/views/voice_views.py.
+    """
+
+    PURPOSE_CHOICES = [
+        ('due_reminder',  'Repayment Due Reminder'),
+        ('overdue_alert', 'Overdue Alert'),
+        ('manual',        'Manual / On-demand'),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending',     'Pending'),        # created locally, not yet sent to the provider
+        ('queued',      'Queued'),
+        ('initiated',   'Initiated'),
+        ('ringing',     'Ringing'),
+        ('in-progress', 'In Progress'),
+        ('completed',   'Completed'),
+        ('busy',        'Busy'),
+        ('failed',      'Failed'),
+        ('no-answer',   'No Answer'),
+        ('canceled',    'Canceled'),
+    ]
+
+    client = models.ForeignKey(
+        'Client',
+        on_delete=models.CASCADE,
+        related_name='voice_call_logs',
+    )
+    loan = models.ForeignKey(
+        'Loan',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='voice_call_logs',
+    )
+    schedule_row = models.ForeignKey(
+        'LoanRepaymentSchedule',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='voice_call_logs',
+        help_text="Installment this reminder call was about, if any.",
+    )
+    purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES, default='due_reminder')
+    phone = models.CharField(max_length=20, help_text="Number the call was placed to")
+    amount_due = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    message_text = models.TextField(help_text="Script read to the client in the AI voice")
+    audio_url = models.URLField(blank=True, help_text="Hosted TTS audio played on the call")
+
+    call_sid = models.CharField(max_length=64, blank=True, db_index=True, help_text="Twilio Call SID")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
+    duration_seconds = models.PositiveIntegerField(null=True, blank=True)
+    error_message = models.TextField(blank=True)
+
+    initiated_by = models.ForeignKey(
+        'User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='voice_calls_initiated',
+        help_text="Staff user who triggered a manual call; blank for scheduled reminders.",
+    )
+    initiated_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Voice Call Log'
+        verbose_name_plural = 'Voice Call Logs'
+        indexes = [
+            models.Index(fields=['client', 'created_at']),
+            models.Index(fields=['loan', 'created_at']),
+            models.Index(fields=['status']),
+            models.Index(fields=['call_sid']),
+        ]
+
+    def __str__(self):
+        return f"Call to {self.client} ({self.status}) — {self.created_at:%Y-%m-%d}"
 
 
 

@@ -5,7 +5,7 @@ from .models import (
     Transaction, AccountType, AccountCategory, ChartOfAccounts,
     JournalEntry, JournalEntryLine, Notification,
     Guarantor, NextOfKin, AssignmentRequest,
-    LoanRepaymentSchedule, LoanPenalty
+    LoanRepaymentSchedule, LoanPenalty, VoiceCallLog
 )
 
 # ==============================================================================
@@ -257,9 +257,20 @@ class LoanRepaymentScheduleAdmin(admin.ModelAdmin):
 
 @admin.register(LoanPenalty)
 class LoanPenaltyAdmin(admin.ModelAdmin):
-    list_display = ['loan', 'penalty_type', 'amount', 'is_paid', 
+    list_display = ['loan', 'penalty_type', 'amount', 'is_paid',
                    'is_waived', 'created_at']
     list_filter = ['penalty_type', 'is_paid', 'is_waived']
     search_fields = ['loan__loan_number', 'reason']
+
+
+@admin.register(VoiceCallLog)
+class VoiceCallLogAdmin(admin.ModelAdmin):
+    list_display = ['client', 'loan', 'purpose', 'phone', 'amount_due',
+                   'status', 'duration_seconds', 'created_at']
+    list_filter = ['purpose', 'status', 'created_at']
+    search_fields = ['client__first_name', 'client__last_name', 'phone',
+                     'loan__loan_number', 'call_sid']
+    readonly_fields = ['created_at', 'updated_at', 'initiated_at', 'completed_at',
+                       'call_sid', 'audio_url', 'message_text', 'error_message']
 
     

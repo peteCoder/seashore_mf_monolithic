@@ -21,6 +21,9 @@ from core.views.client_views import (
     client_assign_staff,
     client_pay_registration_fee,
     client_statement,
+    client_call_reminder,
+    client_mark_deceased,
+    client_unmark_deceased,
 )
 from core.views.client_ajax_views import (
     client_validate_tab,
@@ -169,9 +172,19 @@ from core.views.accounting_views import (
     report_loan_repayments,
     audit_log,
     subsidiary_ledger,
+
+    # Staff Reports
+    report_loans,
+    report_staff_savings_portfolio,
+    report_disbursement,
+    report_registration,
+    report_unions,
+    report_overdue_by_staff,
 )
 
 from core.views.tracker_views import loan_repayment_tracker, group_repayment_tracker
+
+from core.views.voice_views import voice_twiml, voice_status_callback
 
 from core.views.loan_views import (
     loan_list,
@@ -337,6 +350,9 @@ urlpatterns = [
     path('clients/<uuid:client_id>/assign-staff/', client_assign_staff, name='client_assign_staff'),
     path('clients/<uuid:client_id>/pay-registration-fee/', client_pay_registration_fee, name='client_pay_registration_fee'),
     path('clients/<uuid:client_id>/statement/', client_statement, name='client_statement'),
+    path('clients/<uuid:client_id>/loans/<uuid:loan_id>/call-reminder/', client_call_reminder, name='client_call_reminder'),
+    path('clients/<uuid:client_id>/mark-deceased/', client_mark_deceased, name='client_mark_deceased'),
+    path('clients/<uuid:client_id>/unmark-deceased/', client_unmark_deceased, name='client_unmark_deceased'),
     path('clients/<uuid:client_id>/subsidiary-ledger/', subsidiary_ledger, name='subsidiary_ledger'),
 
     # =========================================================================
@@ -496,6 +512,10 @@ urlpatterns = [
     # Repayment Tracker
     path('loans/repayment-tracker/', loan_repayment_tracker, name='loan_repayment_tracker'),
 
+    # Voice call webhooks (Twilio callbacks — no login, see core/views/voice_views.py)
+    path('voice/twiml/<uuid:call_log_id>/', voice_twiml, name='voice_twiml'),
+    path('voice/status-callback/<uuid:call_log_id>/', voice_status_callback, name='voice_status_callback'),
+
     # Loan Repayments
     path('loans/repayments/', loan_repayment_list, name='loan_repayment_list'),
     path('loans/repayments/post/', loan_repayment_post, name='loan_repayment_post'),
@@ -608,6 +628,14 @@ urlpatterns = [
     path('accounting/reports/loan-officer-performance/', report_loan_officer_performance, name='report_loan_officer_performance'),
     path('accounting/reports/savings-maturity/', report_savings_maturity, name='report_savings_maturity'),
     path('accounting/reports/loan-repayments/', report_loan_repayments, name='report_loan_repayments'),
+
+    # Staff Reports (staff-accessible, self-scoped — see PermissionChecker.can_view_staff_reports)
+    path('accounting/reports/loans/', report_loans, name='report_loans'),
+    path('accounting/reports/staff-savings-portfolio/', report_staff_savings_portfolio, name='report_staff_savings_portfolio'),
+    path('accounting/reports/disbursement/', report_disbursement, name='report_disbursement'),
+    path('accounting/reports/registration/', report_registration, name='report_registration'),
+    path('accounting/reports/unions/', report_unions, name='report_unions'),
+    path('accounting/reports/overdue-by-staff/', report_overdue_by_staff, name='report_overdue_by_staff'),
     path('accounting/audit-log/', audit_log, name='audit_log'),
 
     # =========================================================================

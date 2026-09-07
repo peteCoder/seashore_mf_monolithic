@@ -18,7 +18,7 @@ from django.db.models import Q, Sum
 from django.utils import timezone
 from decimal import Decimal
 
-from core.models import Client, Transaction, CLIENT_REGISTRATION_FEE, CLIENT_REGISTRATION_FEE_BREAKDOWN, SavingsProduct, SavingsAccount
+from core.models import Client, Loan, Transaction, CLIENT_REGISTRATION_FEE, CLIENT_REGISTRATION_FEE_BREAKDOWN, SavingsProduct, SavingsAccount
 from core.utils.accounting_helpers import post_fee_collection_journal
 from core.services.notification_service import notify, notify_role
 from core.forms.client_forms import (
@@ -191,6 +191,30 @@ def client_detail(request, client_id):
         total=Sum('balance')
     )
 
+    # The loan a top-of-page "Call Client" button (in the main action bar,
+    # not buried in the Loans tab) would place a reminder call about —
+    # whichever outstanding loan is due/overdue soonest. None if the client
+    # has no loan with an outstanding balance, in which case that button
+    # doesn't render at all (nothing to remind them about).
+    primary_call_loan = (
+        client.loans
+        .filter(status__in=['active', 'overdue', 'disbursed'], outstanding_balance__gt=0)
+        .order_by('next_repayment_date')
+        .first()
+    )
+
+    # For a deceased client, the detail page shows what still needs
+    # resolving instead of blocking the "mark deceased" action on it —
+    # loans need a write-off or insurance claim, savings need a withdrawal
+    # (still allowed while frozen — see savings_views.py) then closure.
+    unresolved_loans = None
+    accounts_needing_resolution = None
+    if client.is_deceased:
+        unresolved_loans = client.loans.filter(
+            status__in=['active', 'disbursed', 'overdue'], outstanding_balance__gt=0
+        ).select_related('loan_product')
+        accounts_needing_resolution = savings_accounts.filter(status='active', balance__gt=0)
+
     # Context
     context = {
         'page_title': f'Client: {client.get_full_name()}',
@@ -201,6 +225,9 @@ def client_detail(request, client_id):
         'total_loans': total_loans['total'] or Decimal('0.00'),
         'total_outstanding': total_loans['outstanding'] or Decimal('0.00'),
         'total_savings': total_savings['total'] or Decimal('0.00'),
+        'primary_call_loan': primary_call_loan,
+        'unresolved_loans': unresolved_loans,
+        'accounts_needing_resolution': accounts_needing_resolution,
         'checker': checker,
         'today': date_type.today(),
     }
@@ -619,6 +646,91 @@ def client_deactivate(request, client_id):
 
 
 # =============================================================================
+# CLIENT DECEASED VIEWS
+# =============================================================================
+
+@login_required
+def client_mark_deceased(request, client_id):
+    """
+    Mark a client as deceased.
+
+    Deliberately does NOT require loans/savings to be resolved first — the
+    death is often known before the paperwork is. Unresolved loans and
+    savings balances are surfaced as a banner on the client detail page
+    instead (see client_detail's unresolved_loans / accounts_needing_resolution).
+
+    Permissions: Manager, Director, HR, Admin (same as activate/deactivate)
+    """
+    checker = PermissionChecker(request.user)
+    if not checker.can_mark_deceased():
+        messages.error(request, 'You do not have permission to mark clients as deceased.')
+        raise PermissionDenied
+
+    client = get_object_or_404(Client, id=client_id)
+
+    if client.is_deceased:
+        messages.warning(request, 'This client is already marked as deceased.')
+        return redirect('core:client_detail', client_id=client.id)
+
+    if request.method == 'POST':
+        reason = request.POST.get('reason', '').strip()
+        deceased_date_str = request.POST.get('deceased_date', '').strip()
+
+        deceased_date = None
+        if deceased_date_str:
+            try:
+                deceased_date = date_type.fromisoformat(deceased_date_str)
+            except ValueError:
+                deceased_date = None
+
+        client.is_deceased = True
+        client.deceased_date = deceased_date
+        client.marked_deceased_by = request.user
+        client.marked_deceased_at = timezone.now()
+        note = f"Marked deceased{f' ({deceased_date})' if deceased_date else ''}: {reason}" if reason else "Marked deceased"
+        client.notes = f"{client.notes}\n\n{note}" if client.notes else note
+        client.save(update_fields=[
+            'is_deceased', 'deceased_date', 'marked_deceased_by', 'marked_deceased_at',
+            'notes', 'updated_at',
+        ])
+
+        messages.success(request, f'{client.get_full_name()} has been marked as deceased.')
+
+    return redirect('core:client_detail', client_id=client.id)
+
+
+@login_required
+def client_unmark_deceased(request, client_id):
+    """Undo an accidental "mark as deceased" — clears the flag and related fields."""
+    checker = PermissionChecker(request.user)
+    if not checker.can_unmark_deceased():
+        messages.error(request, 'You do not have permission to change this.')
+        raise PermissionDenied
+
+    client = get_object_or_404(Client, id=client_id)
+
+    if not client.is_deceased:
+        messages.warning(request, 'This client is not marked as deceased.')
+        return redirect('core:client_detail', client_id=client.id)
+
+    if request.method == 'POST':
+        client.is_deceased = False
+        client.deceased_date = None
+        client.marked_deceased_by = None
+        client.marked_deceased_at = None
+        note = f"Unmarked deceased by {request.user.get_full_name()}"
+        client.notes = f"{client.notes}\n\n{note}" if client.notes else note
+        client.save(update_fields=[
+            'is_deceased', 'deceased_date', 'marked_deceased_by', 'marked_deceased_at',
+            'notes', 'updated_at',
+        ])
+
+        messages.success(request, f'{client.get_full_name()} is no longer marked as deceased.')
+
+    return redirect('core:client_detail', client_id=client.id)
+
+
+# =============================================================================
 # CLIENT DELETE VIEW
 # =============================================================================
 
@@ -915,3 +1027,58 @@ def client_statement(request, client_id):
     }
 
     return render(request, 'clients/statement.html', context)
+
+
+# =============================================================================
+# CLIENT VOICE CALL REMINDER (manual, staff-initiated)
+# =============================================================================
+
+@login_required
+def client_call_reminder(request, client_id, loan_id):
+    """
+    Place a one-off AI-voice reminder call to the client about a specific
+    loan, triggered by the "Call" button on the client detail page's Loans
+    tab. There is no automatic/scheduled calling — see core/voice_service.py.
+
+    Same view permission as the client detail page itself: if you can see
+    this client, you can call them about one of their loans.
+    """
+    checker = PermissionChecker(request.user)
+    client = get_object_or_404(Client, id=client_id)
+
+    if not checker.can_view_client(client):
+        messages.error(request, 'You do not have permission to contact this client.')
+        raise PermissionDenied
+
+    if request.method != 'POST':
+        return redirect('core:client_detail', client_id=client.id)
+
+    loan = get_object_or_404(Loan, id=loan_id, client=client)
+
+    if not client.phone:
+        messages.error(request, 'This client has no phone number on file — no call was placed.')
+        return redirect('core:client_detail', client_id=client.id)
+
+    if not loan.outstanding_balance or loan.outstanding_balance <= 0:
+        messages.warning(request, 'This loan has no outstanding balance — no reminder call was placed.')
+        return redirect('core:client_detail', client_id=client.id)
+
+    from core.voice_service import initiate_call
+    # Loan.status is a stale DB cache only refreshed on save() (see
+    # tracker_views._base_schedule_qs) and is effectively never 'overdue' in
+    # practice — check next_repayment_date directly instead so the call's
+    # wording ("is due on" vs "was due on... and is now overdue") is accurate.
+    is_overdue = bool(loan.next_repayment_date and loan.next_repayment_date < date_type.today())
+    purpose = 'overdue_alert' if is_overdue else 'manual'
+    call_log = initiate_call(client, loan=loan, purpose=purpose, initiated_by=request.user)
+
+    if call_log.status == 'failed':
+        messages.error(request, f'Could not place the reminder call: {call_log.error_message}')
+    else:
+        messages.success(
+            request,
+            f'Reminder call placed to {client.get_full_name()} ({client.phone}) '
+            f'about loan {loan.loan_number}.'
+        )
+
+    return redirect('core:client_detail', client_id=client.id)

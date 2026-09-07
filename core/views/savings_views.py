@@ -342,26 +342,37 @@ def savings_deposit_post(request, account_id=None):
             if account:
                 posting.savings_account = account
 
-            posting.save()
+            # Deposits are frozen once the account holder is marked deceased
+            # — nothing to deposit into for someone who's died. Withdrawals
+            # stay allowed (see savings_withdrawal_post) so the balance can
+            # still be paid out and the account closed.
+            if posting.savings_account.client.is_deceased:
+                messages.error(
+                    request,
+                    f'{posting.savings_account.client.get_full_name()} is marked as deceased — '
+                    'deposits are frozen on this account. See the client record for resolution steps.'
+                )
+            else:
+                posting.save()
 
-            # Notify branch manager that a deposit needs approval
-            notify_role(
-                roles='manager',
-                branch=posting.savings_account.branch,
-                notification_type='deposit_pending',
-                title='Deposit Pending Approval',
-                message=f'A deposit of ₦{posting.amount:,.2f} for savings account {posting.savings_account.account_number} ({posting.savings_account.client.get_full_name()}) has been submitted and is awaiting approval.',
-                related_savings=posting.savings_account,
-                related_client=posting.savings_account.client,
-                exclude_user=request.user,
-            )
+                # Notify branch manager that a deposit needs approval
+                notify_role(
+                    roles='manager',
+                    branch=posting.savings_account.branch,
+                    notification_type='deposit_pending',
+                    title='Deposit Pending Approval',
+                    message=f'A deposit of ₦{posting.amount:,.2f} for savings account {posting.savings_account.account_number} ({posting.savings_account.client.get_full_name()}) has been submitted and is awaiting approval.',
+                    related_savings=posting.savings_account,
+                    related_client=posting.savings_account.client,
+                    exclude_user=request.user,
+                )
 
-            messages.success(
-                request,
-                f'Deposit posting {posting.posting_ref} submitted successfully. '
-                f'Awaiting approval from manager/director.'
-            )
-            return redirect('core:savings_transaction_list')
+                messages.success(
+                    request,
+                    f'Deposit posting {posting.posting_ref} submitted successfully. '
+                    f'Awaiting approval from manager/director.'
+                )
+                return redirect('core:savings_transaction_list')
     else:
         initial = {}
         if account:
@@ -390,10 +401,13 @@ def savings_deposit_post_bulk(request):
     """
     checker = PermissionChecker(request.user)
 
-    # Get active accounts for this user
+    # Get active accounts for this user. Deceased clients' accounts are
+    # excluded here (deposits are frozen — see client_mark_deceased) so
+    # staff can't select one in the first place; the loop below also
+    # re-checks per account as a safety net against a stale/tampered form.
     base_queryset = SavingsAccount.objects.filter(
         status__in=['active', 'pending']
-    ).select_related('client', 'branch', 'savings_product')
+    ).exclude(client__is_deceased=True).select_related('client', 'branch', 'savings_product')
 
     if checker.is_staff():
         accounts = base_queryset.filter(client__assigned_staff=request.user)
@@ -424,6 +438,13 @@ def savings_deposit_post_bulk(request):
                 if amount and float(amount) > 0:
                     try:
                         account = SavingsAccount.objects.get(id=account_id)
+
+                        if account.client.is_deceased:
+                            errors.append(
+                                f'{account.client.get_full_name()} is marked as deceased — '
+                                'deposits are frozen on this account.'
+                            )
+                            continue
 
                         # Validate amount
                         amount_decimal = Decimal(amount)
@@ -494,6 +515,12 @@ def savings_withdrawal_post(request, account_id=None):
 
     Permissions:
     - All staff can post withdrawals (filtered to accessible accounts)
+
+    NOTE: deliberately NOT blocked for a deceased client's account, unlike
+    deposits (see savings_deposit_post) — a withdrawal is how the balance
+    eventually gets paid out to next of kin so the account can be closed.
+    Blocking withdrawals too would make that impossible without a separate
+    "unfreeze" step nobody asked for.
     """
     checker = PermissionChecker(request.user)
 
@@ -563,6 +590,9 @@ def savings_withdrawal_post_bulk(request):
 
     Permissions:
     - All staff can post withdrawals
+
+    NOTE: deliberately NOT blocked for deceased clients — see
+    savings_withdrawal_post's docstring.
     """
     checker = PermissionChecker(request.user)
 
