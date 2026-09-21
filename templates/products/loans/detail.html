@@ -180,22 +180,22 @@
                         </span>
                     </div>
 
-                    <!-- Loan Form Fee -->
+                    <!-- Admin Fee -->
                     <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <div>
-                            <p class="font-medium text-gray-900 dark:text-white">Loan Form Fee</p>
+                            <p class="font-medium text-gray-900 dark:text-white">Admin Fee</p>
                             <p class="text-sm text-gray-600 dark:text-gray-400">
-                                {% if product.loan_form_fee_enabled %}
-                                &#8358;{{ product.loan_form_fee_amount|floatformat:0|intcomma }}
+                                {% if product.admin_fee_enabled %}
+                                Tiered by loan amount (&#8358;2,500&ndash;&#8358;20,000)
                                 {% else %}
                                 Disabled
                                 {% endif %}
                             </p>
                         </div>
                         <span class="px-3 py-1 text-xs font-medium rounded-full
-                                     {% if product.loan_form_fee_enabled %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
+                                     {% if product.admin_fee_enabled %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
                                      {% else %}bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-300{% endif %}">
-                            {{ product.loan_form_fee_enabled|yesno:"Enabled,Disabled" }}
+                            {{ product.admin_fee_enabled|yesno:"Enabled,Disabled" }}
                         </span>
                     </div>
                 </div>

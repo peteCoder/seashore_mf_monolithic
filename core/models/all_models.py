@@ -1856,6 +1856,37 @@ LOAN_FORM_FEE = Decimal('200.00')
 
 
 # =============================================================================
+# ADMIN FEE SCHEDULE (management decision, effective 2026-09)
+# =============================================================================
+# Admin fee is no longer a fixed amount configured per loan product — it is
+# looked up from the loan's principal amount against this bracket table.
+# Each tuple is (upper_bound_inclusive, fee); the last bracket (None) catches
+# everything above the highest stated ceiling.
+# The Loan Form Fee and Loan Maintenance Fee were retired in the same change
+# and always compute to zero now (see LoanProduct.calculate_fees below).
+ADMIN_FEE_BRACKETS = [
+    (Decimal('300000.00'),  Decimal('2500.00')),
+    (Decimal('700000.00'),  Decimal('5000.00')),
+    (Decimal('1000000.00'), Decimal('7500.00')),
+    (Decimal('1500000.00'), Decimal('10000.00')),
+    (Decimal('2000000.00'), Decimal('15000.00')),
+    (None,                  Decimal('20000.00')),  # above 2,000,000
+]
+
+
+def get_tiered_admin_fee(principal_amount):
+    """Look up the admin fee for a given loan principal from ADMIN_FEE_BRACKETS.
+
+    Upper bound of each bracket is inclusive (e.g. exactly 300,000 -> 2,500).
+    """
+    principal = Decimal(str(principal_amount))
+    for upper_bound, fee in ADMIN_FEE_BRACKETS:
+        if upper_bound is None or principal <= upper_bound:
+            return fee
+    return ADMIN_FEE_BRACKETS[-1][1]
+
+
+# =============================================================================
 # CENTRALIZED LOAN TYPE CHOICES
 # =============================================================================
 
@@ -2267,21 +2298,18 @@ class LoanProduct(BaseModel, StatusTrackingMixin):
         else:
             fees['tech_fee'] = Decimal('0.00')
         
-        # Loan Form Fee
-        if self.loan_form_fee_enabled:
-            fees['loan_form_fee'] = self.loan_form_fee_amount
-        else:
-            fees['loan_form_fee'] = Decimal('0.00')
+        # Loan Form Fee — retired by management decision (2026-09). Always zero
+        # for new loans regardless of the (now-unused) loan_form_fee_enabled/amount
+        # fields, which are kept only for historical reference on old products.
+        fees['loan_form_fee'] = Decimal('0.00')
 
-        # Loan Maintenance Fee
-        if self.loan_maintenance_fee_enabled:
-            fees['loan_maintenance_fee'] = self.loan_maintenance_fee_amount
-        else:
-            fees['loan_maintenance_fee'] = Decimal('0.00')
+        # Loan Maintenance Fee — retired by the same decision. Always zero.
+        fees['loan_maintenance_fee'] = Decimal('0.00')
 
-        # Admin Fee
+        # Admin Fee — no longer a fixed product amount. When enabled, it is
+        # looked up from ADMIN_FEE_BRACKETS based on the loan principal.
         if self.admin_fee_enabled:
-            fees['admin_fee'] = self.admin_fee_amount
+            fees['admin_fee'] = get_tiered_admin_fee(principal)
         else:
             fees['admin_fee'] = Decimal('0.00')
 
@@ -2384,14 +2412,8 @@ class LoanProduct(BaseModel, StatusTrackingMixin):
             else:
                 fees_text.append(f"Tech Fee: ₦{self.tech_fee_rate:,.2f}")
         
-        if self.loan_form_fee_enabled:
-            fees_text.append(f"Form Fee: ₦{self.loan_form_fee_amount:,.2f}")
-
-        if self.loan_maintenance_fee_enabled:
-            fees_text.append(f"Maintenance Fee: ₦{self.loan_maintenance_fee_amount:,.2f}")
-
         if self.admin_fee_enabled:
-            fees_text.append(f"Admin Fee: ₦{self.admin_fee_amount:,.2f}")
+            fees_text.append("Admin Fee: ₦2,500–₦20,000 (tiered by loan amount)")
 
         return ", ".join(fees_text) if fees_text else "No fees"
 

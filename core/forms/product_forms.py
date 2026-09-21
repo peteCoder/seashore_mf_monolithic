@@ -22,8 +22,7 @@ _DECIMAL_PCT_FIELDS = [
 
 # Amount fields where users may type comma thousand-separators (e.g. 1,000,000).
 _AMOUNT_FIELDS = [
-    'min_principal_amount', 'max_principal_amount', 'loan_form_fee_amount',
-    'loan_maintenance_fee_amount', 'admin_fee_amount',
+    'min_principal_amount', 'max_principal_amount',
 ]
 
 
@@ -49,15 +48,13 @@ class LoanProductForm(forms.ModelForm):
             'risk_premium_enabled', 'risk_premium_rate', 'risk_premium_calculation',
             'rp_income_enabled', 'rp_income_rate', 'rp_income_calculation',
             'tech_fee_enabled', 'tech_fee_rate', 'tech_fee_calculation',
-            'loan_form_fee_enabled', 'loan_form_fee_amount',
             'min_principal_amount', 'max_principal_amount',
             'min_duration_months', 'max_duration_months',
             'allow_early_repayment', 'early_repayment_penalty_rate', 'grace_period_days',
             'repayment_frequency',
             'required_guarantors',
             'min_client_age', 'max_client_age',
-            'loan_maintenance_fee_enabled', 'loan_maintenance_fee_amount',
-            'admin_fee_enabled', 'admin_fee_amount',
+            'admin_fee_enabled',
         ]
 
         widgets = {
@@ -108,11 +105,6 @@ class LoanProductForm(forms.ModelForm):
                 'placeholder': '1.50',
             }),
             'tech_fee_calculation': forms.Select(attrs={'class': SELECT_CLASS}),
-            'loan_form_fee_enabled': forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
-            'loan_form_fee_amount': forms.NumberInput(attrs={
-                'class': TEXT_INPUT_CLASS,
-                'step': '0.01',
-            }),
             'min_principal_amount': forms.NumberInput(attrs={
                 'class': TEXT_INPUT_CLASS,
                 'step': '0.01',
@@ -152,18 +144,7 @@ class LoanProductForm(forms.ModelForm):
                 'min': '18',
                 'step': '1',
             }),
-            'loan_maintenance_fee_enabled': forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
-            'loan_maintenance_fee_amount': forms.NumberInput(attrs={
-                'class': TEXT_INPUT_CLASS,
-                'step': '0.01',
-                'placeholder': '200.00',
-            }),
             'admin_fee_enabled': forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
-            'admin_fee_amount': forms.NumberInput(attrs={
-                'class': TEXT_INPUT_CLASS,
-                'step': '0.01',
-                'placeholder': '2500.00',
-            }),
         }
 
     # Override gl_code as a ChoiceField so users pick from the Chart of Accounts

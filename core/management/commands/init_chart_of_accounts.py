@@ -1332,6 +1332,15 @@ class Command(BaseCommand):
                 'is_control_account': False,
                 'allows_manual_entries': True,
             },
+            {
+                'gl_code': '5235',
+                'account_name': 'Health insurance/NHIS',
+                'account_type': expense_type,
+                'account_category': staff_costs_cat,
+                'description': 'Employer contributions and payments toward staff health insurance / National Health Insurance Scheme (NHIS)',
+                'is_control_account': False,
+                'allows_manual_entries': True,
+            },
 
             # ====================================================================
             # MAINTENANCE — Additional (53xx)

@@ -15,7 +15,7 @@ from django.db.models import Q, Sum, F, Case, When, DecimalField, Count
 from django.utils import timezone
 from decimal import Decimal
 
-from core.models import Loan, LoanRepaymentPosting, Transaction, Client, Branch, LoanProduct, Guarantor, Collateral, FollowUpTask, PaymentPromise, LoanInsuranceClaim, GroupCollectionSession
+from core.models import Loan, LoanRepaymentPosting, Transaction, Client, Branch, LoanProduct, Guarantor, Collateral, FollowUpTask, PaymentPromise, LoanInsuranceClaim, GroupCollectionSession, ADMIN_FEE_BRACKETS
 from core.utils.accounting_helpers import create_journal_entry
 from core.forms.loan_forms import (
     LoanApplicationForm, LoanFeePaymentForm, LoanApprovalForm,
@@ -449,20 +449,6 @@ def loan_pay_fees(request, loan_id):
                 'name': 'Tech Fee',
                 'rate': rate_display,
                 'amount': fees.get('tech_fee', Decimal('0.00'))
-            })
-
-        if loan.loan_product.loan_form_fee_enabled:
-            fee_breakdown.append({
-                'name': 'Loan Form Fee',
-                'rate': 'Fixed',
-                'amount': fees.get('loan_form_fee', Decimal('0.00'))
-            })
-
-        if loan.loan_product.loan_maintenance_fee_enabled:
-            fee_breakdown.append({
-                'name': 'Loan Maintenance Fee',
-                'rate': 'Fixed',
-                'amount': fees.get('loan_maintenance_fee', Decimal('0.00'))
             })
 
         if loan.loan_product.admin_fee_enabled:
@@ -1315,17 +1301,14 @@ def loan_product_api(request, product_id):
                 'rate_percent': float(product.tech_fee_rate * 100) if product.tech_fee_enabled else 0,
                 'calculation': product.tech_fee_calculation if product.tech_fee_enabled else 'none',
             },
-            'loan_form_fee': {
-                'enabled': product.loan_form_fee_enabled,
-                'amount': float(product.loan_form_fee_amount) if product.loan_form_fee_enabled else 0,
-            },
-            'loan_maintenance_fee': {
-                'enabled': product.loan_maintenance_fee_enabled,
-                'amount': float(product.loan_maintenance_fee_amount) if product.loan_maintenance_fee_enabled else 0,
-            },
             'admin_fee': {
                 'enabled': product.admin_fee_enabled,
-                'amount': float(product.admin_fee_amount) if product.admin_fee_enabled else 0,
+                # Tiered by loan amount — the calculator looks up the right
+                # bracket client-side as the user changes the loan amount.
+                'brackets': [
+                    {'upper_bound': float(upper) if upper is not None else None, 'fee': float(fee)}
+                    for upper, fee in ADMIN_FEE_BRACKETS
+                ],
             },
         },
 

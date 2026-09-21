@@ -557,34 +557,18 @@ document.addEventListener('DOMContentLoaded', function() {
             totalFees += techFee;
         }
 
-        // Loan Form Fee
-        if (fees.loan_form_fee.enabled) {
-            feeItems.push({
-                name: 'Loan Form Fee',
-                percentage: 'Fixed',
-                amount: fees.loan_form_fee.amount
-            });
-            totalFees += fees.loan_form_fee.amount;
-        }
-
-        // Loan Maintenance Fee
-        if (fees.loan_maintenance_fee && fees.loan_maintenance_fee.enabled) {
-            feeItems.push({
-                name: 'Loan Maintenance Fee',
-                percentage: 'Flat',
-                amount: fees.loan_maintenance_fee.amount
-            });
-            totalFees += fees.loan_maintenance_fee.amount;
-        }
-
-        // Admin Fee
+        // Admin Fee — tiered by loan amount (upper bound of each bracket is inclusive)
         if (fees.admin_fee && fees.admin_fee.enabled) {
+            const bracket = fees.admin_fee.brackets.find(
+                b => b.upper_bound === null || principal <= b.upper_bound
+            );
+            const adminFeeAmount = bracket ? bracket.fee : 0;
             feeItems.push({
                 name: 'Admin Fee',
-                percentage: 'Flat',
-                amount: fees.admin_fee.amount
+                percentage: 'Tiered',
+                amount: adminFeeAmount
             });
-            totalFees += fees.admin_fee.amount;
+            totalFees += adminFeeAmount;
         }
 
         // Update calculator display
