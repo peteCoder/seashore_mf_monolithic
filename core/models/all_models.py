@@ -1856,37 +1856,6 @@ LOAN_FORM_FEE = Decimal('200.00')
 
 
 # =============================================================================
-# ADMIN FEE SCHEDULE (management decision, effective 2026-09)
-# =============================================================================
-# Admin fee is no longer a fixed amount configured per loan product — it is
-# looked up from the loan's principal amount against this bracket table.
-# Each tuple is (upper_bound_inclusive, fee); the last bracket (None) catches
-# everything above the highest stated ceiling.
-# The Loan Form Fee and Loan Maintenance Fee were retired in the same change
-# and always compute to zero now (see LoanProduct.calculate_fees below).
-ADMIN_FEE_BRACKETS = [
-    (Decimal('300000.00'),  Decimal('2500.00')),
-    (Decimal('700000.00'),  Decimal('5000.00')),
-    (Decimal('1000000.00'), Decimal('7500.00')),
-    (Decimal('1500000.00'), Decimal('10000.00')),
-    (Decimal('2000000.00'), Decimal('15000.00')),
-    (None,                  Decimal('20000.00')),  # above 2,000,000
-]
-
-
-def get_tiered_admin_fee(principal_amount):
-    """Look up the admin fee for a given loan principal from ADMIN_FEE_BRACKETS.
-
-    Upper bound of each bracket is inclusive (e.g. exactly 300,000 -> 2,500).
-    """
-    principal = Decimal(str(principal_amount))
-    for upper_bound, fee in ADMIN_FEE_BRACKETS:
-        if upper_bound is None or principal <= upper_bound:
-            return fee
-    return ADMIN_FEE_BRACKETS[-1][1]
-
-
-# =============================================================================
 # CENTRALIZED LOAN TYPE CHOICES
 # =============================================================================
 
@@ -2059,9 +2028,17 @@ class LoanProduct(BaseModel, StatusTrackingMixin):
         validators=[MinValueValidator(Decimal('0.00'))]
     )
 
-    # Admin Fee (flat amount only). Disabled by default — turned on when the
-    # ₦2,500 admin fee policy takes effect (expected 2026-08-01).
+    # Admin Fee — editable percentage of the loan principal (default 2.7%),
+    # same pattern as the risk premium / tech fee rates. admin_fee_amount is
+    # the retired flat-amount field, kept only for historical reference and
+    # no longer read anywhere.
     admin_fee_enabled = models.BooleanField(default=False)
+    admin_fee_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=4,
+        default=Decimal('0.0270'),
+        validators=[MinValueValidator(Decimal('0.0000'))]
+    )
     admin_fee_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -2252,6 +2229,11 @@ class LoanProduct(BaseModel, StatusTrackingMixin):
         """Return monthly interest rate as a percentage value (e.g. 0.035 → 3.50)."""
         return self.monthly_interest_rate * Decimal('100')
 
+    @property
+    def admin_fee_rate_pct(self):
+        """Admin fee rate as a percentage value (e.g. 0.027 -> 2.70)."""
+        return (self.admin_fee_rate * Decimal('100')).quantize(Decimal('0.01'))
+
     # =========================================================================
     # HELPER METHODS
     # =========================================================================
@@ -2306,10 +2288,11 @@ class LoanProduct(BaseModel, StatusTrackingMixin):
         # Loan Maintenance Fee — retired by the same decision. Always zero.
         fees['loan_maintenance_fee'] = Decimal('0.00')
 
-        # Admin Fee — no longer a fixed product amount. When enabled, it is
-        # looked up from ADMIN_FEE_BRACKETS based on the loan principal.
+        # Admin Fee — editable percentage of the principal (admin_fee_rate).
         if self.admin_fee_enabled:
-            fees['admin_fee'] = get_tiered_admin_fee(principal)
+            fees['admin_fee'] = MoneyCalculator.calculate_percentage(
+                principal, self.admin_fee_rate
+            )
         else:
             fees['admin_fee'] = Decimal('0.00')
 
@@ -2413,7 +2396,7 @@ class LoanProduct(BaseModel, StatusTrackingMixin):
                 fees_text.append(f"Tech Fee: ₦{self.tech_fee_rate:,.2f}")
         
         if self.admin_fee_enabled:
-            fees_text.append("Admin Fee: ₦2,500–₦20,000 (tiered by loan amount)")
+            fees_text.append(f"Admin Fee: {float(self.admin_fee_rate)*100:.2f}%")
 
         return ", ".join(fees_text) if fees_text else "No fees"
 

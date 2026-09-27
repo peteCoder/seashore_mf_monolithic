@@ -15,7 +15,7 @@ from django.db.models import Q, Sum, F, Case, When, DecimalField, Count
 from django.utils import timezone
 from decimal import Decimal
 
-from core.models import Loan, LoanRepaymentPosting, Transaction, Client, Branch, LoanProduct, Guarantor, Collateral, FollowUpTask, PaymentPromise, LoanInsuranceClaim, GroupCollectionSession, ADMIN_FEE_BRACKETS
+from core.models import Loan, LoanRepaymentPosting, Transaction, Client, Branch, LoanProduct, Guarantor, Collateral, FollowUpTask, PaymentPromise, LoanInsuranceClaim, GroupCollectionSession
 from core.utils.accounting_helpers import create_journal_entry
 from core.forms.loan_forms import (
     LoanApplicationForm, LoanFeePaymentForm, LoanApprovalForm,
@@ -454,7 +454,7 @@ def loan_pay_fees(request, loan_id):
         if loan.loan_product.admin_fee_enabled:
             fee_breakdown.append({
                 'name': 'Admin Fee',
-                'rate': 'Fixed',
+                'rate': f"{float(loan.loan_product.admin_fee_rate) * 100:.2f}%",
                 'amount': fees.get('admin_fee', Decimal('0.00'))
             })
 
@@ -1303,12 +1303,8 @@ def loan_product_api(request, product_id):
             },
             'admin_fee': {
                 'enabled': product.admin_fee_enabled,
-                # Tiered by loan amount — the calculator looks up the right
-                # bracket client-side as the user changes the loan amount.
-                'brackets': [
-                    {'upper_bound': float(upper) if upper is not None else None, 'fee': float(fee)}
-                    for upper, fee in ADMIN_FEE_BRACKETS
-                ],
+                'rate': float(product.admin_fee_rate) if product.admin_fee_enabled else 0,
+                'rate_percent': float(product.admin_fee_rate * 100) if product.admin_fee_enabled else 0,
             },
         },
 

@@ -1,0 +1,147 @@
+{% extends 'layouts/base.html' %}
+{% load humanize %}
+{% block title %}Officer Snapshot — Seashore Microfinance{% endblock %}
+{% block content %}
+<div class="p-6">
+
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Officer Snapshot</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Current position as of {{ today|date:"M d, Y" }} — each loan officer / CO portfolio at a glance
+        </p>
+    </div>
+
+    <!-- Filters -->
+    <div class="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow p-5">
+        <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+            {% if checker.can_view_all_branches %}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch</label>
+                <select name="branch" class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500">
+                    <option value="">All Branches</option>
+                    {% for branch in branches %}
+                    <option value="{{ branch.id }}" {% if selected_branch == branch.id|stringformat:"s" %}selected{% endif %}>{{ branch.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Officer</label>
+                {% if staff_options is not None %}
+                <select name="staff" class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm shadow-sm focus:border-amber-500 focus:ring-amber-500">
+                    <option value="">All Officers</option>
+                    {% for s in staff_options %}
+                    <option value="{{ s.id }}" {% if selected_staff.id == s.id %}selected{% endif %}>{{ s.get_full_name }}</option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <input type="text" value="{{ selected_staff.get_full_name }} (you)" disabled
+                       class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-100 dark:bg-gray-900 text-gray-500 dark:text-gray-400 text-sm">
+                {% endif %}
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-sm font-medium flex items-center justify-center gap-2">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+                <a href="?{% if selected_branch %}branch={{ selected_branch }}&{% endif %}{% if selected_staff and staff_options is not None %}staff={{ selected_staff.id }}&{% endif %}export=excel"
+                   class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-medium whitespace-nowrap">
+                    <i class="fas fa-file-excel"></i> Export
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Totals for the current selection -->
+    <div class="mb-6 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Loan Portfolio</p>
+            <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">₦{{ totals.loan_portfolio|floatformat:2|intcomma }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Savers</p>
+            <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">{{ totals.savers|intcomma }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Clients</p>
+            <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">{{ totals.clients|intcomma }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Loans</p>
+            <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">{{ totals.loans|intcomma }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Overdue</p>
+            <p class="mt-1 text-xl font-bold {% if totals.overdue_amount > 0 %}text-red-600 dark:text-red-400{% else %}text-gray-900 dark:text-white{% endif %}">₦{{ totals.overdue_amount|floatformat:2|intcomma }}</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">{{ totals.overdue_loans }} loan{{ totals.overdue_loans|pluralize }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Savings Portfolio</p>
+            <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">₦{{ totals.savings_portfolio|floatformat:2|intcomma }}</p>
+        </div>
+    </div>
+
+    {% if rows %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Loan Officer</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Branch</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Loan Portfolio (₦)</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Savers</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Clients</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Loans</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Overdue Loans</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Overdue (₦)</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap">Savings Portfolio (₦)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for row in rows %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                            {{ row.officer.get_full_name }}
+                            {% if row.officer.user_role != 'staff' %}<span class="ml-1 text-xs text-gray-400">({{ row.officer.get_user_role_display }})</span>{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{{ row.officer.branch.name|default:"—" }}</td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-900 dark:text-white whitespace-nowrap">₦{{ row.loan_portfolio|floatformat:2|intcomma }}</td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">{{ row.savers|intcomma }}</td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">{{ row.clients|intcomma }}</td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">{{ row.loans|intcomma }}</td>
+                        <td class="px-4 py-3 text-sm text-right">
+                            {% if row.overdue_loans > 0 %}<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">{{ row.overdue_loans }}</span>
+                            {% else %}<span class="text-gray-400 dark:text-gray-500">0</span>{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-right whitespace-nowrap {% if row.overdue_amount > 0 %}text-red-600 dark:text-red-400 font-medium{% else %}text-gray-900 dark:text-white{% endif %}">₦{{ row.overdue_amount|floatformat:2|intcomma }}</td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-900 dark:text-white whitespace-nowrap">₦{{ row.savings_portfolio|floatformat:2|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-gray-100 dark:bg-gray-700 border-t-2 border-gray-300 dark:border-gray-500">
+                    <tr class="font-semibold">
+                        <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300" colspan="2">Totals</td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-900 dark:text-white whitespace-nowrap">₦{{ totals.loan_portfolio|floatformat:2|intcomma }}</td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">{{ totals.savers|intcomma }}</td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">{{ totals.clients|intcomma }}</td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">{{ totals.loans|intcomma }}</td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-900 dark:text-white">{{ totals.overdue_loans }}</td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-900 dark:text-white whitespace-nowrap">₦{{ totals.overdue_amount|floatformat:2|intcomma }}</td>
+                        <td class="px-4 py-3 text-sm text-right text-gray-900 dark:text-white whitespace-nowrap">₦{{ totals.savings_portfolio|floatformat:2|intcomma }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+        Loan Portfolio = outstanding balance on running loans. Savers = clients with an active savings account. Clients = approved, active clients assigned to the officer. Loans = running loans. Overdue = unpaid installments past their due date.
+    </p>
+    {% else %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+        <i class="fas fa-user-tie text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
+        <p class="text-gray-500 dark:text-gray-400">No officers found for the selected filters.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

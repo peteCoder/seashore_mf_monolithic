@@ -1249,3 +1249,46 @@ def export_overdue_by_staff_excel(context):
     response = create_excel_response(f'overdue_report_{context["date_from"]}_{context["date_to"]}.xlsx')
     response.write(output.read())
     return response
+
+
+def export_officer_snapshot_excel(context):
+    """Export the Officer Snapshot (at-a-glance per-officer summary) to Excel."""
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='openpyxl')
+
+    rows = []
+    for r in context['rows']:
+        rows.append({
+            'Officer': r['officer'].get_full_name(),
+            'Role': r['officer'].get_user_role_display(),
+            'Branch': r['officer'].branch.name if r['officer'].branch else '',
+            'Loan Portfolio (₦)': float(r['loan_portfolio']),
+            'Savers': r['savers'],
+            'Clients': r['clients'],
+            'Loans': r['loans'],
+            'Overdue Loans': r['overdue_loans'],
+            'Overdue (₦)': float(r['overdue_amount']),
+            'Savings Portfolio (₦)': float(r['savings_portfolio']),
+        })
+    t = context['totals']
+    rows.append({
+        'Officer': 'TOTAL', 'Role': '', 'Branch': '',
+        'Loan Portfolio (₦)': float(t['loan_portfolio']),
+        'Savers': t['savers'], 'Clients': t['clients'], 'Loans': t['loans'],
+        'Overdue Loans': t['overdue_loans'], 'Overdue (₦)': float(t['overdue_amount']),
+        'Savings Portfolio (₦)': float(t['savings_portfolio']),
+    })
+
+    df = pd.DataFrame(rows)
+    df.to_excel(writer, sheet_name='Officer Snapshot', index=False)
+    _style_sheet(writer.sheets['Officer Snapshot'], 10,
+                 title='OFFICER SNAPSHOT',
+                 subtitle=f'As of {context["today"]}',
+                 currency_cols=[4, 9, 10],
+                 col_widths={'A':28,'B':12,'C':22,'D':20,'E':10,'F':10,'G':10,'H':14,'I':18,'J':22})
+
+    writer.close()
+    output.seek(0)
+    response = create_excel_response(f'officer_snapshot_{context["today"]}.xlsx')
+    response.write(output.read())
+    return response

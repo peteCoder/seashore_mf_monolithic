@@ -2758,3 +2758,121 @@ def report_overdue_by_staff(request):
         return export_overdue_by_staff_excel(context)
 
     return render(request, 'accounting/report_overdue_by_staff.html', context)
+
+
+# ---------------------------------------------------------------------------
+# F. Officer Snapshot (at-a-glance, current position)
+# ---------------------------------------------------------------------------
+
+@login_required
+def report_officer_snapshot(request):
+    """
+    Officer Snapshot — one row per loan officer / CO with the six headline
+    figures as of today: loan portfolio (outstanding), savers, clients, loans,
+    overdue, savings portfolio. No date range — this is a current position.
+
+    Attribution follows client__assigned_staff like the other Staff Reports,
+    and the officer list includes managers/HR who have clients assigned
+    directly to them (see _extra_officer_ids). Staff only ever see themselves.
+
+    Overdue is installment-based (like report_overdue_by_staff), not the
+    Loan.status field, which never becomes 'overdue' in this data.
+    """
+    from django.db.models import Count
+    from core.models import Client, SavingsAccount, LoanRepaymentSchedule
+
+    checker = PermissionChecker(request.user)
+    if not checker.can_view_staff_reports():
+        messages.error(request, 'You do not have permission to view this report.')
+        raise PermissionDenied
+
+    today = timezone.now().date()
+    branch_id = _resolve_branch_id(request, checker)
+    extra_ids = _extra_officer_ids(Client, 'assigned_staff', branch_id)
+    staff_options, selected_staff, staff_list = _resolve_staff_scope(request, checker, branch_id, extra_ids)
+    officer_ids = [o.id for o in staff_list]
+
+    # .order_by() on each grouped query: models' default Meta.ordering would
+    # otherwise leak into the GROUP BY and split the groups.
+    loan_by_officer = {
+        r['client__assigned_staff_id']: r
+        for r in Loan.objects.filter(
+            client__assigned_staff_id__in=officer_ids,
+            status__in=['active', 'disbursed', 'overdue'],
+        ).order_by().values('client__assigned_staff_id').annotate(
+            n=Count('id'), portfolio=Sum('outstanding_balance'),
+        )
+    }
+    clients_by_officer = {
+        r['assigned_staff_id']: r['n']
+        for r in Client.objects.filter(
+            assigned_staff_id__in=officer_ids, approval_status='approved', is_active=True,
+        ).order_by().values('assigned_staff_id').annotate(n=Count('id'))
+    }
+    savings_by_officer = {
+        r['client__assigned_staff_id']: r
+        for r in SavingsAccount.objects.filter(
+            client__assigned_staff_id__in=officer_ids, status='active',
+        ).order_by().values('client__assigned_staff_id').annotate(
+            savers=Count('client_id', distinct=True), balance=Sum('balance'),
+        )
+    }
+    overdue_by_officer = {
+        r['loan__client__assigned_staff_id']: r
+        for r in LoanRepaymentSchedule.objects.filter(
+            loan__client__assigned_staff_id__in=officer_ids,
+            outstanding_amount__gt=0,
+            due_date__lt=today,
+            loan__status__in=['active', 'overdue', 'disbursed'],
+            loan__outstanding_balance__gt=0,
+        ).exclude(status__in=['paid', 'waived']).order_by().values(
+            'loan__client__assigned_staff_id'
+        ).annotate(loans=Count('loan_id', distinct=True), amount=Sum('outstanding_amount'))
+    }
+
+    zero = Decimal('0.00')
+    rows = []
+    for officer in staff_list:
+        loan = loan_by_officer.get(officer.id, {})
+        sav = savings_by_officer.get(officer.id, {})
+        od = overdue_by_officer.get(officer.id, {})
+        rows.append({
+            'officer':           officer,
+            'loan_portfolio':    loan.get('portfolio') or zero,
+            'savers':            sav.get('savers', 0),
+            'clients':           clients_by_officer.get(officer.id, 0),
+            'loans':             loan.get('n', 0),
+            'overdue_loans':     od.get('loans', 0),
+            'overdue_amount':    od.get('amount') or zero,
+            'savings_portfolio': sav.get('balance') or zero,
+        })
+
+    totals = {
+        'loan_portfolio':    sum((r['loan_portfolio'] for r in rows), zero),
+        'savers':            sum(r['savers'] for r in rows),
+        'clients':           sum(r['clients'] for r in rows),
+        'loans':             sum(r['loans'] for r in rows),
+        'overdue_loans':     sum(r['overdue_loans'] for r in rows),
+        'overdue_amount':    sum((r['overdue_amount'] for r in rows), zero),
+        'savings_portfolio': sum((r['savings_portfolio'] for r in rows), zero),
+    }
+
+    branches = Branch.objects.filter(is_active=True).order_by('name') if checker.can_view_all_branches() else Branch.objects.none()
+
+    context = {
+        'page_title':      'Officer Snapshot',
+        'rows':            rows,
+        'totals':          totals,
+        'branches':        branches,
+        'selected_branch': branch_id,
+        'staff_options':   staff_options,
+        'selected_staff':  selected_staff,
+        'checker':         checker,
+        'today':           today,
+    }
+
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_officer_snapshot_excel
+        return export_officer_snapshot_excel(context)
+
+    return render(request, 'accounting/report_officer_snapshot.html', context)

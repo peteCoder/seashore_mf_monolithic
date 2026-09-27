@@ -180,6 +180,7 @@ from core.views.accounting_views import (
     report_registration,
     report_unions,
     report_overdue_by_staff,
+    report_officer_snapshot,
 )
 
 from core.views.tracker_views import loan_repayment_tracker, group_repayment_tracker
@@ -636,6 +637,7 @@ urlpatterns = [
     path('accounting/reports/registration/', report_registration, name='report_registration'),
     path('accounting/reports/unions/', report_unions, name='report_unions'),
     path('accounting/reports/overdue-by-staff/', report_overdue_by_staff, name='report_overdue_by_staff'),
+    path('accounting/reports/officer-snapshot/', report_officer_snapshot, name='report_officer_snapshot'),
     path('accounting/audit-log/', audit_log, name='audit_log'),
 
     # =========================================================================

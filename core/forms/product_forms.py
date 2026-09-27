@@ -17,6 +17,7 @@ _DECIMAL_PCT_FIELDS = [
     'risk_premium_rate',
     'rp_income_rate',
     'tech_fee_rate',
+    'admin_fee_rate',
     'early_repayment_penalty_rate',
 ]
 
@@ -54,7 +55,7 @@ class LoanProductForm(forms.ModelForm):
             'repayment_frequency',
             'required_guarantors',
             'min_client_age', 'max_client_age',
-            'admin_fee_enabled',
+            'admin_fee_enabled', 'admin_fee_rate',
         ]
 
         widgets = {
@@ -145,6 +146,11 @@ class LoanProductForm(forms.ModelForm):
                 'step': '1',
             }),
             'admin_fee_enabled': forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
+            'admin_fee_rate': forms.NumberInput(attrs={
+                'class': TEXT_INPUT_CLASS,
+                'step': '0.01',
+                'placeholder': '2.70',
+            }),
         }
 
     # Override gl_code as a ChoiceField so users pick from the Chart of Accounts
@@ -225,6 +231,9 @@ class LoanProductForm(forms.ModelForm):
 
     def clean_tech_fee_rate(self):
         return self._pct_to_fraction('tech_fee_rate')
+
+    def clean_admin_fee_rate(self):
+        return self._pct_to_fraction('admin_fee_rate')
 
     def clean_early_repayment_penalty_rate(self):
         return self._pct_to_fraction('early_repayment_penalty_rate')

@@ -186,7 +186,7 @@
                             <p class="font-medium text-gray-900 dark:text-white">Admin Fee</p>
                             <p class="text-sm text-gray-600 dark:text-gray-400">
                                 {% if product.admin_fee_enabled %}
-                                Tiered by loan amount (&#8358;2,500&ndash;&#8358;20,000)
+                                {{ product.admin_fee_rate_pct }}% of loan amount
                                 {% else %}
                                 Disabled
                                 {% endif %}

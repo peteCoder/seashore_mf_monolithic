@@ -595,6 +595,9 @@
                             <a href="{% url 'core:report_overdue_by_staff' %}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50">
                                 <i class="fas fa-exclamation-triangle w-5 mr-3 text-base"></i>Overdue
                             </a>
+                            <a href="{% url 'core:report_officer_snapshot' %}" class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                                <i class="fas fa-user-tie w-5 mr-3 text-base"></i>Officer Snapshot
+                            </a>
                         </div>
                     </div>
                     {% endif %}
@@ -1089,6 +1092,9 @@
             </a>
             <a href="{% url 'core:report_overdue_by_staff' %}" @click="mobileMenuOpen = false" class="flex items-center px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                 <i class="fas fa-exclamation-triangle w-5 mr-2"></i>Overdue
+            </a>
+            <a href="{% url 'core:report_officer_snapshot' %}" @click="mobileMenuOpen = false" class="flex items-center px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+                <i class="fas fa-user-tie w-5 mr-2"></i>Officer Snapshot
             </a>
         </div>
     </div>

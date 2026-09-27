@@ -557,15 +557,12 @@ document.addEventListener('DOMContentLoaded', function() {
             totalFees += techFee;
         }
 
-        // Admin Fee — tiered by loan amount (upper bound of each bracket is inclusive)
+        // Admin Fee — percentage of the loan amount
         if (fees.admin_fee && fees.admin_fee.enabled) {
-            const bracket = fees.admin_fee.brackets.find(
-                b => b.upper_bound === null || principal <= b.upper_bound
-            );
-            const adminFeeAmount = bracket ? bracket.fee : 0;
+            const adminFeeAmount = principal * fees.admin_fee.rate;
             feeItems.push({
                 name: 'Admin Fee',
-                percentage: 'Tiered',
+                percentage: `${fees.admin_fee.rate_percent.toFixed(2)}%`,
                 amount: adminFeeAmount
             });
             totalFees += adminFeeAmount;
