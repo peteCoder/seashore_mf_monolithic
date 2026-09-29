@@ -280,7 +280,7 @@ def dashboard_view(request):
             meeting_day=today_date.strftime('%A').lower(),
             status='active',
         )
-        if checker.is_admin() or checker.is_director():
+        if checker.is_admin() or checker.is_director() or checker.is_auditor():
             pass  # all branches
         elif checker.is_hr() or checker.is_manager():
             groups_meeting_today = groups_meeting_today.filter(branch=checker.branch)

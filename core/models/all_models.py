@@ -296,6 +296,7 @@ class User(AbstractUser, StatusTrackingMixin):
         ('director', 'Director'),
         ('hr', 'Human Resources Manager'),
         ('admin', 'System Administrator'),
+        ('auditor', 'Auditor (Read-Only)'),
     ]
     
     DEPARTMENT_CHOICES = [

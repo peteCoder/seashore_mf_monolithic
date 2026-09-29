@@ -135,6 +135,7 @@ MIDDLEWARE = [
     'auditlog.middleware.AuditlogMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'core.middleware.IPSessionLockMiddleware',      # must be after MessageMiddleware
+    'core.middleware.ReadOnlyAuditorMiddleware',    # must be after AuthenticationMiddleware
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 

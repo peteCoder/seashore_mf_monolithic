@@ -7,6 +7,14 @@ Roles (lowest → highest):   staff  →  manager  →  director / hr  →  admi
 The 'hr' (Human Resources Manager) role has the same access level as
 'director' across the entire application.
 
+'auditor' is a separate, read-only role: it gets the same VIEW_*/CAN_VIEW_*
+access as admin/director/hr (see Roles.AUDITOR above), but is never granted
+any create/edit/approve/delete/manage permission. The actual guarantee that
+an auditor can never mutate anything is enforced by
+core.middleware.ReadOnlyAuditorMiddleware, which blocks every non-GET/HEAD
+request for that role at the HTTP layer — do not rely on permission-list
+membership alone for that guarantee.
+
 Every view that mutates state should:
     checker = PermissionChecker(request.user)
     if not checker.<method>(...):  raise PermissionDenied
@@ -29,6 +37,18 @@ class Roles:
     HR       = 'hr'
     MANAGER  = 'manager'
     STAFF    = 'staff'
+    # Read-only auditor: gets the same view/list/report access as admin/director/hr
+    # (see the VIEW_* and CAN_VIEW_* lists below), but is deliberately never added
+    # to any CAN_CREATE_*/CAN_EDIT_*/CAN_APPROVE_*/CAN_MANAGE_*/CAN_DELETE_*/
+    # CAN_DISBURSE_*/CAN_PROCESS_*/CAN_RECORD_*/CAN_POST_*/CAN_ASSIGN_* list, nor
+    # to is_admin_or_director() (which several edit/approve checks key off).
+    # The hard guarantee against mutation is enforced independently by
+    # core.middleware.ReadOnlyAuditorMiddleware, which blocks every non-GET/HEAD
+    # request for this role at the HTTP layer — this does NOT rely on every view
+    # having remembered to call a permission check correctly (see e.g.
+    # can_approve_collections() below, which reuses can_view_all_branches() to
+    # also grant an approval action — a real landmine this middleware avoids).
+    AUDITOR  = 'auditor'
 
 
 class Permissions:
@@ -38,7 +58,7 @@ class Permissions:
     """
 
     # ── visibility ───────────────────────────────────────────────────
-    VIEW_ALL_BRANCHES  = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR]
+    VIEW_ALL_BRANCHES  = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.AUDITOR]
     VIEW_OWN_BRANCH    = [Roles.MANAGER]
     VIEW_ASSIGNED_ONLY = [Roles.STAFF]
 
@@ -51,17 +71,22 @@ class Permissions:
     # ── management ───────────────────────────────────────────────────
     CAN_MANAGE_BRANCHES          = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR]
     CAN_MANAGE_USERS             = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR]
-    CAN_MANAGE_PRODUCTS          = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR]
+    # NOTE: loan_product_list/detail and savings_product_list/detail (pure
+    # VIEW pages) are gated by this same list, not a separate "can view
+    # products" check — AUDITOR is included so those pages are viewable; the
+    # actual create/edit/activate/delete actions on those same views remain
+    # POST-only and are blocked for AUDITOR by ReadOnlyAuditorMiddleware.
+    CAN_MANAGE_PRODUCTS          = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.AUDITOR]
     CAN_MANAGE_CHART_OF_ACCOUNTS = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR]
 
     # ── financial ────────────────────────────────────────────────────
     CAN_DISBURSE_LOANS       = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER]
     CAN_PROCESS_TRANSACTIONS = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER, Roles.STAFF]
-    CAN_VIEW_REPORTS         = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER]
+    CAN_VIEW_REPORTS         = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER, Roles.AUDITOR]
     # Staff Reports (loan/savings/disbursement/registration/unions/overdue) —
     # unlike CAN_VIEW_REPORTS, staff CAN access these, but only their own data.
-    CAN_VIEW_STAFF_REPORTS   = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER, Roles.STAFF]
-    CAN_VIEW_FINANCIALS      = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR]
+    CAN_VIEW_STAFF_REPORTS   = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER, Roles.STAFF, Roles.AUDITOR]
+    CAN_VIEW_FINANCIALS      = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.AUDITOR]
 
     # ── creation ─────────────────────────────────────────────────────
     CAN_CREATE_CLIENTS  = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER, Roles.STAFF]
@@ -103,8 +128,30 @@ class PermissionChecker:
     def is_hr(self):                return self.role == Roles.HR
     def is_manager(self):           return self.role == Roles.MANAGER
     def is_staff(self):             return self.role == Roles.STAFF
+    def is_auditor(self):           return self.role == Roles.AUDITOR
     # HR has director-level access everywhere — always include HR alongside DIRECTOR
-    def is_admin_or_director(self): return self.role in (Roles.ADMIN, Roles.DIRECTOR, Roles.HR)
+    #
+    # AUDITOR is included here too. is_admin_or_director() is the single most
+    # common gate in this codebase (70+ call sites across nearly every view
+    # module) and most of those are actually VIEW gates for report/list/detail
+    # pages, not edit gates — e.g. every financial report in accounting_views.py
+    # checks `checker.is_manager() or checker.is_admin_or_director()` directly,
+    # bypassing CAN_VIEW_REPORTS/CAN_VIEW_FINANCIALS entirely. Excluding AUDITOR
+    # from this method (as an earlier version of this comment intended) left
+    # the auditor role unable to view trial balance, P&L, balance sheet, PAR
+    # aging, the audit log, or the loan product list — verified by test.
+    #
+    # Where this method DOES gate a real mutation (can_edit_client,
+    # can_edit_loan, user_create/edit/delete, etc.), every such view follows
+    # this codebase's consistent GET-renders/POST-mutates convention (spot
+    # -checked across loan/client/group/user/collection approval views) — the
+    # actual write only happens inside `if request.method == 'POST':`. Since
+    # ReadOnlyAuditorMiddleware blocks every non-GET/HEAD/OPTIONS request for
+    # this role before any view runs, granting is_admin_or_director()-gated
+    # VIEW access to the auditor cannot enable a real write: the auditor may
+    # see an edit/create/delete form on GET, but submitting it is rejected by
+    # the middleware, full stop.
+    def is_admin_or_director(self): return self.role in (Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.AUDITOR)
 
     # =========================================================================
     # VIEW / READ
@@ -192,7 +239,7 @@ class PermissionChecker:
     def can_view_reports(self):             return self.role in Permissions.CAN_VIEW_REPORTS
     def can_view_staff_reports(self):       return self.role in Permissions.CAN_VIEW_STAFF_REPORTS
     def can_view_financials(self):          return self.role in Permissions.CAN_VIEW_FINANCIALS
-    def can_view_profit_loss(self):         return self.role in (Roles.ADMIN, Roles.DIRECTOR)
+    def can_view_profit_loss(self):         return self.role in (Roles.ADMIN, Roles.DIRECTOR, Roles.AUDITOR)
 
     # =========================================================================
     # CLIENT LIFECYCLE  ← core of this rewrite

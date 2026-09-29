@@ -4,12 +4,14 @@ Core Middleware
 
 Custom Django middleware for Seashore Microfinance:
   - IPSessionLockMiddleware: Terminates sessions when the client IP changes
+  - ReadOnlyAuditorMiddleware: Hard-blocks all mutation for the 'auditor' role
 """
 
 import logging
 
 from django.contrib import messages
 from django.contrib.auth import logout
+from django.http import HttpResponseForbidden
 from django.shortcuts import redirect
 
 logger = logging.getLogger(__name__)
@@ -92,3 +94,51 @@ class IPSessionLockMiddleware:
 
         response = self.get_response(request)
         return response
+
+
+class ReadOnlyAuditorMiddleware:
+    """
+    Hard, code-independent guarantee that a user with user_role == 'auditor'
+    can NEVER create, edit, approve, or delete anything — anywhere in the
+    app, including the REST API.
+
+    Why a middleware and not just permission-list membership: this codebase's
+    permission checks are hand-rolled per action (core/permissions.py), and at
+    least one of them conflates a VIEW flag with a WRITE action —
+    PermissionChecker.can_approve_collections() returns True for anyone with
+    can_view_all_branches(), which the auditor role deliberately has. Relying
+    solely on getting every permission list right, across a codebase this
+    size, under time pressure, is not a safe bet. This middleware blocks the
+    HTTP verb itself, before any view or permission check runs, so a mistake
+    or omission in any single view's permission check can never let an
+    auditor mutate data.
+
+    GET/HEAD/OPTIONS (safe methods — never mutate) are always allowed.
+    Everything else (POST/PUT/PATCH/DELETE) is rejected outright for this
+    role, full stop, including the auditor's own profile/password forms —
+    this is a short-lived, view-only audit account, not a regular staff
+    account.
+    """
+
+    SAFE_METHODS = ('GET', 'HEAD', 'OPTIONS')
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, 'user', None)
+        if (
+            user is not None
+            and user.is_authenticated
+            and getattr(user, 'user_role', None) == 'auditor'
+            and request.method not in self.SAFE_METHODS
+        ):
+            logger.warning(
+                "ReadOnlyAuditorMiddleware: blocked %s %s for auditor user %s",
+                request.method, request.path, user.email,
+            )
+            return HttpResponseForbidden(
+                "This is a read-only auditor account. Viewing is allowed; "
+                "creating, editing, approving, or deleting anything is not."
+            )
+        return self.get_response(request)
