@@ -104,6 +104,9 @@
         </div>
     </div>
 
+    <!-- Affected Clients (human-readable — not just IDs) -->
+    {% include 'assignments/_affected_clients_table.html' %}
+
     <!-- Review Form -->
     <form method="post" novalidate>
         {% csrf_token %}

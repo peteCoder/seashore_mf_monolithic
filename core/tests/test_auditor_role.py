@@ -184,3 +184,31 @@ class AuditorCannotMutateAnythingTests(TestCase):
     def test_auditor_can_still_log_out(self):
         response = self.client.get(reverse('core:logout'))
         self.assertEqual(response.status_code, 302)
+
+
+class AuditorHiddenButtonsScriptTests(TestCase):
+    """The button-hiding script must ship only to the auditor role, and only
+    on authenticated pages, and must be syntactically valid JS."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.branch = make_branch(code='AUD003')
+        cls.auditor = make_user(cls.branch, role='auditor', email='auditor3@test.com')
+        cls.staff = make_user(cls.branch, role='staff', email='aud3_staff@test.com')
+        cls.client_obj = make_client(cls.branch, cls.staff, email='aud3_client@test.com')
+
+    def test_script_present_for_auditor(self):
+        self.client.force_login(self.auditor)
+        response = self.client.get(reverse('core:dashboard'))
+        self.assertIn(b'Read-Only Auditor: Hide Mutating Buttons', response.content)
+
+    def test_script_absent_for_non_auditor(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('core:dashboard'))
+        self.assertNotIn(b'Read-Only Auditor: Hide Mutating Buttons', response.content)
+
+    def test_script_present_on_a_form_page_auditor_can_now_view(self):
+        self.client.force_login(self.auditor)
+        response = self.client.get(reverse('core:client_update', args=[self.client_obj.id]))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Read-Only Auditor: Hide Mutating Buttons', response.content)

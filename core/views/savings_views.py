@@ -131,21 +131,36 @@ def savings_account_detail(request, account_id):
     if not checker.can_edit_savings_account(account):
         raise PermissionDenied("You don't have permission to view this account")
 
-    # Get recent transactions
-    transactions = Transaction.objects.filter(
+    # Get transactions — paginated, not truncated, so a long-lived account's
+    # full history is still reachable, a page at a time.
+    transactions_qs = Transaction.objects.filter(
         savings_account=account
-    ).select_related('processed_by').order_by('-transaction_date')[:20]
+    ).select_related('processed_by').order_by('-transaction_date')
+    transactions = Paginator(transactions_qs, 20).get_page(request.GET.get('transactions_page'))
 
-    # Get pending postings
-    deposit_postings = account.deposit_postings.filter(status='pending').order_by('-submitted_at')[:10]
-    withdrawal_postings = account.withdrawal_postings.filter(status='pending').order_by('-submitted_at')[:10]
+    # Get pending postings — combined deposit + withdrawal, newest first.
+    # NOTE: this combined list (and the 'pending_postings' context key the
+    # template actually loops over) was previously never built at all, so
+    # the Pending Postings tab silently showed nothing regardless of how
+    # many postings were actually pending — not just a truncation bug.
+    # SavingsDepositPosting.payment_date / SavingsWithdrawalPosting.
+    # withdrawal_date are named differently per model; normalized to
+    # .transaction_date here so the template's single loop can render
+    # either type the same way.
+    deposit_postings = list(account.deposit_postings.filter(status='pending').select_related('submitted_by'))
+    withdrawal_postings = list(account.withdrawal_postings.filter(status='pending').select_related('submitted_by'))
+    for p in deposit_postings:
+        p.transaction_date = p.payment_date
+    for p in withdrawal_postings:
+        p.transaction_date = p.withdrawal_date
+    pending_postings_list = sorted(deposit_postings + withdrawal_postings, key=lambda p: p.submitted_at, reverse=True)
+    pending_postings = Paginator(pending_postings_list, 20).get_page(request.GET.get('postings_page'))
 
     context = {
         'page_title': f'Account {account.account_number}',
         'account': account,
         'transactions': transactions,
-        'deposit_postings': deposit_postings,
-        'withdrawal_postings': withdrawal_postings,
+        'pending_postings': pending_postings,
         'checker': checker,
     }
 

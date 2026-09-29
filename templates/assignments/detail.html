@@ -115,17 +115,21 @@
             </div>
             {% endif %}
 
-            <!-- Assignment Data (technical details) -->
+            <!-- Assignment Data (technical details, kept for troubleshooting —
+                 see the readable client table below for the actual review) -->
             {% if req.assignment_data %}
             <details class="group">
                 <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300 select-none">
-                    <i class="fas fa-code mr-1"></i>Assignment Data <i class="fas fa-chevron-down ml-1 group-open:rotate-180 transition-transform"></i>
+                    <i class="fas fa-code mr-1"></i>Assignment Data (raw) <i class="fas fa-chevron-down ml-1 group-open:rotate-180 transition-transform"></i>
                 </summary>
                 <pre class="mt-2 p-3 bg-gray-50 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-300 overflow-x-auto">{{ req.assignment_data }}</pre>
             </details>
             {% endif %}
         </div>
     </div>
+
+    <!-- Affected Clients (human-readable — not just IDs) -->
+    {% include 'assignments/_affected_clients_table.html' %}
 
     <!-- Execution Result -->
     {% if req.executed_at %}

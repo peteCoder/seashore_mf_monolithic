@@ -147,9 +147,17 @@ def assignment_detail(request, request_id):
     if not (req.requested_by == request.user or checker.is_manager() or checker.is_admin_or_director()):
         raise PermissionDenied
 
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_assignment_affected_clients_excel
+        return export_assignment_affected_clients_excel(req)
+
+    affected_clients_qs = req.get_affected_clients().order_by('first_name', 'last_name')
+    affected_clients = Paginator(affected_clients_qs, 50).get_page(request.GET.get('clients_page'))
+
     return render(request, 'assignments/detail.html', {
         'page_title': f'Assignment Request — {req.get_assignment_type_display()}',
         'req': req,
+        'affected_clients': affected_clients,
         'checker': checker,
     })
 
@@ -178,6 +186,10 @@ def assignment_approve(request, request_id):
     if req.status != 'pending':
         messages.error(request, 'This request is no longer pending.')
         return redirect('core:assignment_list')
+
+    if request.method == 'GET' and request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_assignment_affected_clients_excel
+        return export_assignment_affected_clients_excel(req)
 
     if request.method == 'POST':
         form = AssignmentReviewForm(request.POST)
@@ -248,10 +260,14 @@ def assignment_approve(request, request_id):
     else:
         form = AssignmentReviewForm()
 
+    affected_clients_qs = req.get_affected_clients().order_by('first_name', 'last_name')
+    affected_clients = Paginator(affected_clients_qs, 50).get_page(request.GET.get('clients_page'))
+
     return render(request, 'assignments/approve.html', {
         'page_title': f'Review Assignment — {req.get_assignment_type_display()}',
         'req': req,
         'form': form,
+        'affected_clients': affected_clients,
         'checker': checker,
     })
 

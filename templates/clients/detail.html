@@ -243,7 +243,7 @@
     </div>
 
     <!-- Tabbed Content -->
-    <div x-data="{ activeTab: 'personal' }">
+    <div x-data="{ activeTab: new URLSearchParams(window.location.search).get('tab') || 'personal' }">
         <!-- Tab Navigation -->
         <div class="bg-white dark:bg-gray-800 rounded-t-lg shadow-sm border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
             <nav class="flex space-x-4 sm:space-x-8 px-6 min-w-max">
@@ -865,7 +865,10 @@
             <div x-show="activeTab === 'transactions'" x-transition>
                 {% if recent_transactions %}
                 <div class="flex justify-between items-center mb-3">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Showing last 15 transactions. Export to see all.</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        Page <span class="font-medium">{{ recent_transactions.number }}</span> of <span class="font-medium">{{ recent_transactions.paginator.num_pages }}</span>
+                        &middot; <span class="font-medium">{{ recent_transactions.paginator.count }}</span> transaction{{ recent_transactions.paginator.count|pluralize }}
+                    </p>
                     <a href="?export=excel"
                        class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors">
                         <i class="fas fa-file-excel"></i> Export All to Excel
@@ -917,6 +920,25 @@
                         </tbody>
                     </table>
                 </div>
+                {% if recent_transactions.paginator.num_pages > 1 %}
+                <div class="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+                    <p class="text-sm text-gray-700 dark:text-gray-300">
+                        Page {{ recent_transactions.number }} of {{ recent_transactions.paginator.num_pages }}
+                    </p>
+                    <nav class="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                        {% if recent_transactions.has_previous %}
+                        <a href="{% querystring transactions_page=recent_transactions.previous_page_number tab='transactions' %}" class="relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                        {% endif %}
+                        {% if recent_transactions.has_next %}
+                        <a href="{% querystring transactions_page=recent_transactions.next_page_number tab='transactions' %}" class="relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                        {% endif %}
+                    </nav>
+                </div>
+                {% endif %}
                 {% else %}
                 <div class="text-center py-12">
                     <i class="fas fa-exchange-alt text-4xl text-gray-400 mb-2"></i>

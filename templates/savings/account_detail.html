@@ -4,7 +4,7 @@
 {% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
 
 {% block content %}
-<div x-data="{ activeTab: 'overview' }" class="max-w-7xl mx-auto space-y-6">
+<div x-data="{ activeTab: new URLSearchParams(window.location.search).get('tab') || 'overview' }" class="max-w-7xl mx-auto space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div>
@@ -63,12 +63,12 @@
             <button @click="activeTab = 'transactions'"
                     :class="activeTab === 'transactions' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
                     class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
-                Transaction History ({{ transactions|length }})
+                Transaction History ({{ transactions.paginator.count }})
             </button>
             <button @click="activeTab = 'postings'"
                     :class="activeTab === 'postings' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'"
                     class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
-                Pending Postings ({{ pending_postings|length }})
+                Pending Postings ({{ pending_postings.paginator.count }})
             </button>
         </nav>
     </div>
@@ -235,6 +235,26 @@
                     {% endfor %}
                 </tbody>
             </table>
+            {% if transactions.paginator.num_pages > 1 %}
+            <div class="px-6 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700">
+                <p class="text-sm text-gray-700 dark:text-gray-300">
+                    Page <span class="font-medium">{{ transactions.number }}</span> of <span class="font-medium">{{ transactions.paginator.num_pages }}</span>
+                    &middot; <span class="font-medium">{{ transactions.paginator.count }}</span> transaction{{ transactions.paginator.count|pluralize }}
+                </p>
+                <nav class="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    {% if transactions.has_previous %}
+                    <a href="{% querystring transactions_page=transactions.previous_page_number tab='transactions' %}" class="relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                    {% endif %}
+                    {% if transactions.has_next %}
+                    <a href="{% querystring transactions_page=transactions.next_page_number tab='transactions' %}" class="relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -293,6 +313,26 @@
                     {% endfor %}
                 </tbody>
             </table>
+            {% if pending_postings.paginator.num_pages > 1 %}
+            <div class="px-6 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700">
+                <p class="text-sm text-gray-700 dark:text-gray-300">
+                    Page <span class="font-medium">{{ pending_postings.number }}</span> of <span class="font-medium">{{ pending_postings.paginator.num_pages }}</span>
+                    &middot; <span class="font-medium">{{ pending_postings.paginator.count }}</span> posting{{ pending_postings.paginator.count|pluralize }}
+                </p>
+                <nav class="inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    {% if pending_postings.has_previous %}
+                    <a href="{% querystring postings_page=pending_postings.previous_page_number tab='postings' %}" class="relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                    {% endif %}
+                    {% if pending_postings.has_next %}
+                    <a href="{% querystring postings_page=pending_postings.next_page_number tab='postings' %}" class="relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+            {% endif %}
         </div>
     </div>
 

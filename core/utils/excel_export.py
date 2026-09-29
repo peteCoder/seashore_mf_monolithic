@@ -10,6 +10,7 @@ from django.utils import timezone
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
+from decimal import Decimal
 
 
 def create_excel_response(filename='report.xlsx'):
@@ -1290,5 +1291,202 @@ def export_officer_snapshot_excel(context):
     writer.close()
     output.seek(0)
     response = create_excel_response(f'officer_snapshot_{context["today"]}.xlsx')
+    response.write(output.read())
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Loan List (full register export)
+# ---------------------------------------------------------------------------
+
+def _loan_arrears_by_loan_id(loan_ids):
+    """
+    One query, not N+1: for every loan in loan_ids, sum up its overdue-and-
+    unpaid installments (due_date in the past, not paid/waived, still owing)
+    and bucket the total by how many days overdue the OLDEST such
+    installment is. Mirrors the methodology already used by
+    report_par_aging / the one-off aging report, just with finer buckets.
+
+    Returns {loan_id: {'oldest_due': date, 'principal': Decimal,
+                        'total': Decimal, 'days': int}}
+    """
+    from core.models import LoanRepaymentSchedule
+    from collections import defaultdict
+
+    today = timezone.now().date()
+    rows = LoanRepaymentSchedule.objects.filter(
+        loan_id__in=loan_ids,
+        due_date__lt=today,
+        outstanding_amount__gt=0,
+    ).exclude(status__in=['paid', 'waived']).values(
+        'loan_id', 'due_date', 'principal_amount', 'outstanding_amount'
+    )
+
+    agg = defaultdict(lambda: {'oldest_due': None, 'principal': Decimal('0.00'), 'total': Decimal('0.00')})
+    for r in rows:
+        a = agg[r['loan_id']]
+        a['principal'] += r['principal_amount']
+        a['total'] += r['outstanding_amount']
+        if a['oldest_due'] is None or r['due_date'] < a['oldest_due']:
+            a['oldest_due'] = r['due_date']
+
+    result = {}
+    for loan_id, a in agg.items():
+        days = (today - a['oldest_due']).days if a['oldest_due'] else 0
+        result[loan_id] = {**a, 'days': days}
+    return result
+
+
+def _arrears_bucket(days, amount):
+    """Return (b_1_30, b_31_60, b_61_90, b_91_180, b_181_360) with `amount`
+    placed in whichever single bucket matches `days`, zero elsewhere."""
+    buckets = [Decimal('0.00')] * 5
+    if days <= 0:
+        return tuple(buckets)
+    ranges = [(1, 30), (31, 60), (61, 90), (91, 180), (181, 360)]
+    for i, (lo, hi) in enumerate(ranges):
+        if lo <= days <= hi:
+            buckets[i] = amount
+            break
+    return tuple(buckets)
+
+
+def export_loan_list_excel(loans_qs):
+    """Export the full loan list (respecting whatever filters were applied)
+    to Excel — every vital field, not just what fits in the on-screen table,
+    plus the standard loan aging/arrears schedule columns."""
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='openpyxl')
+
+    loans = list(loans_qs.select_related('client', 'branch', 'loan_product', 'client__assigned_staff', 'created_by'))
+    arrears = _loan_arrears_by_loan_id([l.id for l in loans])
+
+    rows = []
+    for l in loans:
+        a = arrears.get(l.id, {})
+        overdue_principal = a.get('principal', Decimal('0.00'))
+        total_overdue = a.get('total', Decimal('0.00'))
+        days_in_arrears = a.get('days', 0)
+        b1, b2, b3, b4, b5 = _arrears_bucket(days_in_arrears, total_overdue)
+        rows.append({
+            'Loan Number': l.loan_number,
+            'Client ID': l.client.client_id,
+            'Client Name': l.client.get_full_name(),
+            'Customer name': l.client.get_full_name(),
+            'Branch': l.branch.name if l.branch else '',
+            'Loan Officer': l.client.assigned_staff.get_full_name() if l.client.assigned_staff else '',
+            'Product': l.loan_product.name if l.loan_product else '',
+            'Loan product': l.loan_product.name if l.loan_product else '',
+            'Status': l.get_status_display(),
+            'Principal (₦)': float(l.principal_amount),
+            'Amount disbursed (₦)': float(l.amount_disbursed) if l.amount_disbursed else 0,
+            'Monthly Interest Rate (%)': float(l.monthly_interest_rate * 100) if l.monthly_interest_rate else 0,
+            'Duration (months)': l.duration_months,
+            'Total Interest (₦)': float(l.total_interest or 0),
+            'Total Repayment (₦)': float(l.total_repayment or 0),
+            'Repayment amount (₦)': float(l.total_repayment or 0),
+            'Upfront Fees (₦)': float(l.total_upfront_fees or 0),
+            'Admin Fee (₦)': float(l.admin_fee or 0),
+            'Amount Paid (₦)': float(l.amount_paid or 0),
+            'Amount paid already (₦)': float(l.amount_paid or 0),
+            'Outstanding Balance (₦)': float(l.outstanding_balance or 0),
+            'Overdue (P) (₦)': float(overdue_principal),
+            'Total overdue (₦)': float(total_overdue),
+            'Balance Default (what has not been paid) (₦)': float(l.outstanding_balance or 0),
+            '1 to 30 (₦)': float(b1),
+            '31 to 60 (₦)': float(b2),
+            '61 to 90 (₦)': float(b3),
+            '91 to 180 (₦)': float(b4),
+            '181 to 360 (₦)': float(b5),
+            'Days in Arrears': days_in_arrears,
+            'Purpose': l.purpose or '',
+            'Disbursement Method': l.get_disbursement_method_display() if l.disbursement_method else '',
+            'Application Date': l.application_date.strftime('%Y-%m-%d') if l.application_date else '',
+            'Approval Date': l.approval_date.strftime('%Y-%m-%d') if l.approval_date else '',
+            'Disbursement Date': l.disbursement_date.strftime('%Y-%m-%d') if l.disbursement_date else '',
+            'Date of disbursement': l.disbursement_date.strftime('%Y-%m-%d') if l.disbursement_date else '',
+            'Next Repayment Date': l.next_repayment_date.strftime('%Y-%m-%d') if l.next_repayment_date else '',
+            'Final Repayment Date': l.final_repayment_date.strftime('%Y-%m-%d') if l.final_repayment_date else '',
+            'Completion Date': l.completion_date.strftime('%Y-%m-%d') if l.completion_date else '',
+            'Created By': l.created_by.get_full_name() if l.created_by else '',
+        })
+
+    columns = [
+        'Loan Number', 'Client ID', 'Client Name', 'Customer name', 'Branch', 'Loan Officer',
+        'Product', 'Loan product', 'Status', 'Principal (₦)', 'Amount disbursed (₦)',
+        'Monthly Interest Rate (%)', 'Duration (months)', 'Total Interest (₦)',
+        'Total Repayment (₦)', 'Repayment amount (₦)', 'Upfront Fees (₦)', 'Admin Fee (₦)',
+        'Amount Paid (₦)', 'Amount paid already (₦)', 'Outstanding Balance (₦)',
+        'Overdue (P) (₦)', 'Total overdue (₦)', 'Balance Default (what has not been paid) (₦)',
+        '1 to 30 (₦)', '31 to 60 (₦)', '61 to 90 (₦)', '91 to 180 (₦)', '181 to 360 (₦)',
+        'Days in Arrears', 'Purpose', 'Disbursement Method', 'Application Date',
+        'Approval Date', 'Disbursement Date', 'Date of disbursement', 'Next Repayment Date',
+        'Final Repayment Date', 'Completion Date', 'Created By',
+    ]
+    df = pd.DataFrame(rows, columns=columns) if rows else pd.DataFrame(columns=columns)
+    df.to_excel(writer, sheet_name='Loans', index=False)
+    currency_col_names = [
+        'Principal (₦)', 'Amount disbursed (₦)', 'Total Interest (₦)', 'Total Repayment (₦)',
+        'Repayment amount (₦)', 'Upfront Fees (₦)', 'Admin Fee (₦)', 'Amount Paid (₦)',
+        'Amount paid already (₦)', 'Outstanding Balance (₦)', 'Overdue (P) (₦)',
+        'Total overdue (₦)', 'Balance Default (what has not been paid) (₦)',
+        '1 to 30 (₦)', '31 to 60 (₦)', '61 to 90 (₦)', '91 to 180 (₦)', '181 to 360 (₦)',
+    ]
+    currency_cols = [columns.index(c) + 1 for c in currency_col_names]
+    from openpyxl.utils import get_column_letter
+    col_widths = {
+        get_column_letter(i + 1): min(max(len(name) + 2, 12), 42)
+        for i, name in enumerate(columns)
+    }
+    _style_sheet(writer.sheets['Loans'], len(columns),
+                 title='LOAN LIST',
+                 subtitle=(
+                     f'Exported on {datetime.now().strftime("%B %d, %Y at %H:%M")} — '
+                     f'{len(rows)} loan{"" if len(rows) == 1 else "s"} — arrears buckets as of '
+                     f'{timezone.now().date().strftime("%B %d, %Y")}'
+                 ),
+                 currency_cols=currency_cols, col_widths=col_widths)
+
+    writer.close()
+    output.seek(0)
+    response = create_excel_response(f'loans_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx')
+    response.write(output.read())
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Assignment Request — Affected Clients
+# ---------------------------------------------------------------------------
+
+def export_assignment_affected_clients_excel(req):
+    """Export every client affected by an AssignmentRequest to Excel —
+    the same human-readable detail shown on the review/detail page, not just
+    the raw client IDs stored in assignment_data."""
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='openpyxl')
+
+    rows = []
+    for c in req.get_affected_clients().order_by('first_name', 'last_name'):
+        rows.append({
+            'Client ID': c.client_id,
+            'Name': c.get_full_name(),
+            'Phone': c.phone or '',
+            'Branch': c.branch.name if c.branch else '',
+            'Assigned Staff': c.assigned_staff.get_full_name() if c.assigned_staff else '',
+            'Group': c.group.name if c.group else '',
+            'Status': 'Active' if c.is_active else 'Inactive',
+        })
+
+    df = pd.DataFrame(rows) if rows else pd.DataFrame(
+        columns=['Client ID', 'Name', 'Phone', 'Branch', 'Assigned Staff', 'Group', 'Status'])
+    df.to_excel(writer, sheet_name='Affected Clients', index=False)
+    _style_sheet(writer.sheets['Affected Clients'], 7,
+                 title=f'ASSIGNMENT REQUEST — {req.get_assignment_type_display().upper()}',
+                 subtitle=f'{req.description} — {len(rows)} client{"" if len(rows) == 1 else "s"} — status: {req.get_status_display()}',
+                 col_widths={'A': 16, 'B': 24, 'C': 16, 'D': 22, 'E': 22, 'F': 18, 'G': 12})
+
+    writer.close()
+    output.seek(0)
+    response = create_excel_response(f'assignment_request_{req.id}_clients.xlsx')
     response.write(output.read())
     return response

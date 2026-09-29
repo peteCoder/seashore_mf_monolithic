@@ -10,6 +10,7 @@ Start beat scheduler:
     celery -A seashore beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
 """
 
+
 import os
 from celery import Celery
 
@@ -27,6 +28,10 @@ app.autodiscover_tasks()
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):
     print(f'Request: {self.request!r}')
+
+
+
+
 
 
 

@@ -87,6 +87,12 @@ def loan_list(request):
         if date_to:
             loans = loans.filter(application_date__lte=date_to)
 
+    # Excel export of every loan matching the current filters (not just the
+    # current page) — every vital field, not just what fits on screen.
+    if request.GET.get('export') == 'excel':
+        from core.utils.excel_export import export_loan_list_excel
+        return export_loan_list_excel(loans.order_by('-application_date'))
+
     # Annotate with payment progress and installment counts (paid = amount_paid
     # covers total_amount + penalty_amount, same definition as
     # LoanRepaymentSchedule.computed_status == 'paid' used on the detail page)
@@ -191,15 +197,18 @@ def loan_detail(request, loan_id):
         if (row['computed_status'] if isinstance(row, dict) else row.computed_status) == 'paid'
     )
 
-    # Get repayment postings
-    repayment_postings = loan.repayment_postings.select_related(
+    # Get repayment postings — paginated, not truncated, so a loan with a
+    # long repayment history is still fully visible, a page at a time.
+    postings_qs = loan.repayment_postings.select_related(
         'submitted_by', 'reviewed_by', 'transaction'
-    ).order_by('-submitted_at')[:10]
+    ).order_by('-submitted_at')
+    repayment_postings = Paginator(postings_qs, 20).get_page(request.GET.get('postings_page'))
 
-    # Get transactions
-    transactions = loan.transactions.select_related(
+    # Get transactions — same pagination treatment.
+    transactions_qs = loan.transactions.select_related(
         'processed_by'
-    ).order_by('-created_at')[:10]
+    ).order_by('-created_at')
+    transactions = Paginator(transactions_qs, 20).get_page(request.GET.get('transactions_page'))
 
     # Calculate summary
     summary = {

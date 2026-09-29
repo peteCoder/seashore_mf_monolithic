@@ -1967,5 +1967,74 @@
     })();
     </script>
 
+    {% if user.is_authenticated and user.user_role == 'auditor' %}
+    <!-- ================================================================
+         Read-Only Auditor: Hide Mutating Buttons
+         The server already rejects every non-GET request for this role
+         (core.middleware.ReadOnlyAuditorMiddleware), regardless of what any
+         page's own permission check says. This hides every button inside a
+         POST form, site-wide, so an auditor never clicks a control that
+         would 403 -- the form itself (and its field values) still renders,
+         only its buttons disappear.
+
+         Deliberately hides ALL buttons in a POST form, not just
+         type="submit" ones: this codebase has at least one form (client
+         create/update) whose Save button is <button type="button"
+         @click="submitForm()">, which calls fetch() itself rather than
+         relying on native form submission -- a plain type=submit filter
+         missed it entirely (caught by rendering the real page and running
+         this script against it with jsdom before shipping this). Since no
+         POST form in this app is a filter/search form (those are all GET),
+         hiding every button in every POST form has no false positives on
+         real filtering, and any dynamic-row helper button (e.g. "Add
+         another guarantor") lost as a result is an acceptable, cosmetic
+         trade-off for a read-only audit account.
+
+         Runs once on load and again for anything added to the page later
+         (modals, Alpine-rendered rows), matching the pattern used by the
+         money-input and table-wrapper scripts above.
+         ================================================================ -->
+    <script>
+    (function () {
+        function hideSubmitControls(root) {
+            if (!root) return;
+            var forms = [];
+            if (root.tagName && root.tagName.toLowerCase() === 'form') forms.push(root);
+            if (root.querySelectorAll) {
+                root.querySelectorAll('form').forEach(function (f) { forms.push(f); });
+            }
+            forms.forEach(function (form) {
+                if ((form.getAttribute('method') || '').toLowerCase() !== 'post') return;
+                if (form.dataset.auditorHidden) return;
+                form.dataset.auditorHidden = '1';
+                form.querySelectorAll('button, input[type="submit"], input[type="image"]').forEach(function (el) {
+                    el.style.setProperty('display', 'none', 'important');
+                });
+                // Belt-and-braces: block the native submit path too, in case
+                // some other control still triggers it.
+                form.addEventListener('submit', function (e) { e.preventDefault(); }, true);
+            });
+        }
+
+        function run(root) { hideSubmitControls(root || document); }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function () { run(document); });
+        } else {
+            run(document);
+        }
+
+        new MutationObserver(function (mutations) {
+            mutations.forEach(function (m) {
+                m.addedNodes.forEach(function (node) {
+                    if (node.nodeType !== 1) return;
+                    run(node);
+                });
+            });
+        }).observe(document.documentElement, { childList: true, subtree: true });
+    })();
+    </script>
+    {% endif %}
+
 </body>
 </html>

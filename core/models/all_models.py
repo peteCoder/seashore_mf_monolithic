@@ -7637,7 +7637,38 @@ class AssignmentRequest(BaseModel, ApprovalWorkflowMixin):
 
     def __str__(self):
         return f"{self.get_assignment_type_display()} - {self.status}"
-    
+
+    def get_affected_clients(self):
+        """
+        Resolve assignment_data into the actual Client records this request
+        affects, for human-readable display on the review/detail pages —
+        previously those pages only showed a bare count plus a collapsed raw
+        JSON blob of client UUIDs, with no names or other identifying detail.
+
+        Handles every assignment_type's data shape:
+        - single-client types store 'client_id'
+        - bulk_clients_to_* types store 'client_ids' (a list)
+        - group_to_branch/group_to_staff move a whole group and store no
+          client id(s) at all — the affected clients are the group's members
+        """
+        from core.models import Client
+
+        data = self.assignment_data or {}
+        client_ids = data.get('client_ids')
+        if not client_ids:
+            single_id = data.get('client_id')
+            client_ids = [single_id] if single_id else []
+
+        if client_ids:
+            return Client.objects.filter(id__in=client_ids).select_related('branch', 'assigned_staff', 'group')
+
+        if self.assignment_type.startswith('group_') and self.target_group_id:
+            return Client.objects.filter(group_id=self.target_group_id).select_related(
+                'branch', 'assigned_staff', 'group'
+            )
+
+        return Client.objects.none()
+
     def can_be_approved_by(self, user):
         """Check if user can approve this request"""
         if self.status != 'pending':

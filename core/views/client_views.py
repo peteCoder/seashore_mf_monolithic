@@ -177,9 +177,12 @@ def client_detail(request, client_id):
     # Get related data
     loans = client.loans.all().order_by('-created_at')[:10]
     savings_accounts = client.savings_accounts.all().select_related('savings_product')
-    # Fetch 15 most recent then reverse so newest appears at the bottom
-    recent_transactions = list(client.transactions.all().order_by('-transaction_date').select_related('processed_by', 'loan', 'savings_account')[:15])
-    recent_transactions.reverse()
+    # Paginated, not truncated — a client with a long history must still be
+    # able to see every transaction, just a page at a time (newest first).
+    transactions_qs = client.transactions.all().order_by('-transaction_date').select_related(
+        'processed_by', 'loan', 'savings_account'
+    )
+    recent_transactions = Paginator(transactions_qs, 20).get_page(request.GET.get('transactions_page'))
 
     # Calculate financial summary
     total_loans = client.loans.filter(status__in=['active', 'disbursed', 'overdue']).aggregate(
