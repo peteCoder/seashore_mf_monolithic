@@ -731,6 +731,15 @@ class Command(BaseCommand):
                 'is_control_account': False,
                 'allows_manual_entries': False,
             },
+            {
+                'gl_code': '1850',
+                'account_name': 'Loan Receivable - Betnaija Clients',
+                'account_type': asset_type,
+                'account_category': loan_cat,
+                'description': 'Outstanding principal from Betnaija (Bet9ja agent) loan clients',
+                'is_control_account': False,
+                'allows_manual_entries': False,
+            },
 
             # ====================================================================
             # OTHER ASSETS — Additional Fixed Assets & Prepaid (19xx)
