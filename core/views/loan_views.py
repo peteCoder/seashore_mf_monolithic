@@ -402,7 +402,7 @@ def loan_pay_fees(request, loan_id):
         return redirect('core:loan_guarantors', loan_id=loan.id)
 
     if request.method == 'POST':
-        form = LoanFeePaymentForm(request.POST, loan=loan)
+        form = LoanFeePaymentForm(request.POST, loan=loan, user=request.user)
 
         if form.is_valid():
             payment_details = (
@@ -423,7 +423,7 @@ def loan_pay_fees(request, loan_id):
             else:
                 messages.error(request, f"Failed to pay fees: {message}")
     else:
-        form = LoanFeePaymentForm(loan=loan)
+        form = LoanFeePaymentForm(loan=loan, user=request.user)
 
     # Calculate fee breakdown from loan product
     fee_breakdown = []

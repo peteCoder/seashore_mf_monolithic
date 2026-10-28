@@ -249,7 +249,7 @@ class LoanFeePaymentForm(forms.Form):
             'type': 'date',
         }),
         label='Payment Date',
-        help_text='Date the payment was received (can be backdated)'
+        help_text='Date the payment was received'
     )
 
     payment_method = forms.ChoiceField(
@@ -281,7 +281,14 @@ class LoanFeePaymentForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.loan = kwargs.pop('loan', None)
+        self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+
+    def clean_payment_date(self):
+        from core.forms.validators import enforce_no_backdating
+        payment_date = self.cleaned_data.get('payment_date')
+        enforce_no_backdating(self.user, payment_date, 'Payment Date')
+        return payment_date
 
     def clean(self):
         cleaned_data = super().clean()
@@ -490,6 +497,7 @@ class LoanRepaymentPostingForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
+        self.user = user
         super().__init__(*args, **kwargs)
 
         if user:
@@ -515,6 +523,12 @@ class LoanRepaymentPostingForm(forms.ModelForm):
         # Set default payment date to today
         if not self.instance.pk:
             self.fields['payment_date'].initial = timezone.now().date()
+
+    def clean_payment_date(self):
+        from core.forms.validators import enforce_no_backdating
+        payment_date = self.cleaned_data.get('payment_date')
+        enforce_no_backdating(self.user, payment_date, 'Payment Date')
+        return payment_date
 
     def clean(self):
         cleaned_data = super().clean()
@@ -580,6 +594,12 @@ class BulkLoanRepaymentPostingForm(forms.Form):
         if not self.data:
             self.fields['payment_date'].initial = timezone.now().date()
 
+    def clean_payment_date(self):
+        from core.forms.validators import enforce_no_backdating
+        payment_date = self.cleaned_data.get('payment_date')
+        enforce_no_backdating(self.user, payment_date, 'Payment Date')
+        return payment_date
+
     def clean_loan_repayments(self):
         """Parse and validate bulk repayment data"""
         data = self.cleaned_data['loan_repayments']
@@ -640,6 +660,14 @@ class BulkLoanRepaymentPostingForm(forms.Form):
                 else:
                     payment_date = self.cleaned_data.get('payment_date') or timezone.now().date()
 
+                if payment_date != timezone.now().date():
+                    from core.permissions import PermissionChecker
+                    if not (self.user and PermissionChecker(self.user).can_backdate_transactions()):
+                        errors.append(
+                            f"Line {i}: Only Admin, Director, or HR can use a date other than today"
+                        )
+                        continue
+
                 parsed_repayments.append({
                     'loan': loan,
                     'amount': amount,
@@ -689,6 +717,15 @@ class ApproveRepaymentPostingForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.posting = kwargs.pop('posting', None)
+        # NOTE: deliberately no backdating restriction here. This date
+        # represents when the original payment actually happened (per the
+        # submitted posting), not "today" — approval routinely happens days
+        # after submission (32% of approved postings in production have an
+        # approval date different from the original payment date), so
+        # restricting this field to today would make it impossible to
+        # correctly record the real payment date on normal, legitimate
+        # approvals. The backdating restriction belongs on the SUBMISSION
+        # forms (LoanRepaymentPostingForm etc.), not this review step.
         super().__init__(*args, **kwargs)
         if self.posting and not self.data:
             self.fields['transaction_date'].initial = self.posting.payment_date

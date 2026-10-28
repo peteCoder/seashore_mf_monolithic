@@ -835,6 +835,17 @@ def journal_entry_reverse(request, entry_id):
         messages.warning(request, 'This journal entry has already been reversed.')
         return redirect('core:journal_entry_detail', entry_id=journal.id)
 
+    from core.services.reversal_service import REVERSAL_WINDOW_DAYS
+    days_old = (timezone.now().date() - journal.transaction_date).days
+    if days_old > REVERSAL_WINDOW_DAYS:
+        messages.error(
+            request,
+            f'This journal entry was posted on {journal.transaction_date}, more than '
+            f'{REVERSAL_WINDOW_DAYS} days ago, and can no longer be reversed. '
+            f'Post a fresh adjusting entry instead.'
+        )
+        return redirect('core:journal_entry_detail', entry_id=journal.id)
+
     if request.method == 'POST':
         form = JournalReversalForm(request.POST)
 

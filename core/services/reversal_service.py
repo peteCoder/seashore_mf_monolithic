@@ -24,6 +24,20 @@ from core.models import (
 
 REVERSIBLE_TYPES = {'loan_repayment', 'deposit', 'withdrawal'}
 
+# Audit finding (2026-10-27): transactions could be reversed with no time
+# limit at all, including ones posted over a month ago. Director/Admin/HR
+# can still correct an old transaction, just not via reversal past this
+# window — they'd post a fresh adjusting entry instead.
+REVERSAL_WINDOW_DAYS = 30
+
+
+def is_within_reversal_window(txn):
+    """True if txn.transaction_date is within REVERSAL_WINDOW_DAYS of today."""
+    if txn.transaction_date is None:
+        return False
+    txn_date = txn.transaction_date.date() if hasattr(txn.transaction_date, 'date') else txn.transaction_date
+    return (timezone.now().date() - txn_date).days <= REVERSAL_WINDOW_DAYS
+
 
 @db_transaction.atomic
 def reverse_transaction(txn, reversed_by, reason):
@@ -49,6 +63,13 @@ def reverse_transaction(txn, reversed_by, reason):
     if txn.transaction_type not in REVERSIBLE_TYPES:
         raise ValueError(
             f"Reversal is not supported for '{txn.transaction_type}' transactions."
+        )
+
+    if not is_within_reversal_window(txn):
+        raise ValueError(
+            f"This transaction was posted on {txn.transaction_date.date()}, more than "
+            f"{REVERSAL_WINDOW_DAYS} days ago, and can no longer be reversed. "
+            f"Post a fresh adjusting entry instead."
         )
 
     # Map the reversal transaction type

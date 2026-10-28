@@ -71,12 +71,18 @@ class Permissions:
     # ── management ───────────────────────────────────────────────────
     CAN_MANAGE_BRANCHES          = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR]
     CAN_MANAGE_USERS             = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR]
-    # NOTE: loan_product_list/detail and savings_product_list/detail (pure
-    # VIEW pages) are gated by this same list, not a separate "can view
-    # products" check — AUDITOR is included so those pages are viewable; the
-    # actual create/edit/activate/delete actions on those same views remain
-    # POST-only and are blocked for AUDITOR by ReadOnlyAuditorMiddleware.
-    CAN_MANAGE_PRODUCTS          = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.AUDITOR]
+    # Audit finding (2026-10-27): HR previously had edit access to live loan
+    # and savings products (interest rates, fees) alongside Admin/Director.
+    # HR manages staff/payroll, not loan pricing, so it's deliberately
+    # excluded here now — Admin and Director only. AUDITOR is kept: it can
+    # never actually write (ReadOnlyAuditorMiddleware blocks every POST),
+    # so including it here only ever matters for the create/update/
+    # activate/deactivate/delete *views* rendering their GET form, which is
+    # harmless and consistent with every other "manage" permission.
+    CAN_MANAGE_PRODUCTS          = [Roles.ADMIN, Roles.DIRECTOR, Roles.AUDITOR]
+    # Separate, broader VIEW-only permission for the product list/detail
+    # pages — HR can still see product configuration, just not change it.
+    CAN_VIEW_PRODUCTS            = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.AUDITOR]
     CAN_MANAGE_CHART_OF_ACCOUNTS = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR]
 
     # ── financial ────────────────────────────────────────────────────
@@ -226,6 +232,7 @@ class PermissionChecker:
     def can_manage_branches(self):          return self.role in Permissions.CAN_MANAGE_BRANCHES
     def can_manage_users(self):             return self.role in Permissions.CAN_MANAGE_USERS
     def can_manage_products(self):          return self.role in Permissions.CAN_MANAGE_PRODUCTS
+    def can_view_products(self):            return self.role in Permissions.CAN_VIEW_PRODUCTS
     def can_manage_chart_of_accounts(self): return self.role in Permissions.CAN_MANAGE_CHART_OF_ACCOUNTS
 
     # =========================================================================
@@ -331,6 +338,18 @@ class PermissionChecker:
 
     def can_record_payment(self):
         return self.role in Permissions.CAN_RECORD_PAYMENTS
+
+    def can_backdate_transactions(self):
+        """
+        Audit finding (2026-10-27): staff could post/back-date a transaction
+        to any past date with no restriction. Only Admin/Director/HR may
+        still choose a date other than today when posting a repayment,
+        deposit, or withdrawal — Manager and Staff are locked to today.
+        (Matches is_admin_or_director(); kept as its own named method since
+        the two checks mean different things even though they're currently
+        the same set of roles.)
+        """
+        return self.is_admin_or_director()
 
     # =========================================================================
     # SAVINGS

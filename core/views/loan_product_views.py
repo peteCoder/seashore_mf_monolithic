@@ -26,13 +26,14 @@ def loan_product_list(request):
     """
     Display paginated list of loan products with search and filters
 
-    Permissions: Admin, Director
+    Permissions: Admin, Director, HR (view only — see loan_product_create/
+    update/activate/deactivate/delete for who can actually change products)
     """
     checker = PermissionChecker(request.user)
 
     # Permission check
-    if not checker.can_manage_products():
-        messages.error(request, 'You do not have permission to manage products.')
+    if not checker.can_view_products():
+        messages.error(request, 'You do not have permission to view products.')
         raise PermissionDenied
 
     # Base queryset
@@ -73,6 +74,7 @@ def loan_product_list(request):
         'products': page_obj,
         'search_form': search_form,
         'total_count': products.count(),
+        'checker': checker,
     }
 
     return render(request, 'products/loans/list.html', context)
@@ -87,11 +89,11 @@ def loan_product_detail(request, product_id):
     """
     Display comprehensive loan product information
 
-    Permissions: Admin, Director
+    Permissions: Admin, Director, HR (view only)
     """
     checker = PermissionChecker(request.user)
 
-    if not checker.can_manage_products():
+    if not checker.can_view_products():
         messages.error(request, 'You do not have permission to view products.')
         raise PermissionDenied
 
@@ -107,6 +109,7 @@ def loan_product_detail(request, product_id):
         'page_title': f'Loan Product: {product.name}',
         'product': product,
         'recent_loans': recent_loans,
+        'checker': checker,
     }
 
     return render(request, 'products/loans/detail.html', context)

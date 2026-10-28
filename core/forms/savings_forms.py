@@ -311,6 +311,7 @@ class SavingsDepositPostingForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
+        self.user = user
         super().__init__(*args, **kwargs)
 
         if user:
@@ -336,6 +337,12 @@ class SavingsDepositPostingForm(forms.ModelForm):
         # Set default payment date to today
         if not self.instance.pk:
             self.fields['payment_date'].initial = timezone.now().date()
+
+    def clean_payment_date(self):
+        from core.forms.validators import enforce_no_backdating
+        payment_date = self.cleaned_data.get('payment_date')
+        enforce_no_backdating(self.user, payment_date, 'Payment Date')
+        return payment_date
 
     def clean(self):
         cleaned_data = super().clean()
@@ -393,6 +400,12 @@ class BulkSavingsDepositPostingForm(forms.Form):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
+    def clean_payment_date(self):
+        from core.forms.validators import enforce_no_backdating
+        payment_date = self.cleaned_data.get('payment_date')
+        enforce_no_backdating(self.user, payment_date, 'Payment Date')
+        return payment_date
+
 
 # =============================================================================
 # WITHDRAWAL POSTING FORMS
@@ -438,6 +451,7 @@ class SavingsWithdrawalPostingForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)
+        self.user = user
         super().__init__(*args, **kwargs)
 
         if user:
@@ -463,6 +477,12 @@ class SavingsWithdrawalPostingForm(forms.ModelForm):
         # Set default withdrawal date to today
         if not self.instance.pk:
             self.fields['withdrawal_date'].initial = timezone.now().date()
+
+    def clean_withdrawal_date(self):
+        from core.forms.validators import enforce_no_backdating
+        withdrawal_date = self.cleaned_data.get('withdrawal_date')
+        enforce_no_backdating(self.user, withdrawal_date, 'Withdrawal Date')
+        return withdrawal_date
 
     def clean(self):
         cleaned_data = super().clean()
@@ -517,6 +537,12 @@ class BulkSavingsWithdrawalPostingForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+
+    def clean_withdrawal_date(self):
+        from core.forms.validators import enforce_no_backdating
+        withdrawal_date = self.cleaned_data.get('withdrawal_date')
+        enforce_no_backdating(self.user, withdrawal_date, 'Withdrawal Date')
+        return withdrawal_date
 
 
 # =============================================================================

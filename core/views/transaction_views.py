@@ -13,7 +13,9 @@ from django.db.models import Q
 
 from core.models import Transaction, JournalEntry
 from core.permissions import PermissionChecker
-from core.services.reversal_service import reverse_transaction, REVERSIBLE_TYPES
+from core.services.reversal_service import (
+    reverse_transaction, REVERSIBLE_TYPES, REVERSAL_WINDOW_DAYS, is_within_reversal_window,
+)
 
 
 # =============================================================================
@@ -62,7 +64,8 @@ def transaction_detail(request, transaction_id):
         'linked_journals': linked_journals,
         'can_reverse': (
             transaction.status == 'completed' and
-            transaction.transaction_type in REVERSIBLE_TYPES
+            transaction.transaction_type in REVERSIBLE_TYPES and
+            is_within_reversal_window(transaction)
         ),
     }
 
@@ -96,6 +99,15 @@ def transaction_reverse(request, transaction_id):
 
     if txn.transaction_type not in REVERSIBLE_TYPES:
         messages.error(request, f'Reversal is not supported for {txn.get_transaction_type_display()} transactions.')
+        return redirect('core:transaction_detail', transaction_id=txn.id)
+
+    if not is_within_reversal_window(txn):
+        messages.error(
+            request,
+            f'This transaction was posted on {txn.transaction_date.date()}, more than '
+            f'{REVERSAL_WINDOW_DAYS} days ago, and can no longer be reversed. '
+            f'Post a fresh adjusting entry instead.'
+        )
         return redirect('core:transaction_detail', transaction_id=txn.id)
 
     linked_journals = JournalEntry.objects.filter(transaction=txn).select_related('branch')

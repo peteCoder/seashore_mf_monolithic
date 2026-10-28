@@ -26,13 +26,13 @@ def savings_product_list(request):
     """
     Display paginated list of savings products with search and filters
 
-    Permissions: Admin, Director
+    Permissions: Admin, Director, HR (view only)
     """
     checker = PermissionChecker(request.user)
 
     # Permission check
-    if not checker.can_manage_products():
-        messages.error(request, 'You do not have permission to manage products.')
+    if not checker.can_view_products():
+        messages.error(request, 'You do not have permission to view products.')
         raise PermissionDenied
 
     # Base queryset
@@ -73,6 +73,7 @@ def savings_product_list(request):
         'products': page_obj,
         'search_form': search_form,
         'total_count': products.count(),
+        'checker': checker,
     }
 
     return render(request, 'products/savings/list.html', context)
@@ -87,11 +88,11 @@ def savings_product_detail(request, product_id):
     """
     Display comprehensive savings product information
 
-    Permissions: Admin, Director
+    Permissions: Admin, Director, HR (view only)
     """
     checker = PermissionChecker(request.user)
 
-    if not checker.can_manage_products():
+    if not checker.can_view_products():
         messages.error(request, 'You do not have permission to view products.')
         raise PermissionDenied
 
@@ -107,6 +108,7 @@ def savings_product_detail(request, product_id):
         'page_title': f'Savings Product: {product.name}',
         'product': product,
         'recent_accounts': recent_accounts,
+        'checker': checker,
     }
 
     return render(request, 'products/savings/detail.html', context)

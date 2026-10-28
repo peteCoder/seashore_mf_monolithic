@@ -32,6 +32,7 @@
                 {% endif %}
             </div>
             <div class="flex flex-wrap items-center gap-3">
+                {% if checker.can_manage_products %}
                 <a href="{% url 'core:savings_product_update' product.id %}"
                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
                     <i class="fas fa-edit mr-2"></i>Edit
@@ -51,6 +52,7 @@
                    class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">
                     <i class="fas fa-trash mr-2"></i>Delete
                 </a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -259,6 +261,7 @@
             </div>
 
             <!-- Quick Actions -->
+            {% if checker.can_manage_products %}
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
                 <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
                 <div class="space-y-2">
@@ -287,6 +290,7 @@
                     </a>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Audit Information -->
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">

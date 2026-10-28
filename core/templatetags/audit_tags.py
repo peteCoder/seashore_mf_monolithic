@@ -5,12 +5,18 @@ Custom template filters for the audit log page.
 import json
 
 from django import template
+from django.utils import timezone
 from django.utils.safestring import mark_safe
 
 register = template.Library()
 
 _REVERSIBLE_TYPES = {'loan_repayment', 'deposit', 'withdrawal'}
 _REVERSAL_ROLES   = {'admin', 'director', 'hr'}
+
+# Audit finding (2026-10-27): must match core.services.reversal_service.REVERSAL_WINDOW_DAYS —
+# duplicated here (not imported) because importing a service module from a
+# templatetags module at Django app-load time risks circular imports.
+_REVERSAL_WINDOW_DAYS = 30
 
 
 @register.filter(name='can_reverse')
@@ -26,7 +32,12 @@ def is_reversible(txn):
     """Return True if the transaction can be reversed."""
     if txn is None:
         return False
-    return txn.status == 'completed' and txn.transaction_type in _REVERSIBLE_TYPES
+    if txn.status != 'completed' or txn.transaction_type not in _REVERSIBLE_TYPES:
+        return False
+    if txn.transaction_date is None:
+        return False
+    txn_date = txn.transaction_date.date() if hasattr(txn.transaction_date, 'date') else txn.transaction_date
+    return (timezone.now().date() - txn_date).days <= _REVERSAL_WINDOW_DAYS
 
 
 @register.filter(name='tojson')

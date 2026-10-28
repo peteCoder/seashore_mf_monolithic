@@ -6787,6 +6787,14 @@ class JournalEntry(BaseModel):
     def __str__(self):
         return f"{self.journal_number} - {self.transaction_date}"
 
+    @property
+    def days_since_posted(self):
+        """Days between transaction_date and today. Used to gate reversal
+        (see core.services.reversal_service.REVERSAL_WINDOW_DAYS — must match)."""
+        if not self.transaction_date:
+            return None
+        return (timezone.now().date() - self.transaction_date).days
+
     def save(self, *args, **kwargs):
         if not self.journal_number:
             self.journal_number = self._generate_journal_number()
