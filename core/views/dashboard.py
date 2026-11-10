@@ -72,11 +72,25 @@ def dashboard_view(request):
         total_outstanding=Sum('outstanding_balance'),
         total_collected=Sum('amount_paid')
     )
-    
+
+    # Overdue loans (schedule-based, always fresh). Reuses the same
+    # tracker_views._base_schedule_qs logic the alerts banner below uses.
+    #
+    # Dashboard bug (2026-11-09): this used to filter on Loan.status ==
+    # 'overdue', a field that is never actually set anywhere in the codebase
+    # (it's a stale DB cache, only ever written by Loan.save(), and nothing
+    # calls save() to transition a loan into it) — so both the "Overdue"
+    # stat tile and Portfolio at Risk % always showed 0 / 0.0% regardless of
+    # how many instalments were actually overdue.
+    today_date = timezone.localdate()
+    tracker_base = _base_schedule_qs(user)
+    overdue_rows_qs = tracker_base.filter(due_date__lt=today_date)
+    overdue_loan_ids = overdue_rows_qs.values_list('loan_id', flat=True).distinct()
+
     loan_stats = {
         'total': loans.count(),
         'active': loans.filter(status__in=['active', 'disbursed']).count(),
-        'overdue': loans.filter(status='overdue').count(),
+        'overdue': overdue_loan_ids.count(),
         'pending_approval': loans.filter(status='pending_approval').count(),
         'pending_fees': loans.filter(status='pending_fees').count(),
         'completed': loans.filter(status='completed').count(),
@@ -87,13 +101,14 @@ def dashboard_view(request):
         'total_outstanding': loan_aggregates['total_outstanding'] or Decimal('0.00'),
         'total_collected': loan_aggregates['total_collected'] or Decimal('0.00'),
     }
-    
-    # Portfolio at risk (overdue loans)
+
+    # Portfolio at risk: outstanding balance of loans with at least one
+    # overdue instalment, divided by total outstanding portfolio.
     if loan_stats['total_outstanding'] > 0:
-        overdue_balance = loans.filter(status='overdue').aggregate(
+        overdue_balance = loans.filter(id__in=overdue_loan_ids).aggregate(
             total=Sum('outstanding_balance')
         )['total'] or Decimal('0.00')
-        
+
         loan_stats['portfolio_at_risk_pct'] = float(
             (overdue_balance / loan_stats['total_outstanding']) * 100
         )
@@ -229,26 +244,19 @@ def dashboard_view(request):
     # =========================================================================
     
     alerts = []
-    
-    # Repayment tracker counts (schedule-based, always fresh).
-    # Reuses tracker_views._base_schedule_qs so the dashboard's numbers can
-    # never drift from what the Repayment Tracker page itself shows — it
-    # scopes staff to their assigned clients and managers to their branch,
-    # rather than a flat branch-only filter that showed staff their whole
-    # branch's overdue count instead of just their own clients'.
-    today_date = timezone.localdate()
-    tracker_base = _base_schedule_qs(user)
 
-    overdue_rows_qs = tracker_base.filter(due_date__lt=today_date)
+    # Repayment tracker counts (schedule-based, always fresh).
+    # tracker_base / overdue_rows_qs / overdue_loan_ids were already computed
+    # above alongside loan_stats, so the dashboard's numbers can never drift
+    # from what the Repayment Tracker page itself shows — it scopes staff to
+    # their assigned clients and managers to their branch, rather than a flat
+    # branch-only filter that showed staff their whole branch's overdue
+    # count instead of just their own clients'.
     overdue_installments = overdue_rows_qs.count()
     due_today_installments = tracker_base.filter(due_date=today_date).count()
 
-    # Overdue loans alert (schedule-based). Loan count comes from distinct
-    # loans behind the overdue rows above, not Loan.status == 'overdue' —
-    # that field is a stale DB cache only refreshed on save() and is
-    # effectively always 0 (see tracker_views._base_schedule_qs docstring).
     if overdue_installments > 0:
-        overdue_loan_count = overdue_rows_qs.values('loan_id').distinct().count()
+        overdue_loan_count = overdue_loan_ids.count()
         alerts.append({
             'type': 'warning',
             'icon': '⚠️',

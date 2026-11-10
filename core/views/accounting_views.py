@@ -31,7 +31,6 @@ from core.forms.accounting_forms import (
     OpeningBalanceForm
 )
 from core.permissions import PermissionChecker
-from core.utils.accounting_helpers import create_journal_entry
 from core.utils.pdf_export import (
     generate_trial_balance_pdf, generate_profit_loss_pdf,
     generate_balance_sheet_pdf, generate_general_ledger_pdf,
@@ -851,41 +850,26 @@ def journal_entry_reverse(request, entry_id):
 
         if form.is_valid():
             reversal_reason = form.cleaned_data['reversal_reason']
-            reversal_date = form.cleaned_data['reversal_date']
 
-            # Create reversal entry with opposite signs
-            lines = []
-            for line in journal.lines.all():
-                lines.append({
-                    'account_code': line.account.gl_code,
-                    'debit': line.credit_amount,  # Swap
-                    'credit': line.debit_amount,  # Swap
-                    'description': f'Reversal of {journal.journal_number}: {line.description}',
-                    'client': line.client
-                })
-
-            # Create reversal journal
-            reversal_journal = create_journal_entry(
-                entry_type='reversal',
-                transaction_date=reversal_date,
-                branch=journal.branch,
-                description=f'REVERSAL of {journal.journal_number}: {reversal_reason}',
-                created_by=request.user,
-                lines=lines,
-                reference_number=f'REV-{journal.journal_number}',
-                auto_post=True  # Auto-post reversals
-            )
-
-            # Update original journal status
-            journal.status = 'reversed'
-            journal.save(update_fields=['status', 'updated_at'])
+            # Void the entry the same way every other reversal in this system
+            # does it (see JournalEntry.reverse()): flip status to 'reversed'
+            # only. Every balance / trial-balance query filters strictly on
+            # status='posted', so that one flip is sufficient to remove this
+            # entry's effect from the books.
+            #
+            # Audit finding (2026-11-02): this view used to ALSO create a
+            # brand-new, auto-posted journal entry with debit/credit swapped
+            # on top of that status flip. Doing both double-applied the
+            # reversal — e.g. a transport expense reversal hid the original
+            # (correctly zeroing its effect) AND injected a fresh posted
+            # debit to Cash In Hand, inflating cash instead of restoring it.
+            journal.reverse(reversed_by=request.user, reason=reversal_reason)
 
             messages.success(
                 request,
-                f'Journal entry {journal.journal_number} reversed successfully! '
-                f'Reversal entry: {reversal_journal.journal_number}'
+                f'Journal entry {journal.journal_number} reversed successfully!'
             )
-            return redirect('core:journal_entry_detail', entry_id=reversal_journal.id)
+            return redirect('core:journal_entry_detail', entry_id=journal.id)
     else:
         form = JournalReversalForm()
 
