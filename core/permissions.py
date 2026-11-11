@@ -115,6 +115,17 @@ class Permissions:
     CAN_TOGGLE_CLIENT_STATUS  = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER]
     # Reassign loan officer.
     CAN_ASSIGN_CLIENT_STAFF   = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER]
+    # Direct bulk-assignment page (2026-11-10): execute client->staff,
+    # client->branch, and staff->branch moves immediately, with no pending
+    # approval step. Manager can do client->staff only, scoped to their own
+    # branch (see bulk_assignment_views.bulk_assign for the branch-scoping);
+    # branch-level moves (client->branch, staff->branch) are HR and above
+    # only, matching CAN_ASSIGN_BRANCH_LEVEL below. AUDITOR is intentionally
+    # left out of both — view access to the page goes through
+    # is_admin_or_director() like every other report/list page, but the
+    # actual mutating action does not, and ReadOnlyAuditorMiddleware blocks
+    # the POST regardless.
+    CAN_ASSIGN_BRANCH_LEVEL   = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR]
 
 
 # =============================================================================
@@ -307,6 +318,16 @@ class PermissionChecker:
     # -----------------------------------------------------------------
     def can_assign_staff(self):
         return self.role in Permissions.CAN_ASSIGN_CLIENT_STAFF
+
+    def can_view_bulk_assignment(self):
+        """View the direct Bulk Assignment page. Mirrors is_admin_or_director()
+        for view parity (includes Auditor); the mutating action is gated
+        separately by can_assign_staff() / can_assign_branch_level()."""
+        return self.is_admin_or_director() or self.is_manager()
+
+    def can_assign_branch_level(self):
+        """Move clients or staff to a different branch in bulk. HR and above only."""
+        return self.role in Permissions.CAN_ASSIGN_BRANCH_LEVEL
 
     # =========================================================================
     # LOAN

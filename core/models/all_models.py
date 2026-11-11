@@ -7526,6 +7526,7 @@ class AssignmentRequest(BaseModel, ApprovalWorkflowMixin):
         ('bulk_clients_to_staff', 'Bulk Assign Clients to Staff'),
         ('bulk_clients_to_branch', 'Bulk Assign Clients to Branch'),
         ('bulk_clients_to_group', 'Bulk Assign Clients to Group'),
+        ('bulk_staff_to_branch', 'Bulk Assign Staff to Branch'),
         ('unassign_client_from_staff', 'Unassign Client from Staff'),
         ('unassign_client_from_branch', 'Unassign Client from Branch'),
         ('unassign_client_from_group', 'Unassign Client from Group'),
@@ -7676,6 +7677,20 @@ class AssignmentRequest(BaseModel, ApprovalWorkflowMixin):
             )
 
         return Client.objects.none()
+
+    def get_affected_staff(self):
+        """
+        Resolve assignment_data into the actual User (staff) records this
+        request affects — only meaningful for bulk_staff_to_branch, whose
+        assignment_data stores 'staff_ids', not 'client_ids'.
+        """
+        from core.models import User
+
+        data = self.assignment_data or {}
+        staff_ids = data.get('staff_ids')
+        if not staff_ids:
+            return User.objects.none()
+        return User.objects.filter(id__in=staff_ids).select_related('branch')
 
     def can_be_approved_by(self, user):
         """Check if user can approve this request"""

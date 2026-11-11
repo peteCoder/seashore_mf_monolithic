@@ -15,7 +15,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from core.models import AssignmentRequest, Client, ClientGroup, Loan, SavingsAccount, User
+from core.models import AssignmentRequest, Branch, Client, ClientGroup, Loan, SavingsAccount, User
 from core.forms.assignment_forms import AssignmentRequestForm, AssignmentReviewForm
 from core.permissions import PermissionChecker
 from core.services.notification_service import notify, notify_role
@@ -153,11 +153,13 @@ def assignment_detail(request, request_id):
 
     affected_clients_qs = req.get_affected_clients().order_by('first_name', 'last_name')
     affected_clients = Paginator(affected_clients_qs, 50).get_page(request.GET.get('clients_page'))
+    affected_staff = req.get_affected_staff().order_by('first_name', 'last_name') if req.assignment_type == 'bulk_staff_to_branch' else None
 
     return render(request, 'assignments/detail.html', {
         'page_title': f'Assignment Request — {req.get_assignment_type_display()}',
         'req': req,
         'affected_clients': affected_clients,
+        'affected_staff': affected_staff,
         'checker': checker,
     })
 
@@ -367,6 +369,12 @@ def _execute_assignment(req):
         if client_ids and group_id:
             Client.objects.filter(id__in=client_ids).update(group_id=group_id)
 
+    elif atype == 'bulk_staff_to_branch':
+        staff_ids = data.get('staff_ids', [])
+        branch_id = data.get('branch_id')
+        if staff_ids and branch_id:
+            User.objects.filter(id__in=staff_ids).update(branch_id=branch_id)
+
     else:
         raise ValueError(f'Unknown assignment type: {atype}')
 
@@ -480,4 +488,288 @@ def staff_portfolio_transfer(request):
         'errors': errors,
         'posted_reason': request.POST.get('reason', '') if request.method == 'POST' else '',
         'posted_target': request.POST.get('target_staff', '') if request.method == 'POST' else '',
+    })
+
+
+# =============================================================================
+# BULK ASSIGNMENT (direct execution — no pending approval step)
+# =============================================================================
+
+@login_required
+@transaction.atomic
+def bulk_assign(request):
+    """
+    Direct bulk assignment: clients -> staff, clients -> branch, and
+    staff -> branch. Unlike assignment_create / staff_portfolio_transfer,
+    this executes immediately with no pending/approval step, because every
+    role allowed here already sits at or above the approval authority for
+    these moves.
+
+    Permissions:
+    - View the page: Manager, HR, Director, Admin (checker.can_view_bulk_assignment)
+    - Clients -> Staff: Manager (own branch only) and HR/Director/Admin (any branch)
+      — see checker.can_assign_staff()
+    - Clients -> Branch / Staff -> Branch: HR, Director, Admin only
+      — see checker.can_assign_branch_level(). Staff/loan-officer role can
+      never reach this view at all (can_view_bulk_assignment excludes it).
+
+    Every execution still creates an AssignmentRequest record (status=
+    'approved', self-reviewed, executed immediately) so the move shows up
+    in Assignment Request history with full human-readable detail, matching
+    the standing requirement that every client/staff movement leaves a
+    detailed record rather than a silent DB update.
+    """
+    checker = PermissionChecker(request.user)
+    if not checker.can_view_bulk_assignment():
+        raise PermissionDenied('Only managers and above can access bulk assignment.')
+
+    can_branch_level = checker.can_assign_branch_level()
+    can_assign_staff = checker.can_assign_staff()
+
+    # `tab` drives which POST handler runs below and must stay exactly as
+    # posted — downgrading it here (e.g. for a manager posting tab=
+    # clients_to_branch) would silently reroute the request into a
+    # different handler instead of the 403 each handler already raises for
+    # that case. `display_tab` is the separate, sanitized value used only
+    # to pick which tab panel the template shows by default on a GET.
+    valid_tabs = ('clients_to_staff', 'clients_to_branch', 'staff_to_branch')
+    tab = (request.POST.get('tab') or '').strip()
+    if tab not in valid_tabs:
+        tab = 'clients_to_staff'
+
+    display_tab = (request.GET.get('tab') or tab).strip()
+    if display_tab not in valid_tabs:
+        display_tab = 'clients_to_staff'
+    if display_tab in ('clients_to_branch', 'staff_to_branch') and not can_branch_level:
+        display_tab = 'clients_to_staff'
+
+    # ── Branch scoping ───────────────────────────────────────────────────
+    if checker.is_manager():
+        branches = Branch.objects.filter(id=request.user.branch_id)
+        selected_branch = request.user.branch
+    else:
+        branches = Branch.objects.filter(is_active=True).order_by('name')
+        branch_param = request.POST.get('branch') or request.GET.get('branch', '')
+        selected_branch = branches.filter(id=branch_param).first() if branch_param else None
+
+    # ── Clients -> Staff tab data ────────────────────────────────────────
+    clients_qs = Client.objects.filter(is_active=True, approval_status='approved')
+    assignable_staff_qs = User.objects.filter(user_role='staff', is_active=True)
+    if selected_branch:
+        clients_qs = clients_qs.filter(branch=selected_branch)
+        assignable_staff_qs = assignable_staff_qs.filter(branch=selected_branch)
+    clients_qs = clients_qs.select_related('branch', 'assigned_staff').order_by('first_name', 'last_name')
+    assignable_staff_qs = assignable_staff_qs.order_by('first_name', 'last_name')
+
+    # ── Staff -> Branch tab data (staff + managers can be relocated) ─────
+    movable_staff_qs = User.objects.filter(
+        user_role__in=['staff', 'manager'], is_active=True
+    ).select_related('branch')
+    if selected_branch:
+        movable_staff_qs = movable_staff_qs.filter(branch=selected_branch)
+    movable_staff_qs = movable_staff_qs.order_by('branch__name', 'first_name', 'last_name')
+
+    errors = {}
+
+    if request.method == 'POST':
+        reason = request.POST.get('reason', '').strip()
+        if not reason:
+            errors['reason'] = 'Please provide a reason for this assignment.'
+
+        if tab == 'clients_to_staff':
+            if not can_assign_staff:
+                raise PermissionDenied
+            client_ids = request.POST.getlist('clients')
+            target_staff_id = request.POST.get('target_staff', '').strip()
+
+            if not client_ids:
+                errors['clients'] = 'Please select at least one client.'
+            if not target_staff_id:
+                errors['target_staff'] = 'Please select a target staff member.'
+
+            target_staff = None
+            valid_client_ids = []
+            if not errors:
+                valid_qs = Client.objects.filter(id__in=client_ids, is_active=True)
+                target_qs = User.objects.filter(id=target_staff_id, user_role='staff', is_active=True)
+                # Manager is hard-restricted to their own branch regardless
+                # of whatever ids were posted.
+                if checker.is_manager():
+                    valid_qs = valid_qs.filter(branch=request.user.branch)
+                    target_qs = target_qs.filter(branch=request.user.branch)
+                valid_client_ids = list(valid_qs.values_list('id', flat=True))
+                target_staff = target_qs.first()
+
+                if not valid_client_ids:
+                    errors['clients'] = 'None of the selected clients are valid for this action.'
+                if not target_staff:
+                    errors['target_staff'] = 'Invalid target staff member.'
+
+            if not errors:
+                client_id_strs = [str(c) for c in valid_client_ids]
+                description = f'Bulk-assign {len(client_id_strs)} client(s) to {target_staff.get_full_name()}'
+                req = AssignmentRequest.objects.create(
+                    assignment_type='bulk_clients_to_staff',
+                    status='approved',
+                    requested_by=request.user,
+                    reviewed_by=request.user,
+                    reviewed_at=timezone.now(),
+                    branch=selected_branch or request.user.branch,
+                    assignment_data={
+                        'client_ids': client_id_strs,
+                        'staff_id': str(target_staff.id),
+                        'staff_name': target_staff.get_full_name(),
+                    },
+                    description=description,
+                    reason=reason,
+                    review_notes='Auto-approved — executed directly via the Bulk Assignment page.',
+                    target_staff=target_staff,
+                    affected_count=len(client_id_strs),
+                )
+                _execute_assignment(req)
+                req.executed_at = timezone.now()
+                req.execution_result = {'status': 'success'}
+                req.save(update_fields=['executed_at', 'execution_result', 'updated_at'])
+                messages.success(request, f'{description}.')
+                return redirect('core:assignment_detail', request_id=req.id)
+
+        elif tab == 'clients_to_branch':
+            if not can_branch_level:
+                raise PermissionDenied
+            client_ids = request.POST.getlist('clients')
+            target_branch_id = request.POST.get('target_branch', '').strip()
+
+            if not client_ids:
+                errors['clients'] = 'Please select at least one client.'
+            if not target_branch_id:
+                errors['target_branch'] = 'Please select a target branch.'
+
+            target_branch = None
+            valid_client_ids = []
+            if not errors:
+                valid_client_ids = list(
+                    Client.objects.filter(id__in=client_ids, is_active=True).values_list('id', flat=True)
+                )
+                target_branch = Branch.objects.filter(id=target_branch_id, is_active=True).first()
+                if not valid_client_ids:
+                    errors['clients'] = 'None of the selected clients are valid.'
+                if not target_branch:
+                    errors['target_branch'] = 'Invalid target branch.'
+
+            if not errors:
+                client_id_strs = [str(c) for c in valid_client_ids]
+                description = f'Bulk-move {len(client_id_strs)} client(s) to branch {target_branch.name}'
+                req = AssignmentRequest.objects.create(
+                    assignment_type='bulk_clients_to_branch',
+                    status='approved',
+                    requested_by=request.user,
+                    reviewed_by=request.user,
+                    reviewed_at=timezone.now(),
+                    branch=selected_branch,
+                    assignment_data={
+                        'client_ids': client_id_strs,
+                        'branch_id': str(target_branch.id),
+                        'branch_name': target_branch.name,
+                    },
+                    description=description,
+                    reason=reason,
+                    review_notes='Auto-approved — executed directly via the Bulk Assignment page.',
+                    target_branch=target_branch,
+                    affected_count=len(client_id_strs),
+                )
+                _execute_assignment(req)
+                req.executed_at = timezone.now()
+                req.execution_result = {'status': 'success'}
+                req.save(update_fields=['executed_at', 'execution_result', 'updated_at'])
+                messages.success(request, f'{description}.')
+                return redirect('core:assignment_detail', request_id=req.id)
+
+        elif tab == 'staff_to_branch':
+            if not can_branch_level:
+                raise PermissionDenied
+            staff_ids = request.POST.getlist('staff')
+            target_branch_id = request.POST.get('target_branch', '').strip()
+
+            if not staff_ids:
+                errors['staff'] = 'Please select at least one staff member.'
+            if not target_branch_id:
+                errors['target_branch'] = 'Please select a target branch.'
+
+            target_branch = None
+            valid_staff_ids = []
+            if not errors:
+                valid_staff_ids = list(
+                    User.objects.filter(id__in=staff_ids, user_role__in=['staff', 'manager'], is_active=True)
+                    .values_list('id', flat=True)
+                )
+                target_branch = Branch.objects.filter(id=target_branch_id, is_active=True).first()
+                if not valid_staff_ids:
+                    errors['staff'] = 'None of the selected staff are valid.'
+                if not target_branch:
+                    errors['target_branch'] = 'Invalid target branch.'
+
+            if not errors:
+                staff_id_strs = [str(s) for s in valid_staff_ids]
+                description = f'Bulk-move {len(staff_id_strs)} staff member(s) to branch {target_branch.name}'
+                req = AssignmentRequest.objects.create(
+                    assignment_type='bulk_staff_to_branch',
+                    status='approved',
+                    requested_by=request.user,
+                    reviewed_by=request.user,
+                    reviewed_at=timezone.now(),
+                    branch=selected_branch,
+                    assignment_data={
+                        'staff_ids': staff_id_strs,
+                        'branch_id': str(target_branch.id),
+                        'branch_name': target_branch.name,
+                    },
+                    description=description,
+                    reason=reason,
+                    review_notes='Auto-approved — executed directly via the Bulk Assignment page.',
+                    target_branch=target_branch,
+                    affected_count=len(staff_id_strs),
+                )
+                _execute_assignment(req)
+                req.executed_at = timezone.now()
+                req.execution_result = {'status': 'success'}
+                req.save(update_fields=['executed_at', 'execution_result', 'updated_at'])
+                messages.success(request, f'{description}.')
+                return redirect('core:assignment_detail', request_id=req.id)
+
+    clients_json = json.dumps([
+        {
+            'id': str(c.id),
+            'name': c.get_full_name(),
+            'client_id': c.client_id,
+            'meta': c.assigned_staff.get_full_name() if c.assigned_staff else 'Unassigned',
+        }
+        for c in clients_qs
+    ])
+    movable_staff_json = json.dumps([
+        {
+            'id': str(s.id),
+            'name': s.get_full_name(),
+            'client_id': s.get_user_role_display(),
+            'meta': s.branch.name if s.branch else 'No branch',
+        }
+        for s in movable_staff_qs
+    ])
+
+    return render(request, 'assignments/bulk_assign.html', {
+        'page_title': 'Bulk Assignment',
+        'checker': checker,
+        'tab': display_tab,
+        'can_branch_level': can_branch_level,
+        'can_assign_staff': can_assign_staff,
+        'branches': branches,
+        'selected_branch': selected_branch,
+        'assignable_staff': assignable_staff_qs,
+        'clients_json': clients_json,
+        'movable_staff_json': movable_staff_json,
+        'client_count': clients_qs.count(),
+        'movable_staff_count': movable_staff_qs.count(),
+        'errors': errors,
+        'posted_reason': request.POST.get('reason', '') if request.method == 'POST' else '',
+        'posted_target_staff': request.POST.get('target_staff', '') if request.method == 'POST' else '',
+        'posted_target_branch': request.POST.get('target_branch', '') if request.method == 'POST' else '',
     })

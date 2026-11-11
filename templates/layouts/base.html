@@ -329,13 +329,24 @@
 
                             <a href="{% url 'core:assignment_list' %}"
                                class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
-                                      {% if 'assignment' in request.resolver_match.url_name %}
+                                      {% if request.resolver_match.url_name == 'assignment_list' or request.resolver_match.url_name == 'assignment_detail' or request.resolver_match.url_name == 'assignment_create' or request.resolver_match.url_name == 'staff_portfolio_transfer' %}
                                       bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
                                       {% else %}
                                       text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
                                       {% endif %}">
                                 <i class="fas fa-random w-5 mr-3 text-base"></i>
                                 <span>Assignment Requests</span>
+                            </a>
+
+                            <a href="{% url 'core:bulk_assign' %}"
+                               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                                      {% if request.resolver_match.url_name == 'bulk_assign' %}
+                                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                                      {% else %}
+                                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                                      {% endif %}">
+                                <i class="fas fa-users-cog w-5 mr-3 text-base"></i>
+                                <span>Bulk Assignment</span>
                             </a>
                             {% endif %}
                         </div>
@@ -820,13 +831,25 @@
             <a href="{% url 'core:assignment_list' %}"
                @click="mobileMenuOpen = false"
                class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
-                      {% if 'assignment' in request.resolver_match.url_name %}
+                      {% if request.resolver_match.url_name == 'assignment_list' or request.resolver_match.url_name == 'assignment_detail' or request.resolver_match.url_name == 'assignment_create' or request.resolver_match.url_name == 'staff_portfolio_transfer' %}
                       bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
                       {% else %}
                       text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
                       {% endif %}">
                 <i class="fas fa-random w-5 mr-3 text-base"></i>
                 <span>Assignment Requests</span>
+            </a>
+
+            <a href="{% url 'core:bulk_assign' %}"
+               @click="mobileMenuOpen = false"
+               class="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all
+                      {% if request.resolver_match.url_name == 'bulk_assign' %}
+                      bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400
+                      {% else %}
+                      text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                      {% endif %}">
+                <i class="fas fa-users-cog w-5 mr-3 text-base"></i>
+                <span>Bulk Assignment</span>
             </a>
             {% endif %}
         </div>

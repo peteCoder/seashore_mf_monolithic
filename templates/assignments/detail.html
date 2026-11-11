@@ -128,8 +128,12 @@
         </div>
     </div>
 
-    <!-- Affected Clients (human-readable — not just IDs) -->
+    <!-- Affected Clients / Staff (human-readable — not just IDs) -->
+    {% if req.assignment_type == 'bulk_staff_to_branch' %}
+    {% include 'assignments/_affected_staff_table.html' %}
+    {% else %}
     {% include 'assignments/_affected_clients_table.html' %}
+    {% endif %}
 
     <!-- Execution Result -->
     {% if req.executed_at %}

@@ -13,6 +13,12 @@
             <p class="text-sm text-gray-500 mt-1">Manage client and group assignment changes</p>
         </div>
         <div class="flex items-center gap-2">
+            {% if checker.can_view_bulk_assignment %}
+            <a href="{% url 'core:bulk_assign' %}"
+               class="px-4 py-2 border border-primary-600 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 dark:border-primary-400 dark:text-primary-400 rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors">
+                <i class="fas fa-users-cog"></i><span>Bulk Assignment</span>
+            </a>
+            {% endif %}
             {% if checker.is_manager or checker.is_admin_or_director %}
             <a href="{% url 'core:staff_portfolio_transfer' %}"
                class="px-4 py-2 border border-primary-600 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 dark:border-primary-400 dark:text-primary-400 rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors">

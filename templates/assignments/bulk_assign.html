@@ -1,0 +1,401 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}{{ page_title }} - Seashore Microfinance{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto" x-data="{ tab: '{{ tab }}' }">
+
+    <!-- Breadcrumb & Header -->
+    <div class="mb-6">
+        <div class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 mb-2">
+            <a href="{% url 'core:assignment_list' %}" class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">Assignment Requests</a>
+            <span>/</span>
+            <span class="text-gray-700 dark:text-gray-300">Bulk Assignment</span>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ page_title }}</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Assign clients to staff, or move clients/staff to a different branch, in bulk.
+            This takes effect <strong class="text-gray-700 dark:text-gray-300">immediately</strong> — there is no approval step —
+            but a full record is kept in Assignment Requests.
+        </p>
+    </div>
+
+    {% if not can_assign_staff and not can_branch_level %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 text-center">
+        <i class="fas fa-eye text-3xl text-gray-300 dark:text-gray-600 mb-3"></i>
+        <p class="text-gray-600 dark:text-gray-400">You have read-only access to this page and cannot make assignments.</p>
+    </div>
+    {% else %}
+
+    <!-- Branch selector (HR and above only — Manager is locked to their own branch) -->
+    {% if not checker.is_manager %}
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-4">
+        <form method="get" class="flex flex-wrap items-end gap-3">
+            <input type="hidden" name="tab" :value="tab">
+            <div class="flex-1 min-w-[220px]">
+                <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                    Filter source clients/staff by branch
+                </label>
+                <select name="branch" onchange="this.form.submit()"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    <option value="">— All branches —</option>
+                    {% for b in branches %}
+                    <option value="{{ b.id }}" {% if selected_branch and selected_branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Tabs -->
+    <div class="flex items-center gap-1 mb-4 border-b border-gray-200 dark:border-gray-700">
+        {% if can_assign_staff %}
+        <button type="button" @click="tab = 'clients_to_staff'"
+                :class="tab === 'clients_to_staff' ? 'text-primary-600 dark:text-primary-400 border-primary-600 dark:border-primary-400' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'"
+                class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors">
+            <i class="fas fa-user-tag mr-1.5"></i>Clients &rarr; Staff
+        </button>
+        {% endif %}
+        {% if can_branch_level %}
+        <button type="button" @click="tab = 'clients_to_branch'"
+                :class="tab === 'clients_to_branch' ? 'text-primary-600 dark:text-primary-400 border-primary-600 dark:border-primary-400' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'"
+                class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors">
+            <i class="fas fa-code-branch mr-1.5"></i>Clients &rarr; Branch
+        </button>
+        <button type="button" @click="tab = 'staff_to_branch'"
+                :class="tab === 'staff_to_branch' ? 'text-primary-600 dark:text-primary-400 border-primary-600 dark:border-primary-400' : 'text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-200'"
+                class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors">
+            <i class="fas fa-random mr-1.5"></i>Staff &rarr; Branch
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- ═══════════════ TAB 1: Clients -> Staff ═══════════════ -->
+    {% if can_assign_staff %}
+    <form method="post" id="clientsToStaffForm" x-show="tab === 'clients_to_staff'" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="tab" value="clients_to_staff">
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <label class="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    Select Clients <span class="text-red-500">*</span>
+                </label>
+                <span class="text-xs text-gray-400 dark:text-gray-500">{{ client_count }} client(s) available{% if selected_branch %} in {{ selected_branch.name }}{% endif %}</span>
+            </div>
+            {% if tab == 'clients_to_staff' and errors.clients %}
+            <p class="text-sm text-red-600 dark:text-red-400 mb-2"><i class="fas fa-exclamation-circle mr-1"></i>{{ errors.clients }}</p>
+            {% endif %}
+            <div id="cs-picker" data-prefix="cs"></div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Staff Member <span class="text-red-500">*</span></label>
+                    {% if tab == 'clients_to_staff' and errors.target_staff %}
+                    <p class="text-sm text-red-600 dark:text-red-400 mb-2"><i class="fas fa-exclamation-circle mr-1"></i>{{ errors.target_staff }}</p>
+                    {% endif %}
+                    <select name="target_staff" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">— Select target staff —</option>
+                        {% for s in assignable_staff %}
+                        <option value="{{ s.id }}" {% if posted_target_staff == s.id|stringformat:'s' %}selected{% endif %}>{{ s.get_full_name }}{% if s.branch %} ({{ s.branch.name }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason <span class="text-red-500">*</span></label>
+                    {% if tab == 'clients_to_staff' and errors.reason %}
+                    <p class="text-sm text-red-600 dark:text-red-400 mb-2"><i class="fas fa-exclamation-circle mr-1"></i>{{ errors.reason }}</p>
+                    {% endif %}
+                    <textarea name="reason" rows="3" placeholder="e.g. Rebalancing portfolios, staff onboarding…"
+                              class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm resize-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">{% if tab == 'clients_to_staff' %}{{ posted_reason }}{% endif %}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 mb-8">
+            <a href="{% url 'core:assignment_list' %}" class="px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</a>
+            <button type="submit" class="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg">
+                <i class="fas fa-check"></i><span>Assign Clients to Staff</span>
+            </button>
+        </div>
+    </form>
+    {% endif %}
+
+    <!-- ═══════════════ TAB 2: Clients -> Branch ═══════════════ -->
+    {% if can_branch_level %}
+    <form method="post" id="clientsToBranchForm" x-show="tab === 'clients_to_branch'" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="tab" value="clients_to_branch">
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <label class="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    Select Clients <span class="text-red-500">*</span>
+                </label>
+                <span class="text-xs text-gray-400 dark:text-gray-500">{{ client_count }} client(s) available{% if selected_branch %} in {{ selected_branch.name }}{% endif %}</span>
+            </div>
+            {% if tab == 'clients_to_branch' and errors.clients %}
+            <p class="text-sm text-red-600 dark:text-red-400 mb-2"><i class="fas fa-exclamation-circle mr-1"></i>{{ errors.clients }}</p>
+            {% endif %}
+            <div id="cb-picker" data-prefix="cb"></div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Branch <span class="text-red-500">*</span></label>
+                    {% if tab == 'clients_to_branch' and errors.target_branch %}
+                    <p class="text-sm text-red-600 dark:text-red-400 mb-2"><i class="fas fa-exclamation-circle mr-1"></i>{{ errors.target_branch }}</p>
+                    {% endif %}
+                    <select name="target_branch" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">— Select target branch —</option>
+                        {% for b in branches %}
+                        <option value="{{ b.id }}" {% if posted_target_branch == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">Also moves each client's loans and savings accounts to the new branch.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason <span class="text-red-500">*</span></label>
+                    {% if tab == 'clients_to_branch' and errors.reason %}
+                    <p class="text-sm text-red-600 dark:text-red-400 mb-2"><i class="fas fa-exclamation-circle mr-1"></i>{{ errors.reason }}</p>
+                    {% endif %}
+                    <textarea name="reason" rows="3" placeholder="e.g. Client relocated, branch restructuring…"
+                              class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm resize-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">{% if tab == 'clients_to_branch' %}{{ posted_reason }}{% endif %}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 mb-8">
+            <a href="{% url 'core:assignment_list' %}" class="px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</a>
+            <button type="submit" class="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg">
+                <i class="fas fa-check"></i><span>Move Clients to Branch</span>
+            </button>
+        </div>
+    </form>
+
+    <!-- ═══════════════ TAB 3: Staff -> Branch ═══════════════ -->
+    <form method="post" id="staffToBranchForm" x-show="tab === 'staff_to_branch'" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="tab" value="staff_to_branch">
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <label class="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    Select Staff <span class="text-red-500">*</span>
+                </label>
+                <span class="text-xs text-gray-400 dark:text-gray-500">{{ movable_staff_count }} staff member(s) available{% if selected_branch %} in {{ selected_branch.name }}{% endif %}</span>
+            </div>
+            {% if tab == 'staff_to_branch' and errors.staff %}
+            <p class="text-sm text-red-600 dark:text-red-400 mb-2"><i class="fas fa-exclamation-circle mr-1"></i>{{ errors.staff }}</p>
+            {% endif %}
+            <div id="sb-picker" data-prefix="sb"></div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-6">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Target Branch <span class="text-red-500">*</span></label>
+                    {% if tab == 'staff_to_branch' and errors.target_branch %}
+                    <p class="text-sm text-red-600 dark:text-red-400 mb-2"><i class="fas fa-exclamation-circle mr-1"></i>{{ errors.target_branch }}</p>
+                    {% endif %}
+                    <select name="target_branch" class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">— Select target branch —</option>
+                        {% for b in branches %}
+                        <option value="{{ b.id }}" {% if posted_target_branch == b.id|stringformat:'s' %}selected{% endif %}>{{ b.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason <span class="text-red-500">*</span></label>
+                    {% if tab == 'staff_to_branch' and errors.reason %}
+                    <p class="text-sm text-red-600 dark:text-red-400 mb-2"><i class="fas fa-exclamation-circle mr-1"></i>{{ errors.reason }}</p>
+                    {% endif %}
+                    <textarea name="reason" rows="3" placeholder="e.g. Staff transfer, branch restructuring…"
+                              class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm resize-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">{% if tab == 'staff_to_branch' %}{{ posted_reason }}{% endif %}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 mb-8">
+            <a href="{% url 'core:assignment_list' %}" class="px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</a>
+            <button type="submit" class="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg">
+                <i class="fas fa-check"></i><span>Move Staff to Branch</span>
+            </button>
+        </div>
+    </form>
+    {% endif %}
+
+    {% endif %}
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    function esc(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function highlight(text, query) {
+        if (!query) return esc(text);
+        var lText = text.toLowerCase(), lQ = query.toLowerCase();
+        var idx = lText.indexOf(lQ);
+        if (idx === -1) return esc(text);
+        return esc(text.slice(0, idx)) + '<mark class="bg-yellow-100 dark:bg-yellow-700/40 rounded-sm px-0.5 text-inherit not-italic">'
+             + esc(text.slice(idx, idx + query.length)) + '</mark>' + esc(text.slice(idx + query.length));
+    }
+
+    // Generic chip-picker. items: [{id, name, client_id, meta}], prefix: unique
+    // DOM id/name prefix, mount: container element, hiddenName: POST field name.
+    function createPicker(items, prefix, mount, hiddenName, formEl) {
+        var selectedIds = new Set();
+
+        mount.innerHTML =
+            '<div id="' + prefix + '-selectedArea" class="min-h-[56px] p-3 mb-3 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/20 flex flex-wrap gap-2 items-start">' +
+                '<span id="' + prefix + '-empty" class="text-sm text-gray-400 dark:text-gray-500 self-center italic">Search below to add.</span>' +
+            '</div>' +
+            '<div class="relative">' +
+                '<div class="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus-within:ring-2 focus-within:ring-primary-500">' +
+                    '<i class="fas fa-search text-gray-400 pl-3 text-sm"></i>' +
+                    '<input type="text" id="' + prefix + '-search" placeholder="Search by name…" autocomplete="off" spellcheck="false" ' +
+                        'class="flex-1 px-3 py-2.5 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none">' +
+                '</div>' +
+                '<div id="' + prefix + '-dropdown" class="hidden absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl overflow-hidden">' +
+                    '<div id="' + prefix + '-dropdownList" class="max-h-64 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-700/50"></div>' +
+                    '<div id="' + prefix + '-noResults" class="hidden py-6 text-center text-sm text-gray-400 dark:text-gray-500">No matches.</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="mt-2 flex items-center justify-between">' +
+                '<p class="text-xs text-gray-500 dark:text-gray-400"><span id="' + prefix + '-count" class="font-semibold text-primary-600 dark:text-primary-400">0</span> selected</p>' +
+                '<div class="flex gap-3">' +
+                    '<button type="button" id="' + prefix + '-selectAll" class="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 underline underline-offset-2">Select all ' + items.length + '</button>' +
+                    '<button type="button" id="' + prefix + '-clearAll" class="hidden text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400 underline underline-offset-2">Remove all</button>' +
+                '</div>' +
+            '</div>' +
+            '<div id="' + prefix + '-hidden"></div>';
+
+        var selectedArea = document.getElementById(prefix + '-selectedArea');
+        var empty        = document.getElementById(prefix + '-empty');
+        var searchInput  = document.getElementById(prefix + '-search');
+        var dropdown     = document.getElementById(prefix + '-dropdown');
+        var dropdownList = document.getElementById(prefix + '-dropdownList');
+        var noResults    = document.getElementById(prefix + '-noResults');
+        var countEl      = document.getElementById(prefix + '-count');
+        var hiddenBox    = document.getElementById(prefix + '-hidden');
+        var selectAllBtn = document.getElementById(prefix + '-selectAll');
+        var clearAllBtn  = document.getElementById(prefix + '-clearAll');
+
+        function renderChips() {
+            selectedArea.querySelectorAll('.chip').forEach(function (el) { el.remove(); });
+            if (selectedIds.size === 0) {
+                empty.classList.remove('hidden');
+                clearAllBtn.classList.add('hidden');
+            } else {
+                empty.classList.add('hidden');
+                clearAllBtn.classList.remove('hidden');
+                items.filter(function (i) { return selectedIds.has(i.id); }).forEach(function (item) {
+                    var chip = document.createElement('span');
+                    chip.className = 'chip inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 bg-primary-100 dark:bg-primary-900/50 text-primary-800 dark:text-primary-200 border border-primary-200 dark:border-primary-700 rounded-full text-sm font-medium';
+                    var nameSpan = document.createElement('span'); nameSpan.textContent = item.name;
+                    var metaSpan = document.createElement('span');
+                    metaSpan.className = 'text-primary-400 dark:text-primary-500 text-xs font-normal';
+                    metaSpan.textContent = item.meta || item.client_id || '';
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'ml-0.5 w-5 h-5 flex items-center justify-center rounded-full text-primary-400 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/40 dark:hover:text-red-400';
+                    btn.innerHTML = '<i class="fas fa-times" style="font-size:10px"></i>';
+                    btn.addEventListener('click', function () { selectedIds.delete(item.id); refresh(); });
+                    chip.appendChild(nameSpan); chip.appendChild(metaSpan); chip.appendChild(btn);
+                    selectedArea.appendChild(chip);
+                });
+            }
+        }
+
+        function renderHidden() {
+            hiddenBox.innerHTML = '';
+            selectedIds.forEach(function (id) {
+                var inp = document.createElement('input');
+                inp.type = 'hidden'; inp.name = hiddenName; inp.value = id;
+                hiddenBox.appendChild(inp);
+            });
+        }
+
+        function updateCount() { countEl.textContent = selectedIds.size; }
+
+        function renderDropdown(query) {
+            dropdownList.innerHTML = '';
+            noResults.classList.add('hidden');
+            var q = (query || '').toLowerCase();
+            var unselected = items.filter(function (i) { return !selectedIds.has(i.id); });
+            var results = unselected.filter(function (i) {
+                return i.name.toLowerCase().indexOf(q) !== -1 || (i.client_id || '').toLowerCase().indexOf(q) !== -1;
+            });
+            if (results.length === 0) { noResults.classList.remove('hidden'); }
+            else {
+                results.slice(0, 60).forEach(function (item) {
+                    var row = document.createElement('button');
+                    row.type = 'button';
+                    row.className = 'w-full text-left px-4 py-2.5 flex items-center justify-between gap-3 hover:bg-primary-50 dark:hover:bg-primary-900/25 focus:outline-none';
+                    row.innerHTML = '<div class="min-w-0 flex items-baseline gap-2">'
+                        + '<span class="text-sm font-medium text-gray-900 dark:text-white truncate">' + highlight(item.name, query) + '</span>'
+                        + '<span class="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">' + esc(item.meta || item.client_id || '') + '</span>'
+                        + '</div><i class="fas fa-plus-circle text-primary-300 text-sm"></i>';
+                    row.addEventListener('mousedown', function (e) {
+                        e.preventDefault();
+                        selectedIds.add(item.id);
+                        refresh();
+                        renderDropdown(searchInput.value.trim());
+                        searchInput.focus();
+                    });
+                    dropdownList.appendChild(row);
+                });
+            }
+            dropdown.classList.remove('hidden');
+        }
+
+        function refresh() { renderChips(); renderHidden(); updateCount(); }
+
+        searchInput.addEventListener('input', function () { renderDropdown(searchInput.value.trim()); });
+        searchInput.addEventListener('focus', function () { renderDropdown(searchInput.value.trim()); });
+        searchInput.addEventListener('blur', function () { setTimeout(function () { dropdown.classList.add('hidden'); }, 160); });
+        selectAllBtn.addEventListener('click', function () {
+            items.forEach(function (i) { selectedIds.add(i.id); });
+            refresh(); dropdown.classList.add('hidden');
+        });
+        clearAllBtn.addEventListener('click', function () { selectedIds.clear(); refresh(); });
+        document.addEventListener('click', function (e) {
+            if (!mount.contains(e.target)) dropdown.classList.add('hidden');
+        });
+
+        if (formEl) {
+            formEl.addEventListener('submit', function (e) {
+                if (selectedIds.size === 0) {
+                    e.preventDefault();
+                    selectedArea.classList.add('border-red-400', 'dark:border-red-600');
+                    searchInput.focus();
+                    setTimeout(function () { selectedArea.classList.remove('border-red-400', 'dark:border-red-600'); }, 2000);
+                }
+            });
+        }
+
+        refresh();
+    }
+
+    var CLIENTS = {{ clients_json|safe }};
+    var STAFF   = {{ movable_staff_json|safe }};
+
+    var csMount = document.getElementById('cs-picker');
+    if (csMount) createPicker(CLIENTS, 'cs', csMount, 'clients', document.getElementById('clientsToStaffForm'));
+
+    var cbMount = document.getElementById('cb-picker');
+    if (cbMount) createPicker(CLIENTS, 'cb', cbMount, 'clients', document.getElementById('clientsToBranchForm'));
+
+    var sbMount = document.getElementById('sb-picker');
+    if (sbMount) createPicker(STAFF, 'sb', sbMount, 'staff', document.getElementById('staffToBranchForm'));
+})();
+</script>
+{% endblock %}
