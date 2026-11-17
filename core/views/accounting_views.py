@@ -1002,7 +1002,7 @@ def report_profit_loss(request):
     """
     Generate Profit & Loss Statement
 
-    Permissions: Admin and Director only.
+    Permissions: Admin, Director, HR, Manager (see PermissionChecker.can_view_profit_loss).
     """
     checker = PermissionChecker(request.user)
 

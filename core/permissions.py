@@ -257,7 +257,11 @@ class PermissionChecker:
     def can_view_reports(self):             return self.role in Permissions.CAN_VIEW_REPORTS
     def can_view_staff_reports(self):       return self.role in Permissions.CAN_VIEW_STAFF_REPORTS
     def can_view_financials(self):          return self.role in Permissions.CAN_VIEW_FINANCIALS
-    def can_view_profit_loss(self):         return self.role in (Roles.ADMIN, Roles.DIRECTOR, Roles.AUDITOR)
+    # Opened to HR and Manager on 2026-11-17 (previously Admin/Director/Auditor
+    # only) — management asked for HR and Manager to be able to view Profit &
+    # Loss, matching the access they already have to the Balance Sheet and
+    # PAR Aging reports.
+    def can_view_profit_loss(self):         return self.role in (Roles.ADMIN, Roles.DIRECTOR, Roles.HR, Roles.MANAGER, Roles.AUDITOR)
 
     # =========================================================================
     # CLIENT LIFECYCLE  ← core of this rewrite
