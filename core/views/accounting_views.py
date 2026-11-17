@@ -816,12 +816,12 @@ def journal_entry_reverse(request, entry_id):
     """
     Reverse a posted journal entry
 
-    Permissions: Director, Admin only
+    Permissions: HR, Director, Admin only (see PermissionChecker.can_reverse_journal_entries)
     """
     checker = PermissionChecker(request.user)
 
-    if not checker.is_admin_or_director():
-        messages.error(request, 'Only Directors and Administrators can reverse journal entries.')
+    if not checker.can_reverse_journal_entries():
+        messages.error(request, 'Only HR, Directors, and Administrators can reverse journal entries.')
         raise PermissionDenied
 
     journal = get_object_or_404(JournalEntry, id=entry_id)

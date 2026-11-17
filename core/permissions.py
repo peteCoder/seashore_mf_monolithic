@@ -127,6 +127,16 @@ class Permissions:
     # the POST regardless.
     CAN_ASSIGN_BRANCH_LEVEL   = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR]
 
+    # Reverse a posted journal entry or a completed transaction (2026-11-17).
+    # Deliberately narrower than is_admin_or_director() — that method also
+    # grants AUDITOR, since it's reused as a general VIEW gate across ~70
+    # other report/list pages. Reversal is a mutating action: AUDITOR's POST
+    # was already blocked by ReadOnlyAuditorMiddleware regardless, but this
+    # keeps them off the GET confirmation page too, so the enforced rule
+    # matches "only HR, Director, Admin can reverse journals" exactly,
+    # instead of relying on the middleware as the sole line of defence.
+    CAN_REVERSE_JOURNAL_ENTRIES = [Roles.ADMIN, Roles.DIRECTOR, Roles.HR]
+
 
 # =============================================================================
 # PERMISSION CHECKER
@@ -332,6 +342,12 @@ class PermissionChecker:
     def can_assign_branch_level(self):
         """Move clients or staff to a different branch in bulk. HR and above only."""
         return self.role in Permissions.CAN_ASSIGN_BRANCH_LEVEL
+
+    def can_reverse_journal_entries(self):
+        """Reverse a posted journal entry or a completed transaction. HR,
+        Director, Admin only — see CAN_REVERSE_JOURNAL_ENTRIES for why this
+        is deliberately narrower than is_admin_or_director()."""
+        return self.role in Permissions.CAN_REVERSE_JOURNAL_ENTRIES
 
     # =========================================================================
     # LOAN

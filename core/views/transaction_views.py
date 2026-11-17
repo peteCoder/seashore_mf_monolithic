@@ -80,10 +80,11 @@ def transaction_detail(request, transaction_id):
 def transaction_reverse(request, transaction_id):
     """
     Reverse a completed transaction.
-    Accessible to managers, admins, and directors only.
+    Accessible to HR, Directors, and Admins only (see
+    PermissionChecker.can_reverse_journal_entries).
     """
     checker = PermissionChecker(request.user)
-    if not checker.is_admin_or_director():
+    if not checker.can_reverse_journal_entries():
         raise PermissionDenied("Only HR, directors, and admins can reverse transactions.")
 
     txn = get_object_or_404(
