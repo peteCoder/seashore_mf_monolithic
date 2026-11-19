@@ -1,6 +1,8 @@
 """
 Shared form-level validators.
 """
+from datetime import timedelta
+
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
@@ -44,20 +46,33 @@ def restrict_branch_field_by_role(form, user, field_name='branch'):
 
 def enforce_no_backdating(user, date_value, field_label='this date'):
     """
-    Audit finding (2026-10-27): staff and managers could back-date a
-    transaction (loan repayment, savings deposit/withdrawal) to any past
-    date with no restriction. Only Admin/Director/HR may still choose a
-    date other than today — see PermissionChecker.can_backdate_transactions().
+    Policy (2026-11-19): a loan repayment or savings transaction (deposit or
+    withdrawal) may only be dated today, or yesterday if it is still before
+    12:00pm (noon) local time. Anything older, or any future date, is
+    rejected — for every role, with no override. This replaces the earlier
+    (2026-10-27) rule that gave Admin/Director/HR an unrestricted exemption.
 
     Call from a form's clean_<field>() or clean(). Silently does nothing if
-    user or date_value is missing (let the field's own required-ness / other
-    validation handle that).
+    date_value is missing (let the field's own required-ness handle that).
+    The `user` argument is accepted for call-site compatibility but no
+    longer affects the outcome — the window is the same for everyone.
     """
-    if date_value is None or user is None:
+    if date_value is None:
         return
-    from core.permissions import PermissionChecker
-    if date_value != timezone.now().date() and not PermissionChecker(user).can_backdate_transactions():
+    local_now = timezone.localtime(timezone.now())
+    today = local_now.date()
+    yesterday = today - timedelta(days=1)
+
+    if date_value == today:
+        return
+    if date_value == yesterday and local_now.hour < 12:
+        return
+
+    if date_value > today:
+        raise ValidationError(f"{field_label} cannot be a future date.")
+    if date_value == yesterday:
         raise ValidationError(
-            f"You can only use today's date for {field_label}. "
-            f"Back-dating requires Admin, Director, or HR."
+            f"{field_label} can only be back-dated to yesterday before 12pm. "
+            f"That cutoff has passed — please use today's date."
         )
+    raise ValidationError(f"{field_label} cannot be more than one day in the past.")

@@ -660,13 +660,12 @@ class BulkLoanRepaymentPostingForm(forms.Form):
                 else:
                     payment_date = self.cleaned_data.get('payment_date') or timezone.now().date()
 
-                if payment_date != timezone.now().date():
-                    from core.permissions import PermissionChecker
-                    if not (self.user and PermissionChecker(self.user).can_backdate_transactions()):
-                        errors.append(
-                            f"Line {i}: Only Admin, Director, or HR can use a date other than today"
-                        )
-                        continue
+                from core.forms.validators import enforce_no_backdating
+                try:
+                    enforce_no_backdating(self.user, payment_date, 'Payment date')
+                except ValidationError as exc:
+                    errors.append(f"Line {i}: {exc.messages[0]}")
+                    continue
 
                 parsed_repayments.append({
                     'loan': loan,

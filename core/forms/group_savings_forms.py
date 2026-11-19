@@ -172,6 +172,12 @@ class GroupSavingsWithdrawalForm(forms.ModelForm):
             }),
         }
 
+    def clean_withdrawal_date(self):
+        from core.forms.validators import enforce_no_backdating
+        withdrawal_date = self.cleaned_data.get('withdrawal_date')
+        enforce_no_backdating(None, withdrawal_date, 'Withdrawal Date')
+        return withdrawal_date
+
 
 class GroupSavingsWithdrawalApproveForm(forms.Form):
     DECISION_CHOICES = [

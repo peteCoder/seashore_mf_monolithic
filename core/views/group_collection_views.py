@@ -31,6 +31,7 @@ from core.models import (
     GroupCombinedSession, GroupCombinedLoanItem, GroupCombinedSavingsItem,
     LoanRepaymentPosting,
 )
+from core.forms.validators import enforce_no_backdating
 from core.permissions import PermissionChecker
 from core.services.notification_service import notify_role
 
@@ -257,9 +258,20 @@ def group_collection_post(request, group_id):
 
     total_amount_entered = request.POST.get('total_amount', '0').replace(',', '')
     payment_method = request.POST.get('payment_method', 'cash')
-    payment_date = request.POST.get('payment_date')
+    raw_payment_date = request.POST.get('payment_date')
     payment_reference = request.POST.get('payment_reference', '')
     notes = request.POST.get('notes', '')
+
+    try:
+        payment_date = _dt.date.fromisoformat(raw_payment_date) if raw_payment_date else timezone.now().date()
+    except ValueError:
+        messages.error(request, 'Invalid payment date.')
+        return redirect('core:group_collection_detail', group_id=group.id)
+    try:
+        enforce_no_backdating(request.user, payment_date, 'Payment date')
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0])
+        return redirect('core:group_collection_detail', group_id=group.id)
 
     try:
         total_amount_entered = Decimal(total_amount_entered)
@@ -420,8 +432,19 @@ def group_savings_collection_post(request, group_id):
 
     # Strip commas so users can enter "9,000" as well as "9000"
     total_amount_entered = request.POST.get('total_amount', '0').replace(',', '')
-    payment_date = request.POST.get('payment_date')
+    raw_payment_date = request.POST.get('payment_date')
     notes = request.POST.get('notes', '')
+
+    try:
+        payment_date = _dt.date.fromisoformat(raw_payment_date) if raw_payment_date else timezone.now().date()
+    except ValueError:
+        messages.error(request, 'Invalid payment date.')
+        return redirect('core:group_savings_collection', group_id=group.id)
+    try:
+        enforce_no_backdating(request.user, payment_date, 'Payment date')
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0])
+        return redirect('core:group_savings_collection', group_id=group.id)
 
     try:
         total_amount_entered = Decimal(total_amount_entered)
@@ -584,6 +607,12 @@ def group_collection_approve(request, session_id):
                 txn_date = session.collection_date
 
             if decision == 'approve':
+                # NOTE: deliberately no cutoff check on txn_date here — approval
+                # routinely happens days after submission and this date should
+                # reflect the original collection date, not "today or yesterday"
+                # as of the approval. The cutoff is enforced at submission time
+                # (group_collection_post), matching ApproveRepaymentPostingForm's
+                # established precedent for the individual posting flow.
                 items = session.items.select_related('loan', 'loan__client')
                 errors = []
 
@@ -730,6 +759,8 @@ def group_savings_collection_approve(request, session_id):
                 txn_date = session.collection_date
 
             if decision == 'approve':
+                # NOTE: deliberately no cutoff check on txn_date here — see
+                # the matching note in group_collection_approve above.
                 items = session.items.select_related('savings_account', 'client')
                 errors = []
 
@@ -874,9 +905,20 @@ def group_combined_collection_post(request, group_id):
         return redirect('core:group_combined_collection', group_id=group.id)
 
     payment_method = request.POST.get('payment_method', 'cash')
-    collection_date = request.POST.get('collection_date')
+    raw_collection_date = request.POST.get('collection_date')
     payment_reference = request.POST.get('payment_reference', '')
     notes = request.POST.get('notes', '')
+
+    try:
+        collection_date = _dt.date.fromisoformat(raw_collection_date) if raw_collection_date else timezone.now().date()
+    except ValueError:
+        messages.error(request, 'Invalid collection date.')
+        return redirect('core:group_combined_collection', group_id=group.id)
+    try:
+        enforce_no_backdating(request.user, collection_date, 'Collection date')
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0])
+        return redirect('core:group_combined_collection', group_id=group.id)
 
     # --- Collect loan items ---
     loan_items_data = []
@@ -1062,6 +1104,8 @@ def group_combined_collection_approve(request, session_id):
                 txn_date = session.collection_date
 
             if decision == 'approve':
+                # NOTE: deliberately no cutoff check on txn_date here — see
+                # the matching note in group_collection_approve above.
                 loan_items = session.loan_items.select_related('loan', 'client')
                 savings_items = session.savings_items.select_related('savings_account', 'client')
                 errors = []

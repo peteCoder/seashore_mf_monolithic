@@ -380,18 +380,6 @@ class PermissionChecker:
     def can_record_payment(self):
         return self.role in Permissions.CAN_RECORD_PAYMENTS
 
-    def can_backdate_transactions(self):
-        """
-        Audit finding (2026-10-27): staff could post/back-date a transaction
-        to any past date with no restriction. Only Admin/Director/HR may
-        still choose a date other than today when posting a repayment,
-        deposit, or withdrawal — Manager and Staff are locked to today.
-        (Matches is_admin_or_director(); kept as its own named method since
-        the two checks mean different things even though they're currently
-        the same set of roles.)
-        """
-        return self.is_admin_or_director()
-
     # =========================================================================
     # SAVINGS
     # =========================================================================

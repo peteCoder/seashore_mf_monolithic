@@ -31,6 +31,7 @@ from core.models import (
     ClientGroup, Client, GroupSavingsAccount, GroupSavingsPosting, GroupSavingsPostingItem,
     GroupSavingsWithdrawal, SavingsProduct,
 )
+from core.forms.validators import enforce_no_backdating
 from core.forms.group_savings_forms import (
     GroupSavingsAccountForm, GroupSavingsPostingApproveForm,
     GroupSavingsWithdrawalForm, GroupSavingsWithdrawalApproveForm,
@@ -306,11 +307,23 @@ def group_savings_post(request, account_id):
                 'recent_postings': recent_postings,
             })
 
-        import datetime as _dt
         try:
             collection_date = _dt.date.fromisoformat(collection_date_raw)
         except ValueError:
             messages.error(request, 'Invalid collection date.')
+            return render(request, 'groups/savings/posting_form.html', {
+                'page_title': f'Post Group Savings — {account.group.name}',
+                'account': account,
+                'members': members,
+                'checker': checker,
+                'today': timezone.now().date().isoformat(),
+                'recent_postings': recent_postings,
+            })
+
+        try:
+            enforce_no_backdating(request.user, collection_date, 'Collection date')
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
             return render(request, 'groups/savings/posting_form.html', {
                 'page_title': f'Post Group Savings — {account.group.name}',
                 'account': account,
@@ -436,6 +449,12 @@ def group_savings_posting_approve(request, posting_id):
             txn_date = raw_date or posting.collection_date
 
             if decision == 'approve':
+                # NOTE: deliberately no cutoff check on txn_date here — approval
+                # routinely happens days after submission and this date should
+                # reflect the original collection date, not "today or yesterday"
+                # as of the approval. The cutoff is enforced at submission time
+                # (group_savings_posting_create), matching ApproveRepaymentPostingForm's
+                # established precedent for the individual posting flow.
                 try:
                     txn = account.deposit(
                         amount=posting.total_amount,
@@ -626,6 +645,8 @@ def group_savings_withdrawal_approve(request, withdrawal_id):
             txn_date = raw_date or withdrawal.withdrawal_date
 
             if decision == 'approve':
+                # NOTE: deliberately no cutoff check on txn_date here — see
+                # the matching note in group_savings_posting_approve above.
                 try:
                     txn = account.withdraw(
                         amount=withdrawal.amount,
