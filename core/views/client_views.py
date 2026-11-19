@@ -76,7 +76,7 @@ def client_list(request):
     clients = checker.filter_clients(Client.objects.all())
 
     # Search form
-    search_form = ClientSearchForm(request.GET or None)
+    search_form = ClientSearchForm(request.GET or None, user=request.user)
 
     # Apply filters
     if search_form.is_valid():

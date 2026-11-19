@@ -484,6 +484,11 @@ class ClientSearchForm(forms.Form):
     Form for searching and filtering clients
     """
 
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from core.forms.validators import restrict_branch_field_by_role
+        restrict_branch_field_by_role(self, user)
+
     search = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={

@@ -15,6 +15,7 @@ from core.models import (
     ChartOfAccounts, JournalEntry, JournalEntryLine,
     Branch, Client, AccountType
 )
+from core.forms.validators import restrict_branch_field_by_role as _restrict_branch_field_to_own_branch
 
 
 # =============================================================================
@@ -75,6 +76,10 @@ class DateRangeForm(forms.Form):
 class TrialBalanceForm(DateRangeForm):
     """Form for Trial Balance report parameters"""
 
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        _restrict_branch_field_to_own_branch(self, user)
+
     branch = forms.ModelChoiceField(
         queryset=Branch.objects.filter(is_active=True),
         required=False,
@@ -118,6 +123,10 @@ class TrialBalanceForm(DateRangeForm):
 
 class ProfitLossForm(DateRangeForm):
     """Form for Profit & Loss Statement parameters"""
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        _restrict_branch_field_to_own_branch(self, user)
 
     branch = forms.ModelChoiceField(
         queryset=Branch.objects.filter(is_active=True),
@@ -164,6 +173,10 @@ class ProfitLossForm(DateRangeForm):
 
 class BalanceSheetForm(forms.Form):
     """Form for Balance Sheet parameters"""
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        _restrict_branch_field_to_own_branch(self, user)
 
     as_of_date = forms.DateField(
         required=False,
@@ -220,6 +233,10 @@ class BalanceSheetForm(forms.Form):
 class GeneralLedgerForm(DateRangeForm):
     """Form for General Ledger report parameters"""
 
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        _restrict_branch_field_to_own_branch(self, user)
+
     account = forms.ModelChoiceField(
         queryset=ChartOfAccounts.objects.filter(is_active=True).order_by('gl_code'),
         required=True,
@@ -260,6 +277,10 @@ class GeneralLedgerForm(DateRangeForm):
 
 class JournalEntrySearchForm(DateRangeForm):
     """Form for filtering journal entries"""
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        _restrict_branch_field_to_own_branch(self, user)
 
     journal_number = forms.CharField(
         required=False,

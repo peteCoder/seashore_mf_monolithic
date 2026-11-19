@@ -47,7 +47,7 @@ def group_list(request):
     groups = checker.filter_groups(ClientGroup.objects.all())
 
     # Search form
-    search_form = ClientGroupSearchForm(request.GET or None)
+    search_form = ClientGroupSearchForm(request.GET or None, user=request.user)
 
     # Apply filters
     if search_form.is_valid():

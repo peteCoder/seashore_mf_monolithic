@@ -53,7 +53,7 @@ def group_savings_account_list(request):
         GroupSavingsAccount.objects.select_related('group', 'branch', 'savings_product', 'created_by')
     )
 
-    search_form = GroupSavingsAccountSearchForm(request.GET or None)
+    search_form = GroupSavingsAccountSearchForm(request.GET or None, user=request.user)
 
     if search_form.is_valid():
         search = search_form.cleaned_data.get('search')

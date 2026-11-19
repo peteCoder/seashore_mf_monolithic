@@ -54,7 +54,7 @@ def savings_account_list(request):
     accounts = checker.filter_savings_accounts(accounts)
 
     # Search and filters
-    search_form = SavingsAccountSearchForm(request.GET)
+    search_form = SavingsAccountSearchForm(request.GET, user=request.user)
     if search_form.is_valid():
         search = search_form.cleaned_data.get('search')
         if search:
@@ -727,7 +727,7 @@ def savings_transaction_list(request):
     transaction_type = request.GET.get('type', 'all')  # all, deposit, withdrawal
     status_filter = request.GET.get('status', '')  # pending, approved, rejected
 
-    search_form = SavingsTransactionSearchForm(request.GET or None)
+    search_form = SavingsTransactionSearchForm(request.GET or None, user=request.user)
 
     # Get deposit postings
     deposit_postings = SavingsDepositPosting.objects.select_related(

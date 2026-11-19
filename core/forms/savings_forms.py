@@ -129,6 +129,11 @@ class SavingsAccountForm(forms.ModelForm):
 class SavingsAccountSearchForm(forms.Form):
     """Form for searching/filtering savings accounts"""
 
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from core.forms.validators import restrict_branch_field_by_role
+        restrict_branch_field_by_role(self, user)
+
     search = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
@@ -178,6 +183,11 @@ class SavingsAccountSearchForm(forms.Form):
 
 class SavingsTransactionSearchForm(forms.Form):
     """Form for searching/filtering the savings transaction posting list"""
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from core.forms.validators import restrict_branch_field_by_role
+        restrict_branch_field_by_role(self, user)
 
     search = forms.CharField(
         required=False,

@@ -22,6 +22,11 @@ SELECT_CLASS = TEXT_INPUT_CLASS
 class GroupSavingsAccountSearchForm(forms.Form):
     """Form for searching and filtering group savings accounts"""
 
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from core.forms.validators import restrict_branch_field_by_role
+        restrict_branch_field_by_role(self, user)
+
     search = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={

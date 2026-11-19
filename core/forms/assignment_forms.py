@@ -104,6 +104,49 @@ class AssignmentRequestForm(forms.Form):
         label='Reason',
     )
 
+    # Assignment types that move a client/group across branches — HR and
+    # above only (checker.can_assign_branch_level()). Removing them from
+    # .choices also blocks a tampered POST, since ChoiceField validates the
+    # submitted value against .choices.
+    BRANCH_LEVEL_TYPES = {'client_to_branch', 'bulk_clients_to_branch', 'group_to_branch'}
+
+    def __init__(self, *args, user=None, can_branch_level=False, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if not can_branch_level:
+            self.fields['assignment_type'].choices = [
+                (value, label) for value, label in self.ALL_TYPES
+                if value not in self.BRANCH_LEVEL_TYPES
+            ]
+            self.fields['target_branch'].queryset = Branch.objects.none()
+
+        role = getattr(user, 'user_role', None)
+        branch = getattr(user, 'branch', None)
+
+        if role == 'staff':
+            own_clients = Client.objects.filter(
+                is_active=True, approval_status='approved', assigned_staff=user,
+            ).select_related('branch')
+            self.fields['client'].queryset = own_clients
+            self.fields['clients'].queryset = own_clients
+        elif role == 'manager' and branch:
+            branch_clients = Client.objects.filter(
+                is_active=True, approval_status='approved', branch=branch,
+            ).select_related('branch')
+            self.fields['client'].queryset = branch_clients
+            self.fields['clients'].queryset = branch_clients
+
+        if role in ('manager', 'staff') and branch:
+            self.fields['target_staff'].queryset = User.objects.filter(
+                is_active=True, user_role__in=['staff', 'manager'], branch=branch,
+            ).order_by('first_name', 'last_name')
+            self.fields['target_group'].queryset = ClientGroup.objects.filter(
+                status='active', branch=branch,
+            ).select_related('branch').order_by('name')
+            self.fields['source_group'].queryset = ClientGroup.objects.filter(
+                status='active', branch=branch,
+            ).select_related('branch').order_by('name')
+
     def clean(self):
         cleaned = super().clean()
         atype = cleaned.get('assignment_type', '')

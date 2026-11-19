@@ -54,7 +54,7 @@ def loan_list(request):
     # Admin/Director see all
 
     # Search form
-    search_form = LoanSearchForm(request.GET or None)
+    search_form = LoanSearchForm(request.GET or None, user=request.user)
 
     # Apply filters
     if search_form.is_valid():

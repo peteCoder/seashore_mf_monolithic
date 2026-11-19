@@ -167,7 +167,15 @@ def chart_of_accounts_list(request):
     elif is_active == 'false':
         accounts = accounts.filter(is_active=False)
 
-    branch_filter = request.GET.get('branch')
+    # A manager is ALWAYS forced to their own branch, regardless of what
+    # was submitted. Previously there was no branch restriction at all
+    # here: a manager saw every branch-specific account mixed together,
+    # and the balance shown for every account (below) summed journal
+    # lines across ALL branches, not just theirs (2026-11-19).
+    if checker.is_manager():
+        branch_filter = str(request.user.branch_id) if request.user.branch_id else None
+    else:
+        branch_filter = request.GET.get('branch')
     if branch_filter:
         accounts = accounts.filter(Q(branch_id=branch_filter) | Q(branch__isnull=True))
 
@@ -175,6 +183,8 @@ def chart_of_accounts_list(request):
     accounts_with_balances = []
     for account in accounts.order_by('gl_code'):
         posted_lines = account.journal_lines.filter(journal_entry__status='posted')
+        if checker.is_manager():
+            posted_lines = posted_lines.filter(journal_entry__branch=request.user.branch)
         debit_total = posted_lines.aggregate(total=Sum('debit_amount'))['total'] or Decimal('0')
         credit_total = posted_lines.aggregate(total=Sum('credit_amount'))['total'] or Decimal('0')
 
@@ -194,7 +204,7 @@ def chart_of_accounts_list(request):
         'page_title': 'Chart of Accounts',
         'accounts': accounts_with_balances,
         'account_types': AccountType.TYPE_CHOICES,
-        'branches': Branch.objects.filter(is_active=True),
+        'branches': Branch.objects.filter(is_active=True) if checker.can_view_all_branches() else Branch.objects.none(),
         'total_accounts': len(accounts_with_balances),
         'q': q,
     }
@@ -538,7 +548,7 @@ def journal_entry_list(request):
         journals = journals.filter(branch=request.user.branch)
 
     # Search form
-    search_form = JournalEntrySearchForm(request.GET or None)
+    search_form = JournalEntrySearchForm(request.GET or None, user=request.user)
 
     if search_form.is_valid():
         journal_number = search_form.cleaned_data.get('journal_number')
@@ -899,13 +909,18 @@ def report_trial_balance(request):
         messages.error(request, 'You do not have permission to view financial reports.')
         raise PermissionDenied
 
-    form = TrialBalanceForm(request.GET or None)
+    form = TrialBalanceForm(request.GET or None, user=request.user)
     report_data = None
 
     if form.is_valid():
         date_from = form.cleaned_data['date_from']
         date_to = form.cleaned_data['date_to']
         branch = form.cleaned_data.get('branch')
+        # A manager sees only their own branch, regardless of what was
+        # submitted — the form's queryset already restricts the dropdown
+        # to their branch, but this is the real enforcement (2026-11-19).
+        if checker.is_manager():
+            branch = request.user.branch
         account_type = form.cleaned_data.get('account_type')
         show_zero_balances = form.cleaned_data.get('show_zero_balances', False)
 
@@ -1010,13 +1025,17 @@ def report_profit_loss(request):
         messages.error(request, 'You do not have permission to view the Profit & Loss statement.')
         raise PermissionDenied
 
-    form = ProfitLossForm(request.GET or None)
+    form = ProfitLossForm(request.GET or None, user=request.user)
     report_data = None
 
     if form.is_valid():
         date_from = form.cleaned_data['date_from']
         date_to = form.cleaned_data['date_to']
         branch = form.cleaned_data.get('branch')
+        # A manager sees only their own branch, regardless of what was
+        # submitted (2026-11-19) — see TrialBalanceForm for the full note.
+        if checker.is_manager():
+            branch = request.user.branch
 
         # Get income accounts (4000-4999)
         income_accounts = ChartOfAccounts.objects.filter(
@@ -1115,12 +1134,16 @@ def report_balance_sheet(request):
         messages.error(request, 'You do not have permission to view financial reports.')
         raise PermissionDenied
 
-    form = BalanceSheetForm(request.GET or None)
+    form = BalanceSheetForm(request.GET or None, user=request.user)
     report_data = None
 
     if form.is_valid():
         as_of_date = form.cleaned_data['as_of_date']
         branch = form.cleaned_data.get('branch')
+        # A manager sees only their own branch, regardless of what was
+        # submitted (2026-11-19) — see TrialBalanceForm for the full note.
+        if checker.is_manager():
+            branch = request.user.branch
 
         # Helper function to calculate account balance
         def calc_balance(account, as_of):
@@ -1246,7 +1269,7 @@ def report_general_ledger(request):
         messages.error(request, 'You do not have permission to view financial reports.')
         raise PermissionDenied
 
-    form = GeneralLedgerForm(request.GET or None)
+    form = GeneralLedgerForm(request.GET or None, user=request.user)
     report_data = None
 
     if form.is_valid():
@@ -1254,6 +1277,10 @@ def report_general_ledger(request):
         date_from = form.cleaned_data['date_from']
         date_to = form.cleaned_data['date_to']
         branch = form.cleaned_data.get('branch')
+        # A manager sees only their own branch, regardless of what was
+        # submitted (2026-11-19) — see TrialBalanceForm for the full note.
+        if checker.is_manager():
+            branch = request.user.branch
         show_running_balance = form.cleaned_data.get('show_running_balance', True)
 
         # Get journal lines for this account
@@ -1354,6 +1381,11 @@ def report_cash_flow(request):
                 journal_entry__status='posted',
                 journal_entry__transaction_date__range=[date_from, date_to]
             ).select_related('journal_entry').order_by('journal_entry__transaction_date')
+
+            # This report had no branch dimension at all — a manager always
+            # saw the whole company's cash flow (2026-11-19).
+            if checker.is_manager():
+                cash_lines = cash_lines.filter(journal_entry__branch=request.user.branch)
 
             # Categorize by transaction type
             operating_activities = []
@@ -1509,8 +1541,15 @@ def report_par_aging(request):
 
     today = timezone.now().date()
 
-    # Branch filter
-    branch_id = request.GET.get('branch')
+    # Branch filter. A manager is ALWAYS forced to their own branch,
+    # regardless of what was submitted — this report previously had no
+    # restriction at all, so any role could see every branch's PAR by
+    # default, and a manager could view another branch's PAR just by
+    # changing the URL (2026-11-19).
+    if checker.is_manager():
+        branch_id = str(request.user.branch_id) if request.user.branch_id else None
+    else:
+        branch_id = request.GET.get('branch')
     loans_qs = (
         Loan.objects.filter(status__in=['active', 'overdue'])
         .select_related('client', 'branch', 'loan_product')
@@ -1579,7 +1618,7 @@ def report_par_aging(request):
     par_balance = total_balance - summary['current']['balance']
     par_ratio = round(float(par_balance) / float(total_balance) * 100, 1) if total_balance else 0
 
-    branches = Branch.objects.filter(is_active=True).order_by('name')
+    branches = Branch.objects.filter(is_active=True).order_by('name') if checker.can_view_all_branches() else Branch.objects.none()
 
     context = {
         'page_title': 'Portfolio at Risk (PAR) Aging Report',
@@ -1637,12 +1676,16 @@ def report_loan_officer_performance(request):
         df = today.replace(day=1)
         dt = today
 
-    # Which staff users to include
+    # Which staff users to include. A manager is ALWAYS forced to their own
+    # branch, regardless of what was submitted — previously `branch_id`
+    # from the URL overrode the manager restriction entirely, letting a
+    # manager see another branch's officer performance just by changing
+    # the query string (2026-11-19).
     staff_qs = User.objects.filter(user_role='staff', is_active=True).select_related('branch')
-    if branch_id:
-        staff_qs = staff_qs.filter(branch_id=branch_id)
-    elif checker.is_manager():
+    if checker.is_manager():
         staff_qs = staff_qs.filter(branch=request.user.branch)
+    elif branch_id:
+        staff_qs = staff_qs.filter(branch_id=branch_id)
 
     officers = []
     for officer in staff_qs:
@@ -1706,7 +1749,7 @@ def report_loan_officer_performance(request):
         'overdue_loans':    sum(r['overdue_loans']    for r in officers),
     }
 
-    branches = Branch.objects.filter(is_active=True).order_by('name')
+    branches = Branch.objects.filter(is_active=True).order_by('name') if checker.can_view_all_branches() else Branch.objects.none()
 
     context = {
         'page_title':      'Loan Officer Performance Report',
@@ -1763,10 +1806,13 @@ def report_savings_maturity(request):
         .order_by('maturity_date')
     )
 
-    if branch_id:
-        qs = qs.filter(branch_id=branch_id)
-    elif checker.is_manager():
+    # A manager is ALWAYS forced to their own branch, regardless of what
+    # was submitted — see report_loan_officer_performance for the full
+    # note on why the order matters (2026-11-19).
+    if checker.is_manager():
         qs = qs.filter(branch=request.user.branch)
+    elif branch_id:
+        qs = qs.filter(branch_id=branch_id)
 
     # Annotate with days_remaining and band
     overdue    = []
@@ -1797,7 +1843,7 @@ def report_savings_maturity(request):
 
     total_balance = sum(a['account'].balance for a in accounts)
 
-    branches = Branch.objects.filter(is_active=True).order_by('name')
+    branches = Branch.objects.filter(is_active=True).order_by('name') if checker.can_view_all_branches() else Branch.objects.none()
 
     context = {
         'page_title':      'Savings Maturity Report',
@@ -1869,11 +1915,15 @@ def report_loan_repayments(request):
         transaction_date__date__lte=dt,
     ).select_related('client', 'loan', 'branch', 'processed_by').order_by('-transaction_date')
 
-    if branch_id:
-        repayments = repayments.filter(branch_id=branch_id)
-    elif checker.is_manager():
-        # Branch-scoped manager sees only their own branch by default
+    # A manager is ALWAYS forced to their own branch, regardless of what
+    # was submitted — "by default" below used to be false whenever a
+    # branch_id was present, since that branch took priority over the
+    # manager restriction instead of being validated against it
+    # (2026-11-19).
+    if checker.is_manager():
         repayments = repayments.filter(branch=request.user.branch)
+    elif branch_id:
+        repayments = repayments.filter(branch_id=branch_id)
 
     if search:
         repayments = repayments.filter(
@@ -1898,7 +1948,7 @@ def report_loan_repayments(request):
     display_rows = list(repayments[:DISPLAY_LIMIT])
     truncated = count > DISPLAY_LIMIT
 
-    branches = Branch.objects.filter(is_active=True).order_by('name')
+    branches = Branch.objects.filter(is_active=True).order_by('name') if checker.can_view_all_branches() else Branch.objects.none()
 
     context = {
         'page_title':      'Loan Repayments — Principal vs Interest',

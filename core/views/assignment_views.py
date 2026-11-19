@@ -78,8 +78,10 @@ def assignment_create(request):
         for c in clients_qs
     ])
 
+    can_branch_level = checker.can_assign_branch_level()
+
     if request.method == 'POST':
-        form = AssignmentRequestForm(request.POST)
+        form = AssignmentRequestForm(request.POST, user=request.user, can_branch_level=can_branch_level)
         selected_ids = json.dumps(request.POST.getlist('clients'))
         if form.is_valid():
             data = form.build_assignment_data()
@@ -117,7 +119,7 @@ def assignment_create(request):
             )
             return redirect('core:assignment_detail', request_id=req.id)
     else:
-        form = AssignmentRequestForm()
+        form = AssignmentRequestForm(user=request.user, can_branch_level=can_branch_level)
         selected_ids = '[]'
 
     return render(request, 'assignments/form.html', {
